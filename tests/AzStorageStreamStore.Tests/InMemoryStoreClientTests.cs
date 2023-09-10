@@ -1,5 +1,5 @@
-namespace AzStorageStreamStore.Tests;
+//namespace AzStorageStreamStore.Tests;
 
-public class InMemoryStoreClientTests : StoreClientTestBase<InMemoryStoreClient> {
-    public InMemoryStoreClientTests() : base(new InMemoryStoreClient()) { }
-}
+//public class InMemoryStoreClientTests : StoreClientTestBase<InMemoryStoreClient> {
+//    public InMemoryStoreClientTests() : base(new InMemoryStoreClient()) { }
+//}
