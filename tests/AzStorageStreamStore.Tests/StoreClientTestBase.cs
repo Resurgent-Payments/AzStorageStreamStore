@@ -11,7 +11,7 @@ public class StoreClientTestBase {
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
 
     public StoreClientTestBase() {
-        _storeClient = new InMemoryStoreClient();
+        _storeClient = new LocalStoreClient();
         _storeClient.InitializeAsync().GetAwaiter().GetResult();
         _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }).GetAwaiter().GetResult();
     }

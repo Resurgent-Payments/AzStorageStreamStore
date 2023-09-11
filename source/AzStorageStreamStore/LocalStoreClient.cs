@@ -3,7 +3,7 @@ namespace AzStorageStreamStore;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 
-public class InMemoryStoreClient : IStoreClient {
+public class LocalStoreClient : IStoreClient {
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
     //$all stream
@@ -32,7 +32,7 @@ public class InMemoryStoreClient : IStoreClient {
 
     private Task _streamWriterTask;
 
-    public InMemoryStoreClient() {
+    public LocalStoreClient() {
         _eventWriter = Channel.CreateUnbounded<Work>(new UnboundedChannelOptions {
             AllowSynchronousContinuations = false,
             SingleWriter = false,
