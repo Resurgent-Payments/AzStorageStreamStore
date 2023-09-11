@@ -1,3 +1,5 @@
+namespace AzStorageStreamStore;
+
 using System.Collections;
 
 /// <summary>
@@ -5,8 +7,8 @@ using System.Collections;
 /// </summary>
 /// <param name="Categories"></param>
 public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
-    public static bool operator ==(StreamKey key, StreamId id) => id.Equals(key);
-    public static bool operator !=(StreamKey key, StreamId id) => !id.Equals(key);
+    public static bool operator ==(StreamKey key, StreamId id) => id == key;
+    public static bool operator !=(StreamKey key, StreamId id) => !(key == id);
 
     public override int GetHashCode() {
         var hash = new HashCode();
@@ -17,12 +19,12 @@ public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
     }
 
     public virtual bool Equals(StreamKey? other) {
-        if (ReferenceEquals(null, other))
+        if (other is null)
             return false;
 
         if (Categories.Length > other.Categories.Length) return false;
 
-        for (int i = 0; i < Categories.Length; i++) {
+        for (var i = 0; i < Categories.Length; i++) {
             if (!Categories[i].Equals(other.Categories[i]))
                 return false;
         }
@@ -36,10 +38,10 @@ public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
 
     private class Enumerator : IEnumerator<StreamKey> {
         private int _index = 0;
-        string[] _allKeys;
+        private readonly string[] _allKeys;
 
         public Enumerator(IEnumerable<string> allKeys) {
-            if (allKeys.Count() < 1) throw new ArgumentException("Cannot enumerate.  Need at least one key.");
+            if (!allKeys.Any()) throw new ArgumentException("Cannot enumerate.  Need at least one key.");
             _allKeys = allKeys.ToArray();
         }
 
@@ -48,7 +50,7 @@ public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
         object IEnumerator.Current => Current;
 
         public bool MoveNext() {
-            if (_index >= _allKeys.Length) return false;
+            if (_index > _allKeys.Length) return false;
 
             _index += 1;
             Current = new StreamKey(_allKeys.Take(_index).ToArray());

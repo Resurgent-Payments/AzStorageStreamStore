@@ -3,7 +3,7 @@ namespace AzStorageStreamStore;
 using System.Collections;
 
 public class SinglyLinkedList<T> : IEnumerable<T> where T : class {
-    ListItem<T> _headNode;
+    private ListItem<T> _headNode;
 
     public SinglyLinkedList() {
 
@@ -17,7 +17,7 @@ public class SinglyLinkedList<T> : IEnumerable<T> where T : class {
 
     public T this[long index] {
         get {
-            if ((Length < index) || index < 0) throw new ArgumentOutOfRangeException();
+            if ((Length < index) || index < 0) throw new ArgumentOutOfRangeException(nameof(index));
 
             long pos = -1;
 
@@ -64,14 +64,14 @@ public class SinglyLinkedList<T> : IEnumerable<T> where T : class {
     public IEnumerator<T> GetEnumerator() => new Enumerator(_headNode);
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    class ListItem<T> {
+    private class ListItem<T> {
         public ListItem<T> Next { get; set; }
         public T Item { get; set; }
     }
 
     private class Enumerator : IEnumerator<T> {
         private readonly ListItem<T> _headNode;
-        ListItem<T> _current;
+        private ListItem<T> _current;
 
         public Enumerator(ListItem<T> headNode) {
             _headNode = headNode;

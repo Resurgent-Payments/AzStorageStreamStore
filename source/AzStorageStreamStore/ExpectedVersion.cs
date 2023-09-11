@@ -9,7 +9,7 @@ public class ExpectedVersion {
 
 
     public static implicit operator long(ExpectedVersion v) => v.Value;
-    public static implicit operator ExpectedVersion(long value) => new ExpectedVersion { Value = value };
+    public static implicit operator ExpectedVersion(long value) => new() { Value = value };
     public override string ToString() => Value.ToString();
     public override int GetHashCode() => Value.GetHashCode();
 }

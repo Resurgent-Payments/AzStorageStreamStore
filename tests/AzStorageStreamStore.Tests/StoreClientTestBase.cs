@@ -1,8 +1,9 @@
 namespace AzStorageStreamStore.Tests;
 
 using System;
-using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
+
+using AzStorageStreamStore;
 
 using Xunit;
 
@@ -12,8 +13,8 @@ public class StoreClientTestBase {
 
     public StoreClientTestBase() {
         _storeClient = new LocalStoreClient();
-        _storeClient.InitializeAsync().GetAwaiter().GetResult();
-        _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }).GetAwaiter().GetResult();
+        AsyncHelper.RunSync(async () => await _storeClient.InitializeAsync());
+        AsyncHelper.RunSync(async () => await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));
     }
 
     [Theory]
@@ -22,7 +23,7 @@ public class StoreClientTestBase {
     public async Task Can_append_a_single_event(long version) {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
-        StreamId id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
         var e = new EventData(id, eventId, Array.Empty<byte>());
 
@@ -30,7 +31,7 @@ public class StoreClientTestBase {
 
         Assert.True(writeResult.Successful);
 
-        var events = await _storeClient.ReadStreamAsync((StreamKey)id).ToListAsync();
+        var events = await _storeClient.ReadStreamAsync(id).ToListAsync();
         Assert.Single(events);
         Assert.Equal(id, events.First().Key);
         Assert.Equal(eventId, e.EventId);
@@ -40,7 +41,7 @@ public class StoreClientTestBase {
     public async Task Cannot_append_when_a_stream_exists() {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
-        StreamId id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
         var e = new EventData(id, eventId, Array.Empty<byte>());
 
@@ -54,7 +55,7 @@ public class StoreClientTestBase {
     public async Task Appending_a_second_time_succeeds_as_a_noop() {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
-        StreamId id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
         var e = new EventData(id, eventId, Array.Empty<byte>());
 
@@ -70,13 +71,15 @@ public class StoreClientTestBase {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId1 = Guid.NewGuid();
         var eventId2 = Guid.NewGuid();
-        StreamId id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var eventId3 = Guid.NewGuid();
+        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
         var e1 = new EventData(id, eventId1, Array.Empty<byte>());
         var e2 = new EventData(id, eventId2, Array.Empty<byte>());
+        var e3 = new EventData(id, eventId3, Array.Empty<byte>());
 
         var writeResult1 = await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e1, e2 });
-        var writeResult2 = await _storeClient.AppendToStreamAsync(_loadedStreamId, writeResult1.Version, new[] { e1 });
+        var writeResult2 = await _storeClient.AppendToStreamAsync(_loadedStreamId, writeResult1.Version, new[] { e2, e3 });
 
         Assert.True(writeResult1.Successful);
         Assert.False(writeResult2.Successful);
@@ -88,7 +91,7 @@ public class StoreClientTestBase {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId1 = Guid.NewGuid();
         var eventId2 = Guid.NewGuid();
-        StreamId id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
         var e1 = new EventData(id, eventId1, Array.Empty<byte>());
         var e2 = new EventData(id, eventId2, Array.Empty<byte>());
@@ -108,7 +111,7 @@ public class StoreClientTestBase {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId1 = Guid.NewGuid();
         var eventId2 = Guid.NewGuid();
-        StreamId id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
         var e1 = new EventData(id, eventId1, Array.Empty<byte>());
         var e2 = new EventData(id, eventId2, Array.Empty<byte>());
@@ -129,17 +132,17 @@ public class StoreClientTestBase {
     public async Task Can_read_a_stream_by_stream_key() {
         var tenantId = Guid.NewGuid().ToString("N");
 
-        StreamId id = new StreamId(tenantId, Guid.NewGuid().ToString());
-        StreamId id2 = new StreamId(tenantId, Guid.NewGuid().ToString());
-        StreamId id3 = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id1 = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id2 = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id3 = new StreamId(tenantId, Guid.NewGuid().ToString());
 
         var key = new StreamKey(new[] { tenantId });
 
-        var e1 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e1 = new EventData(id1, Guid.NewGuid(), Array.Empty<byte>());
         var e2 = new EventData(id2, Guid.NewGuid(), Array.Empty<byte>());
         var e3 = new EventData(id3, Guid.NewGuid(), Array.Empty<byte>());
 
-        await _storeClient.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1 });
+        await _storeClient.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e1 });
         await _storeClient.AppendToStreamAsync(id2, ExpectedVersion.Any, new[] { e2 });
         await _storeClient.AppendToStreamAsync(id3, ExpectedVersion.Any, new[] { e3 });
 
@@ -151,7 +154,7 @@ public class StoreClientTestBase {
     [Fact]
     public async Task Attempting_to_read_a_nonexistent_stream_by_id_should_throw_stream_does_not_exist_exception() {
         var id = new StreamId(Guid.NewGuid().ToString(), Guid.NewGuid().ToString());
-        Assert.Throws<StreamDoesNotExistException>(() => _storeClient.ReadStreamAsync(id).ToListAsync().GetAwaiter().GetResult());
+        Assert.Throws<StreamDoesNotExistException>(() => AsyncHelper.RunSync(async () => await _storeClient.ReadStreamAsync(id).ToListAsync()));
     }
 
     [Fact]
@@ -164,9 +167,9 @@ public class StoreClientTestBase {
     [Fact]
     public async Task Can_subscribe_to_all_stream() {
         var events = new List<RecordedEvent>();
-        ManualResetEventSlim _mres = new ManualResetEventSlim(false);
+        var _mres = new ManualResetEventSlim(false);
 
-        _storeClient.SubscribeToAll(x => {
+        await _storeClient.SubscribeToAllAsync(x => {
             events.Add(x);
             _mres.Set();
         });
@@ -192,11 +195,11 @@ public class StoreClientTestBase {
         var _mres1 = new ManualResetEventSlim(false);
         var _mres2 = new ManualResetEventSlim(false);
 
-        _storeClient.SubscribeToAll(x => {
+        await _storeClient.SubscribeToAllAsync(x => {
             events.Add(x);
             _mres1.Set();
         });
-        _storeClient.SubscribeToAll(x => {
+        await _storeClient.SubscribeToAllAsync(x => {
             events.Add(x);
             _mres2.Set();
         });
@@ -220,9 +223,9 @@ public class StoreClientTestBase {
     [Fact]
     public async Task Can_remove_an_allstream_subscription_via_returned_idsposable() {
         var events = new List<RecordedEvent>();
-        ManualResetEventSlim _mres = new ManualResetEventSlim(false);
+        var _mres = new ManualResetEventSlim(false);
 
-        var disposer = _storeClient.SubscribeToAll(x => {
+        var disposer = await _storeClient.SubscribeToAllAsync(x => {
             events.Add(x);
             _mres.Set();
         });
@@ -248,16 +251,16 @@ public class StoreClientTestBase {
         var _mres1 = new ManualResetEventSlim(false);
         var _mres2 = new ManualResetEventSlim(false);
 
-        _storeClient.SubscribeToAll(x => {
+        await _storeClient.SubscribeToAllAsync(x => {
             events.Add(x);
             _mres1.Set();
         });
 
         // create and immedialy dispose to loop the subscription/disposal pipeline.
-        _storeClient.SubscribeToAll(x => {
+        (await _storeClient.SubscribeToAllAsync(x => {
             events.Add(x);
             _mres2.Set();
-        }).Dispose();
+        })).Dispose();
 
         var key = new StreamId("test", "stream");
 
@@ -289,28 +292,24 @@ public class StoreClientTestBase {
         Assert.True(writeResult.Successful);
 
         var mre = new ManualResetEventSlim(false);
-        var waitingToSet = 1;
+        var waitingToSet = 4;
         var numberOfEvents = 0;
-        var subscription = await _storeClient.SubscribeToStreamFromAsync(2, id1, e => {
+        var subscription = await _storeClient.SubscribeToStreamFromAsync(1, id1, e => {
+            if (numberOfEvents >= waitingToSet) return;
+
             events.Add(e);
             numberOfEvents += 1;
+            
             if (numberOfEvents >= waitingToSet) {
                 mre.Set();
             }
         });
 
-        mre.Wait(1000);
-
-        Assert.Single(events);
-
-        mre.Reset();
-        numberOfEvents = 0;
-        waitingToSet = 1;
         await _storeClient.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
 
-        mre.Wait(1000);
-        Assert.Equal(2, events.Count);
+        mre.Wait(200);
 
+        Assert.Equal(4, events.Count);
     }
 
     [Fact]

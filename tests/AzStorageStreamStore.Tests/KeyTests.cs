@@ -1,5 +1,7 @@
 namespace AzStorageStreamStore.Tests;
 
+using AzStorageStreamStore;
+
 using Xunit;
 
 public class KeyTests {
