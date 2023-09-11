@@ -12,6 +12,6 @@ public interface IStoreClient : IDisposable {
     IDisposable SubscribeToAll(Action<RecordedEvent> eventHandler);
     IDisposable SubscribeToAllFrom(long position, Action<RecordedEvent> eventHandler);
     IDisposable SubscribeToStream(StreamKey key, Action<RecordedEvent> eventHandler);
-    IDisposable SubscribeToStreamFrom(long position, StreamKey key, Action<RecordedEvent> eventHandler);
+    Task<IDisposable> SubscribeToStreamFromAsync(long position, StreamKey key, Action<RecordedEvent> eventHandler);
 
 }

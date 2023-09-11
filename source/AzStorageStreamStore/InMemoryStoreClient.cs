@@ -26,7 +26,7 @@ public class InMemoryStoreClient : IStoreClient {
 
     // can this be done via TPL?
     private ConcurrentBag<Action<RecordedEvent>> _subscriptions = new();
-    private readonly ConcurrentDictionary<StreamKey, ConcurrentBag<Action<RecordedEvent>>> _streamSubscriptions = new();
+    private readonly Dictionary<StreamKey, ConcurrentBag<Action<RecordedEvent>>> _streamSubscriptions = new();
 
     private long _position = -1;
 
@@ -36,7 +36,7 @@ public class InMemoryStoreClient : IStoreClient {
         _eventWriter = Channel.CreateUnbounded<Work>(new UnboundedChannelOptions {
             AllowSynchronousContinuations = false,
             SingleWriter = false,
-            SingleReader = false
+            SingleReader = true // should only be the internal message pump here.
         });
         _streamWriterTask = Task.Factory.StartNew(RecordEventsImplAsync);
         _publisher = Channel.CreateUnbounded<RecordedEvent>(new UnboundedChannelOptions {
@@ -119,11 +119,11 @@ public class InMemoryStoreClient : IStoreClient {
         );
     }
 
-    public IDisposable SubscribeToStreamFrom(long position, StreamKey key, Action<RecordedEvent> eventHandler) {
+    public Task<IDisposable> SubscribeToStreamFromAsync(long position, StreamKey key, Action<RecordedEvent> eventHandler) {
         // build subscription for specific stream.
         if (!_streamSubscriptions.TryGetValue(key, out var bag)) {
             bag = new();
-            _streamSubscriptions.TryAdd(key, bag);
+            _streamSubscriptions.Add(key, bag);
         }
 
         if (_categories.TryGetValue(key, out var stream)) {
@@ -134,12 +134,13 @@ public class InMemoryStoreClient : IStoreClient {
 
         bag.Add(eventHandler);
 
-        return new StreamDisposer(() =>
+        return Task.FromResult<IDisposable>(new StreamDisposer(() => {
             Interlocked.Exchange(
                 ref bag,
                 new ConcurrentBag<Action<RecordedEvent>>(bag.Except(new[] { eventHandler }))
-            )
-        );
+            );
+            _streamSubscriptions[key] = bag;
+        }));
     }
 
     private async Task RecordEventsImplAsync() {

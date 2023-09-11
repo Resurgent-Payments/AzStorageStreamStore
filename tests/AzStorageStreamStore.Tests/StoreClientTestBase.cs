@@ -1,6 +1,7 @@
 namespace AzStorageStreamStore.Tests;
 
 using System;
+using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
 
 using Xunit;
@@ -272,5 +273,106 @@ public class StoreClientTestBase {
         _mres2.Wait(100);
 
         Assert.Single(events);
+    }
+
+    [Fact]
+    public async Task Can_subscribe_to_a_stream_from_a_given_position() {
+        var id1 = new StreamId("Tenant", "stream");
+        var e1 = new EventData(id1, Guid.NewGuid(), Array.Empty<byte>());
+        var e2 = new EventData(id1, Guid.NewGuid(), Array.Empty<byte>());
+        var e3 = new EventData(id1, Guid.NewGuid(), Array.Empty<byte>());
+        var e4 = new EventData(id1, Guid.NewGuid(), Array.Empty<byte>());
+
+        var events = new List<RecordedEvent>();
+
+        var writeResult = await _storeClient.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
+        Assert.True(writeResult.Successful);
+
+        var mre = new ManualResetEventSlim(false);
+        var waitingToSet = 1;
+        var numberOfEvents = 0;
+        var subscription = await _storeClient.SubscribeToStreamFromAsync(2, id1, e => {
+            events.Add(e);
+            numberOfEvents += 1;
+            if (numberOfEvents >= waitingToSet) {
+                mre.Set();
+            }
+        });
+
+        mre.Wait(1000);
+
+        Assert.Single(events);
+
+        mre.Reset();
+        numberOfEvents = 0;
+        waitingToSet = 1;
+        await _storeClient.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
+
+        mre.Wait(1000);
+        Assert.Equal(2, events.Count);
+
+    }
+
+    [Fact]
+    public async Task Can_dispose_a_subscription_from_a_given_position() {
+        var id = new StreamId("some", "stream");
+        var key = new StreamKey(new[] { "some" });
+        var e1 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e2 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e3 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e4 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+
+        var events = new List<RecordedEvent>();
+
+        var mre = new ManualResetEventSlim(false);
+        var waitingToSet = 1;
+        var numberOfEvents = 0;
+
+        (await _storeClient.SubscribeToStreamFromAsync(2, key, e => {
+            events.Add(e);
+            numberOfEvents += 1;
+            if (numberOfEvents >= waitingToSet) {
+                mre.Set();
+            }
+        })).Dispose();
+
+        var writeResult = await _storeClient.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
+        Assert.True(writeResult.Successful);
+
+        mre.Wait(100);
+        Assert.Empty(events);
+    }
+
+    [Fact]
+    public async Task Disposing_of_a_subscription_from_a_given_position_does_not_affect_other_instances_of_same() {
+        var id = new StreamId("some", "stream");
+        var key = new StreamKey(new[] { "some" });
+        var e1 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e2 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e3 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e4 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+
+        var events = new List<RecordedEvent>();
+
+        var mre = new ManualResetEventSlim(false);
+        var waitingToSet = 4;
+        var numberOfEvents = 0;
+
+        (await _storeClient.SubscribeToStreamFromAsync(2, key, e => {
+            // nothing to do
+        })).Dispose();
+        await _storeClient.SubscribeToStreamFromAsync(2, key, e => {
+            events.Add(e);
+            numberOfEvents += 1;
+            if (numberOfEvents >= waitingToSet) {
+                mre.Set();
+            }
+        });
+
+        var writeResult = await _storeClient.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
+        Assert.True(writeResult.Successful);
+
+        mre.Wait(100);
+        Assert.Equal(4, events.Count);
     }
 }
