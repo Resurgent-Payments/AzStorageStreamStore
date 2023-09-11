@@ -3,7 +3,7 @@ namespace AzStorageStreamStore;
 using System.Linq;
 using System.Threading.Channels;
 
-public class InMemoryPersister : IDisposable {
+public class InMemoryPersister : IPersister {
     private long _position = -1;
 
     private readonly CancellationTokenSource _cts = new();
