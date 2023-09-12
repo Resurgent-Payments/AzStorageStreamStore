@@ -3,13 +3,13 @@ namespace AzStorageStreamStore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public class LocalDiskDurablePersisterOptions {
+public class SingleTenantOnDiskPersisterOptions {
     public string BaseDataPath { get; set; }
     public int FileReadBlockSize { get; set; } = 4096;
     public JsonSerializerOptions JsonOptions { get; set; }
     public IList<JsonConverter> JsonConverters { get; set; } = new List<JsonConverter>();
 
-    public LocalDiskDurablePersisterOptions() {
+    public SingleTenantOnDiskPersisterOptions() {
         JsonOptions = new JsonSerializerOptions() {
             IgnoreReadOnlyFields = true,
             IgnoreReadOnlyProperties = true,

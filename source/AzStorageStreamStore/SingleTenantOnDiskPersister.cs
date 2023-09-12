@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 
 public class SingleTenantOnDiskPersister : IPersister {
     private readonly CancellationTokenSource _tokenSource = new();
-    private readonly LocalDiskDurablePersisterOptions _options;
+    private readonly SingleTenantOnDiskPersisterOptions _options;
     private string _chunkFile => Path.Combine(_options.BaseDataPath, "chunk.dat");
     private Channel<PossibleWalEntry> _walWriter = Channel.CreateUnbounded<PossibleWalEntry>(new UnboundedChannelOptions {
         SingleReader = true,
@@ -22,7 +22,7 @@ public class SingleTenantOnDiskPersister : IPersister {
         SingleWriter = true
     });
 
-    public SingleTenantOnDiskPersister(IOptions<LocalDiskDurablePersisterOptions> options) {
+    public SingleTenantOnDiskPersister(IOptions<SingleTenantOnDiskPersisterOptions> options) {
         _options = options.Value ?? new();
         _tokenSource.Token.Register(() => _walWriter.Writer.Complete());
         _tokenSource.Token.Register(() => _allStream.Writer.Complete());
