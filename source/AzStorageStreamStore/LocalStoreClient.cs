@@ -8,7 +8,8 @@ public class LocalStoreClient : IStoreClient {
     private readonly InMemoryPersister _inMemoryPersister = new();
 
     private ConcurrentBag<Action<RecordedEvent>> _subscriptions = new();
-    private readonly Dictionary<StreamKey, ConcurrentBag<Action<RecordedEvent>>> _streamSubscriptions = new();
+    private readonly Dictionary<StreamKey, ConcurrentBag<Action<RecordedEvent>>> _streamKeySubscriptions = new();
+    private readonly Dictionary<StreamId, ConcurrentBag<Action<RecordedEvent>>> _streamIdSubscriptions = new();
 
     public Task InitializeAsync() {
         // holds the task that manages pumping events from the _publisher stream to all handlers.
@@ -17,76 +18,92 @@ public class LocalStoreClient : IStoreClient {
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events)
         => _inMemoryPersister.WriteAsync(key, version, events);
 
+    /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
         => _inMemoryPersister.ReadAsync(key);
 
+    /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
         => _inMemoryPersister.ReadAsync(id);
 
-    public Task<IDisposable> SubscribeToAllAsync(Action<RecordedEvent> eventHandler) {
-        _subscriptions.Add(eventHandler);
+    /// <inheritdoc />
+    public Task<IDisposable> SubscribeToAllAsync(Action<RecordedEvent> handler) {
+        _subscriptions.Add(handler);
         return Task.FromResult<IDisposable>(
             new StreamDisposer(() =>
             Interlocked.Exchange(
                 ref _subscriptions,
-                new ConcurrentBag<Action<RecordedEvent>>(_subscriptions.Except(new[] { eventHandler }))))
+                new ConcurrentBag<Action<RecordedEvent>>(_subscriptions.Except(new[] { handler }))))
         );
     }
 
-    public async Task<IDisposable> SubscribeToAllFromAsync(long position, Action<RecordedEvent> eventHandler) {
+    /// <inheritdoc />
+    public async Task<IDisposable> SubscribeToAllFromAsync(long position, Action<RecordedEvent> handler) {
         await foreach (var @event in _inMemoryPersister.ReadAllAsync(position)) {
-            eventHandler.Invoke(@event);
+            handler.Invoke(@event);
         }
         return new StreamDisposer(() =>
             Interlocked.Exchange(
                 ref _subscriptions,
-                new ConcurrentBag<Action<RecordedEvent>>(_subscriptions.Except(new[] { eventHandler }))));
+                new ConcurrentBag<Action<RecordedEvent>>(_subscriptions.Except(new[] { handler }))));
     }
 
-    public async Task<IDisposable> SubscribeToStreamAsync(StreamKey key, Action<RecordedEvent> eventHandler) {
+    /// <inheritdoc />
+    public Task<IDisposable> SubscribeToStreamAsync(StreamKey key, Action<RecordedEvent> handler)
+        => SubscribeToStreamFromAsync(key, 0, handler);
+
+    /// <inheritdoc />
+    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamKey key, long revision, Action<RecordedEvent> handler) {
         // build subscription for specific stream.
-        if (!_streamSubscriptions.TryGetValue(key, out var bag)) {
+        if (!_streamKeySubscriptions.TryGetValue(key, out var bag)) {
             bag = new();
-            _streamSubscriptions.TryAdd(key, bag);
+            _streamKeySubscriptions.Add(key, bag);
         }
 
-        await foreach (var @event in _inMemoryPersister.ReadAsync(key)) {
-            eventHandler.Invoke(@event);
-        }
-
-        bag.Add(eventHandler);
-
-        return new StreamDisposer(() =>
-            Interlocked.Exchange(
-                ref bag,
-                new ConcurrentBag<Action<RecordedEvent>>(bag.Except(new[] { eventHandler }))
-            )
-        );
-    }
-
-    public async Task<IDisposable> SubscribeToStreamFromAsync(long position, StreamKey key, Action<RecordedEvent> eventHandler) {
-        // build subscription for specific stream.
-        if (!_streamSubscriptions.TryGetValue(key, out var bag)) {
-            bag = new();
-            _streamSubscriptions.Add(key, bag);
-        }
-
-        await foreach (var @event in _inMemoryPersister.ReadAsync(key, position))
+        await foreach (var @event in _inMemoryPersister.ReadAsync(key, revision)) {
             foreach (var slice in key) {
-                eventHandler.Invoke(@event);
+                handler.Invoke(@event);
             }
+        }
 
-        bag.Add(eventHandler);
+        bag.Add(handler);
 
         return new StreamDisposer(() => {
             Interlocked.Exchange(
                 ref bag,
-                new ConcurrentBag<Action<RecordedEvent>>(bag.Except(new[] { eventHandler }))
+                new ConcurrentBag<Action<RecordedEvent>>(bag.Except(new[] { handler }))
             );
-            _streamSubscriptions[key] = bag;
+            _streamKeySubscriptions[key] = bag;
+        });
+    }
+
+    /// <inheritdoc />
+    public Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Action<RecordedEvent> handler)
+        => SubscribeToStreamFromAsync(streamId, 0, handler);
+
+    /// <inheritdoc />
+    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, long revision, Action<RecordedEvent> handler) {
+        if (!_streamIdSubscriptions.TryGetValue(streamId, out var bag)) {
+            bag = new();
+            _streamIdSubscriptions.Add(streamId, bag);
+        }
+
+        await foreach (var @event in _inMemoryPersister.ReadAsync(streamId, revision)) {
+            handler.Invoke(@event);
+        }
+
+        bag.Add(handler);
+
+        return new StreamDisposer(() => {
+            Interlocked.Exchange(
+                ref bag,
+                new ConcurrentBag<Action<RecordedEvent>>(bag.Except(new[] { handler }))
+            );
+            _streamIdSubscriptions[streamId] = bag;
         });
     }
 
@@ -115,13 +132,18 @@ public class LocalStoreClient : IStoreClient {
                     allAction.Invoke(e);
                 }
 
-                var keys = (StreamKey)e.Key;
+                var keys = (StreamKey)e.StreamId;
 
                 foreach (var key in keys) {
-                    if (!_streamSubscriptions.TryGetValue(key, out var bag)) continue;
-                    foreach (var act in bag) {
+                    if (!_streamKeySubscriptions.TryGetValue(key, out var keyBag)) continue;
+                    foreach (var act in keyBag) {
                         act.Invoke(e);
                     }
+                }
+
+                if (!_streamIdSubscriptions.TryGetValue(e.StreamId, out var idBag)) continue;
+                foreach (var id in idBag) {
+                    id.Invoke(e);
                 }
             }
         }

@@ -8,9 +8,10 @@ public interface IStoreClient : IDisposable {
     ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events);
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id);
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key);
-    Task<IDisposable> SubscribeToAllAsync(Action<RecordedEvent> eventHandler);
-    Task<IDisposable> SubscribeToAllFromAsync(long position, Action<RecordedEvent> eventHandler);
-    Task<IDisposable> SubscribeToStreamAsync(StreamKey key, Action<RecordedEvent> eventHandler);
-    Task<IDisposable> SubscribeToStreamFromAsync(long position, StreamKey key, Action<RecordedEvent> eventHandler);
-
+    Task<IDisposable> SubscribeToAllAsync(Action<RecordedEvent> handler);
+    Task<IDisposable> SubscribeToAllFromAsync(long revision, Action<RecordedEvent> handler);
+    Task<IDisposable> SubscribeToStreamAsync(StreamKey key, Action<RecordedEvent> handler);
+    Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Action<RecordedEvent> handler);
+    Task<IDisposable> SubscribeToStreamFromAsync(StreamKey key, long revision, Action<RecordedEvent> handler);
+    Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, long revision, Action<RecordedEvent> handler);
 }

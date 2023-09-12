@@ -33,7 +33,7 @@ public class StoreClientTestBase {
 
         var events = await _storeClient.ReadStreamAsync(id).ToListAsync();
         Assert.Single(events);
-        Assert.Equal(id, events.First().Key);
+        Assert.Equal(id, events.First().StreamId);
         Assert.Equal(eventId, e.EventId);
     }
 
@@ -102,7 +102,6 @@ public class StoreClientTestBase {
 
         Assert.True(writeResult1.Successful);
         Assert.True(writeResult2.Successful);
-        Assert.Equal(3, writeResult2.Position); // position is 0-based.
         Assert.Equal(2, writeResult2.Version);
     }
 
@@ -294,12 +293,12 @@ public class StoreClientTestBase {
         var mre = new ManualResetEventSlim(false);
         var waitingToSet = 4;
         var numberOfEvents = 0;
-        var subscription = await _storeClient.SubscribeToStreamFromAsync(1, id1, e => {
+        var subscription = await _storeClient.SubscribeToStreamFromAsync(id1, 0, e => {
             if (numberOfEvents >= waitingToSet) return;
 
             events.Add(e);
             numberOfEvents += 1;
-            
+
             if (numberOfEvents >= waitingToSet) {
                 mre.Set();
             }
@@ -307,7 +306,7 @@ public class StoreClientTestBase {
 
         await _storeClient.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
 
-        mre.Wait(200);
+        mre.Wait(500);
 
         Assert.Equal(4, events.Count);
     }
@@ -327,7 +326,7 @@ public class StoreClientTestBase {
         var waitingToSet = 1;
         var numberOfEvents = 0;
 
-        (await _storeClient.SubscribeToStreamFromAsync(2, key, e => {
+        (await _storeClient.SubscribeToStreamFromAsync(key, 2, e => {
             events.Add(e);
             numberOfEvents += 1;
             if (numberOfEvents >= waitingToSet) {
@@ -357,10 +356,10 @@ public class StoreClientTestBase {
         var waitingToSet = 4;
         var numberOfEvents = 0;
 
-        (await _storeClient.SubscribeToStreamFromAsync(2, key, e => {
+        (await _storeClient.SubscribeToStreamFromAsync(key, 2, e => {
             // nothing to do
         })).Dispose();
-        await _storeClient.SubscribeToStreamFromAsync(2, key, e => {
+        await _storeClient.SubscribeToStreamFromAsync(key, 2, e => {
             events.Add(e);
             numberOfEvents += 1;
             if (numberOfEvents >= waitingToSet) {
@@ -373,5 +372,35 @@ public class StoreClientTestBase {
 
         mre.Wait(100);
         Assert.Equal(4, events.Count);
+    }
+
+    [Fact]
+    public async Task Records_proper_stream_revision() {
+        var id = new StreamId("some", "stream");
+        var e1 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e2 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e3 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+        var e4 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+
+        var events = new List<RecordedEvent>();
+
+        // need to create an empty stream to make this work.
+        var mre = new ManualResetEventSlim(false);
+        var expectedEvents = 4;
+        await _storeClient.AppendToStreamAsync(id, ExpectedVersion.NoStream, Array.Empty<EventData>());
+        await _storeClient.SubscribeToStreamAsync(id, e => {
+            events.Add(e);
+            if (events.Count >= expectedEvents) {
+                mre.Set();
+            }
+        });
+
+        var writeResult = await _storeClient.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2, e3, e4 });
+
+        mre.Wait(1000);
+
+        Assert.True(writeResult.Successful);
+        Assert.Equal(4, events.Count);
+        Assert.Equal(3, events.Last().Revision);
     }
 }

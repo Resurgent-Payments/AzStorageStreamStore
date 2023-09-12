@@ -4,11 +4,11 @@ using System.Linq;
 using System.Threading.Channels;
 
 public class InMemoryPersister : IPersister {
-    private long _position = -1;
+    private long _allStreamPosition = -1;
 
     private readonly CancellationTokenSource _cts = new();
 
-    private readonly SinglyLinkedList<RecordedEvent> _allStream = new();
+    private readonly SinglyLinkedList<StreamItem> _allStream = new();
     private readonly Dictionary<StreamId, List<LinkTo>> _streamIndex = new();
 
     private readonly Channel<RecordedEvent> _allStreamChannel;
@@ -44,11 +44,11 @@ public class InMemoryPersister : IPersister {
     public IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id)
         => ReadAsync(id, 0);
 
-    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id, long position) {
+    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id, long revision) {
         if (!_streamIndex.TryGetValue(id, out var index)) {
             throw new StreamDoesNotExistException();
         }
-        foreach (var e in index.Skip((int)position)) {
+        foreach (var e in index.Skip((int)revision)) {
             yield return e.Event;
         }
     }
@@ -56,20 +56,21 @@ public class InMemoryPersister : IPersister {
 
     public IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey key)
         => ReadAsync(key, 0);
-    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey key, long position) {
+    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey key, long revision) {
         var subStream = _allStream
-            .Where(@event => @event.Key == key)
-            .Skip((int)position);
+            .OfType<RecordedEvent>()
+            .Where(@event => @event.StreamId == key)
+            .Skip((int)revision);
 
         foreach (var e in subStream) {
-            if (e.Key == key) yield return e;
+            if (e.StreamId == key) yield return e;
         }
     }
 
     public IAsyncEnumerable<RecordedEvent> ReadAllAsync()
         => ReadAllAsync(0);
-    public async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long fromPosition) {
-        foreach (var @event in _allStream.Skip((int)fromPosition)) {
+    public async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long revision) {
+        foreach (var @event in _allStream.OfType<RecordedEvent>().Skip((int)revision)) {
             yield return @event;
         }
     }
@@ -83,8 +84,8 @@ public class InMemoryPersister : IPersister {
 
             switch (expectedVersion) {
                 case -3: // no stream
-                    if (!_allStream.All(e => e.Key != streamId)) {
-                        onceCompleted.SetResult(WriteResult.Failed(_position, -1, new StreamExistsException()));
+                    if (!await ReadAllAsync().AllAsync(e => e.StreamId != streamId)) {
+                        onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, -1, new StreamExistsException()));
                         continue;
                     }
                     break;
@@ -97,28 +98,28 @@ public class InMemoryPersister : IPersister {
                     }
 
                     if (emptyStreamIndex.Count != 0) {
-                        onceCompleted.SetResult(WriteResult.Failed(_position, ExpectedVersion.EmptyStream, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, emptyStreamIndex.Count)));
+                        onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, ExpectedVersion.EmptyStream, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, emptyStreamIndex.Count)));
                         continue;
                     }
 
                     break;
                 default:
                     if (!_streamIndex.TryGetValue(streamId, out var index)) {
-                        onceCompleted.SetResult(WriteResult.Failed(_position, expectedVersion, new WrongExpectedVersionException(expectedVersion, ExpectedVersion.NoStream)));
+                        onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, expectedVersion, new WrongExpectedVersionException(expectedVersion, ExpectedVersion.NoStream)));
                     }
 
                     if (index.Count != expectedVersion) {
                         // if all events are appended, considered as a double request and post-back ok.
                         if (events.All(e => index.All(i => i.Event.EventId != e.EventId))) {
-                            onceCompleted.SetResult(WriteResult.Ok(_position, index.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream));
+                            onceCompleted.SetResult(WriteResult.Ok(_allStreamPosition, index.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream));
                             continue;
                         }
 
                         // if all events were not appended
                         // -- or --
                         // only some were appended, then throw a wrong expected version.
-                        if (events.Select(e => index.All(s => s.Event.EventId != e.EventId)).Any()) {
-                            onceCompleted.SetResult(WriteResult.Failed(_position, index.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream,
+                        if (events.Select(e => index.OfType<LinkTo>().All(s => s.Event.EventId != e.EventId)).Any()) {
+                            onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, index.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream,
                                 new WrongExpectedVersionException(expectedVersion, index.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream)));
                             continue;
                         }
@@ -126,24 +127,22 @@ public class InMemoryPersister : IPersister {
                     break;
             }
 
-            // simulate writing to disk.
-
-            var eventsToBeRecorded = events.Select(e => new RecordedEvent(streamId, e.EventId, _position++, e.Data))
-                .ToArray();
-
             if (!_streamIndex.TryGetValue(streamId, out var linkTos)) {
                 linkTos = new();
                 _streamIndex.Add(streamId, linkTos);
             }
 
-            foreach (var eventToBeRecorded in eventsToBeRecorded) {
-                _allStream.Append(eventToBeRecorded);
-                linkTos.Add(new LinkTo(linkTos.Count, eventToBeRecorded));
+            foreach(var @event in events) {
+                var recorded = new RecordedEvent(streamId, @event.EventId, linkTos.Count, @event.Data);
+
+                _allStream.Append(recorded);
+                linkTos.Add(new LinkTo(linkTos.Count, recorded));
 
                 // publish the recorded event.
-                await _allStreamChannel.Writer.WriteAsync(eventToBeRecorded);
+                await _allStreamChannel.Writer.WriteAsync(recorded);
             }
-            onceCompleted.SetResult(WriteResult.Ok(_position, linkTos.LastOrDefault()?.Revision ?? -1));
+
+            onceCompleted.SetResult(WriteResult.Ok(_allStreamPosition, linkTos.LastOrDefault()?.Event.Revision ?? 0));
         }
     }
 
@@ -159,6 +158,4 @@ public class InMemoryPersister : IPersister {
 
         GC.SuppressFinalize(this);
     }
-
-    public record PossibleWalEntry(TaskCompletionSource<WriteResult> OnceCompleted, StreamId Id, ExpectedVersion Version, EventData[] Events);
 }

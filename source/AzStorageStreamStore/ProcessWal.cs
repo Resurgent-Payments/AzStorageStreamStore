@@ -1,3 +1,3 @@
 namespace AzStorageStreamStore;
 
-record ProcessWal(string Filename);
+public record ProcessWal(string Filename);
