@@ -16,7 +16,6 @@ public class InMemoryPersister : IPersister {
 
     public ChannelReader<RecordedEvent> AllStream { get; }
 
-
     public InMemoryPersister() {
         _allStreamChannel = Channel.CreateUnbounded<RecordedEvent>(new UnboundedChannelOptions {
             SingleReader = true,
@@ -35,16 +34,24 @@ public class InMemoryPersister : IPersister {
         Task.Factory.StartNew(WriteEventsImplAsync, _cts.Token);
     }
 
-    public async ValueTask<WriteResult> WriteAsync(StreamId id, ExpectedVersion version, EventData[] events) {
-        var tcs = new TaskCompletionSource<WriteResult>();
-        await _streamWriterChannel.Writer.WriteAsync(new PossibleWalEntry(tcs, id, version, events));
-        return await tcs.Task;
+    public IAsyncEnumerable<RecordedEvent> ReadAllAsync()
+        => ReadAllAsync(0);
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="revision"></param>
+    /// <remarks>This is appended with async to allow for keeping syntax when dealing with other forms of perssitence implementations.</remarks>
+    public async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long revision) {
+        foreach (var @event in _allStream.OfType<RecordedEvent>().Skip((int)revision)) {
+            yield return @event;
+        }
     }
 
-    public IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id)
-        => ReadAsync(id, 0);
+    public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
+        => ReadStreamAsync(id, 0);
 
-    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id, long revision) {
+    public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long revision) {
         if (!_streamIndex.TryGetValue(id, out var index)) {
             throw new StreamDoesNotExistException();
         }
@@ -53,10 +60,10 @@ public class InMemoryPersister : IPersister {
         }
     }
 
+    public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
+        => ReadStreamAsync(key, 0);
 
-    public IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey key)
-        => ReadAsync(key, 0);
-    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey key, long revision) {
+    public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key, long revision) {
         var subStream = _allStream
             .OfType<RecordedEvent>()
             .Where(@event => @event.StreamId == key)
@@ -67,12 +74,10 @@ public class InMemoryPersister : IPersister {
         }
     }
 
-    public IAsyncEnumerable<RecordedEvent> ReadAllAsync()
-        => ReadAllAsync(0);
-    public async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long revision) {
-        foreach (var @event in _allStream.OfType<RecordedEvent>().Skip((int)revision)) {
-            yield return @event;
-        }
+    public async ValueTask<WriteResult> AppendToStreamAsync(StreamId id, ExpectedVersion version, EventData[] events) {
+        var tcs = new TaskCompletionSource<WriteResult>();
+        await _streamWriterChannel.Writer.WriteAsync(new PossibleWalEntry(tcs, id, version, events));
+        return await tcs.Task;
     }
 
     private async Task WriteEventsImplAsync() {
@@ -151,7 +156,9 @@ public class InMemoryPersister : IPersister {
     }
 
     private bool _disposed = false;
+    
     public void Dispose() => Dispose(true);
+    
     protected virtual void Dispose(bool disposing) {
         if (_disposed || !disposing) return;
 

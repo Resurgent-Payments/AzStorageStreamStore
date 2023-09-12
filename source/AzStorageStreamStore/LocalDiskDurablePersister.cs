@@ -36,19 +36,22 @@ public class SingleTenantDurablePersister : IPersister {
         GC.SuppressFinalize(this);
     }
 
-    public async IAsyncEnumerable<RecordedEvent> ReadAllAsync() {
+    public IAsyncEnumerable<RecordedEvent> ReadAllAsync()
+        => ReadAllAsync(0);
+
+    public async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long position) {
         using (var file = File.OpenRead(_chunkFile))
         using (var stream = new StreamReader(file)) {
             string? line;
             while ((line = await stream.ReadLineAsync()) != null) {
 #pragma warning disable CS8603 // Possible null reference return.
-                yield return await JsonSerializer.DeserializeAsync<RecordedEvent>(new MemoryStream(Encoding.UTF8.GetBytes(line)), Options.JsonOptions);
+                yield return await JsonSerializer.DeserializeAsync<RecordedEvent>(new MemoryStream(Encoding.UTF8.GetBytes(line)), _options.JsonOptions);
 #pragma warning restore CS8603 // Possible null reference return.
             }
         }
     }
 
-    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id, long position) {
+    public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long position) {
         var currentPosition = -1;
         await foreach (var @event in ReadAllAsync()) {
             currentPosition += 1;
@@ -58,7 +61,7 @@ public class SingleTenantDurablePersister : IPersister {
         }
     }
 
-    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey key, long position) {
+    public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key, long position) {
         var currentPosition = -1;
         await foreach (var @event in ReadAllAsync()) {
             currentPosition += 1;
@@ -68,13 +71,13 @@ public class SingleTenantDurablePersister : IPersister {
         }
     }
 
-    public IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id)
-        => ReadAsync(id, 0);
+    public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
+        => ReadStreamAsync(id, 0);
 
-    public IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey key)
-        => ReadAsync(key, 0);
+    public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
+        => ReadStreamAsync(key, 0);
 
-    public async ValueTask<WriteResult> WriteAsync(StreamId id, ExpectedVersion version, EventData[] events) {
+    public async ValueTask<WriteResult> AppendToStreamAsync(StreamId id, ExpectedVersion version, EventData[] events) {
         var tcs = new TaskCompletionSource<WriteResult>();
         await _walWriter.Writer.WriteAsync(new PossibleWalEntry(tcs, id, version, events));
         return await tcs.Task;
@@ -89,7 +92,7 @@ public class SingleTenantDurablePersister : IPersister {
 
             switch (expectedVersion) {
                 case -3: // no stream
-                    if (!await ReadAllAsync().AllAsync(e => e.StreamId != id)) {
+                    if (!await ReadAllAsync().AllAsync(e => e.StreamId != streamId)) {
                         onceCompleted.SetResult(WriteResult.Failed(-1, -1, new StreamExistsException()));
                         continue;
                     }

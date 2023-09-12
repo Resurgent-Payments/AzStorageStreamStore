@@ -24,15 +24,23 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events)
-        => _persister.WriteAsync(key, version, events);
+        => _persister.AppendToStreamAsync(key, version, events);
+
+    public IEnumerable<RecordedEvent> ReadAllAsync() {
+        throw new NotImplementedException();
+    }
+
+    public IEnumerable<RecordedEvent> ReadAllAsync(long position) {
+        throw new NotImplementedException();
+    }
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
-        => _persister.ReadAsync(key);
+        => _persister.ReadStreamAsync(key);
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
-        => _persister.ReadAsync(id);
+        => _persister.ReadStreamAsync(id);
 
     /// <inheritdoc />
     public Task<IDisposable> SubscribeToAllAsync(Action<RecordedEvent> handler) {
@@ -47,7 +55,7 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public async Task<IDisposable> SubscribeToAllFromAsync(long position, Action<RecordedEvent> handler) {
-        await foreach (var @event in _persister.ReadAsync(AllStream.SingleTenant)) {
+        await foreach (var @event in _persister.ReadAllAsync(position)) {
             handler.Invoke(@event);
         }
         return new StreamDisposer(() =>
@@ -68,7 +76,7 @@ public class LocalStoreClient : IStoreClient {
             _streamKeySubscriptions.Add(key, bag);
         }
 
-        await foreach (var @event in _persister.ReadAsync(key, revision)) {
+        await foreach (var @event in _persister.ReadStreamAsync(key, revision)) {
             foreach (var slice in key) {
                 handler.Invoke(@event);
             }
@@ -96,7 +104,7 @@ public class LocalStoreClient : IStoreClient {
             _streamIdSubscriptions.Add(streamId, bag);
         }
 
-        await foreach (var @event in _persister.ReadAsync(streamId, revision)) {
+        await foreach (var @event in _persister.ReadStreamAsync(streamId, revision)) {
             handler.Invoke(@event);
         }
 

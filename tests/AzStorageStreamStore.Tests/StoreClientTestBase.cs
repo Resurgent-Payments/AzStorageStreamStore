@@ -16,15 +16,17 @@ public class StoreClientTestBase {
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
 
     public StoreClientTestBase() {
-        var options = A.Fake<IOptions<LocalDiskDurablePersisterOptions>>();
-        A.CallTo(() => options.Value)
-            .Returns(new LocalDiskDurablePersisterOptions {
-                BaseDataPath = @"c:\test",
-                FileReadBlockSize = 1024,
-                DatafileName = Path.GetTempFileName()
-            });
+        //var options = A.Fake<IOptions<LocalDiskDurablePersisterOptions>>();
+        //A.CallTo(() => options.Value)
+        //    .Returns(new LocalDiskDurablePersisterOptions {
+        //        BaseDataPath = @"c:\test",
+        //        FileReadBlockSize = 1024,
+        //        DatafileName = Path.GetTempFileName()
+        //    });
 
-        _storeClient = new LocalStoreClient(new SingleTenantDurablePersister(options));
+        //_storeClient = new LocalStoreClient(new SingleTenantDurablePersister(options));
+
+        _storeClient = new LocalStoreClient(new InMemoryPersister());
 
         AsyncHelper.RunSync(async () => await _storeClient.InitializeAsync());
         AsyncHelper.RunSync(async () => await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));
