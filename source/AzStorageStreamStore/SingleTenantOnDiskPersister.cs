@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Options;
 
-public class SingleTenantDurablePersister : IPersister {
+public class SingleTenantOnDiskPersister : IPersister {
     private readonly CancellationTokenSource _tokenSource = new();
     private readonly LocalDiskDurablePersisterOptions _options;
     private string _chunkFile => Path.Combine(_options.BaseDataPath, "chunk.dat");
@@ -22,7 +22,7 @@ public class SingleTenantDurablePersister : IPersister {
         SingleWriter = true
     });
 
-    public SingleTenantDurablePersister(IOptions<LocalDiskDurablePersisterOptions> options) {
+    public SingleTenantOnDiskPersister(IOptions<LocalDiskDurablePersisterOptions> options) {
         _options = options.Value ?? new();
         _tokenSource.Token.Register(() => _walWriter.Writer.Complete());
         _tokenSource.Token.Register(() => _allStream.Writer.Complete());
