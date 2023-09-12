@@ -9,44 +9,57 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 
 public class SingleTenantDurablePersister : DurablePersisterBase, IPersister {
+    private readonly string _calculatedFileName;
 
     public SingleTenantDurablePersister(IOptions<LocalDiskDurablePersisterOptions> options) : base(options) {
+        _calculatedFileName = Path.Combine(options.Value.BaseDataPath, options.Value.DatafileName);
+
         if (!Directory.Exists(options.Value.BaseDataPath)) {
             Directory.CreateDirectory(options.Value.BaseDataPath);
         }
 
-        if (!File.Exists(CalculateFileName(AllStreamId.SingleTenant))) {
-            File.Create(CalculateFileName(AllStreamId.SingleTenant), 1024).Dispose();
+        if (!File.Exists(_calculatedFileName)) {
+            File.Create(_calculatedFileName);
         }
 
         Task.Factory.StartNew(WriteEventsImplAsync, TokenSource.Token);
     }
 
-    public override async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long fromPosition) {
-        using (var file = File.OpenRead(CalculateFileName(AllStreamId.SingleTenant)))
+    public override async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id, long position) {
+        using (var file = File.OpenRead(_calculatedFileName))
         using (var stream = new StreamReader(file)) {
-            for (var i = 0; i < fromPosition; i++) {
+            for (var i = 0; i < position; i++) {
                 await stream.ReadLineAsync();
             }
 
             string? line;
             while ((line = await stream.ReadLineAsync()) != null) {
 #pragma warning disable CS8603 // Possible null reference return.
-                yield return await JsonSerializer.DeserializeAsync<RecordedEvent>(new MemoryStream(Encoding.UTF8.GetBytes(line)), Options.JsonOptions);
+                var @event = await JsonSerializer.DeserializeAsync<RecordedEvent>(new MemoryStream(Encoding.UTF8.GetBytes(line)), Options.JsonOptions);
+                if (@event.StreamId == id) {
+                    yield return @event;
+                }
 #pragma warning restore CS8603 // Possible null reference return.
             }
         }
     }
 
-    public override async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id, long position) {
-        await foreach (var @event in ReadAllAsync()) {
-            if (@event.StreamId == id) yield return @event;
-        }
-    }
-
     public override async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey key, long position) {
-        await foreach (var @event in ReadAllAsync()) {
-            if (@event.StreamId == key) yield return @event;
+        using (var file = File.OpenRead(_calculatedFileName))
+        using (var stream = new StreamReader(file)) {
+            for (var i = 0; i < position; i++) {
+                await stream.ReadLineAsync();
+            }
+
+            string? line;
+            while ((line = await stream.ReadLineAsync()) != null) {
+#pragma warning disable CS8603 // Possible null reference return.
+                var @event = await JsonSerializer.DeserializeAsync<RecordedEvent>(new MemoryStream(Encoding.UTF8.GetBytes(line)), Options.JsonOptions);
+                if (@event.StreamId == key) {
+                    yield return @event;
+                }
+#pragma warning restore CS8603 // Possible null reference return.
+            }
         }
     }
 
@@ -59,10 +72,36 @@ public class SingleTenantDurablePersister : DurablePersisterBase, IPersister {
 
             if (!await ValidateValidWrite(onceCompleted, streamId, expectedVersion, events)) continue;
 
-            // create wal file.
-            onceCompleted.SetResult(WriteResult.Ok(Position, -1));
+            // getting current position
+            var position = -1L;
+            var version = -1L;
+            await foreach (var recorded in ReadAsync(AzStorageStreamStore.AllStream.SingleTenant)) {
+                position += 1;
+                if (recorded.StreamId == streamId) {
+                    version += 1;
+                }
+            }
 
-            // send signal for wal writer to append to log.
+
+            try {
+                using (var file = File.Open(_calculatedFileName, FileMode.Append, FileAccess.Write))
+                using (var writer = new StreamWriter(file)) {
+                    {
+                        foreach (var data in events) {
+                            version += 1;
+                            var recorded = new RecordedEvent(streamId, data.EventId, version, data.Data);
+                            var ser = JsonSerializer.Serialize(recorded, Options.JsonOptions);
+                            await writer.WriteLineAsync(ser);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) {
+                onceCompleted.SetException(ex);
+                continue;
+            }
+
+            onceCompleted.SetResult(WriteResult.Ok(position, version));
         }
     }
 }

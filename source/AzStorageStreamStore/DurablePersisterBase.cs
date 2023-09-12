@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 
 public abstract class DurablePersisterBase : IPersister {
-    private string _fileName = "chunk.dat";
     protected CancellationTokenSource TokenSource { get; } = new();
 
     private Channel<PossibleWalEntry> _walWriter;
@@ -15,8 +14,6 @@ public abstract class DurablePersisterBase : IPersister {
 
     protected ChannelReader<PossibleWalEntry> WalWriter => _walWriter.Reader;
 
-
-    protected virtual long Position { get; }
     protected LocalDiskDurablePersisterOptions Options { get; }
 
 
@@ -24,7 +21,7 @@ public abstract class DurablePersisterBase : IPersister {
 
     public DurablePersisterBase(IOptions<LocalDiskDurablePersisterOptions> options) {
         Options = options.Value;
-        
+
         _storedEvents = Channel.CreateUnbounded<RecordedEvent>(new UnboundedChannelOptions {
             SingleWriter = true,
             SingleReader = true,
@@ -40,19 +37,13 @@ public abstract class DurablePersisterBase : IPersister {
         TokenSource.Token.Register(() => _walWriter.Writer.Complete());
     }
 
+
     public void Dispose() {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
     protected virtual void Dispose(bool disposing) { }
 
-    protected string CalculateFileName(StreamId streamId)
-        => Path.Combine(Options.BaseDataPath, streamId.TenantId, _fileName);
-
-    public virtual IAsyncEnumerable<RecordedEvent> ReadAllAsync()
-        => ReadAllAsync(0);
-
-    public abstract IAsyncEnumerable<RecordedEvent> ReadAllAsync(long fromPosition);
 
     public virtual IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id)
         => ReadAsync(id, 0);
@@ -73,8 +64,8 @@ public abstract class DurablePersisterBase : IPersister {
     protected virtual async Task<bool> ValidateValidWrite(TaskCompletionSource<WriteResult> onceCompleted, StreamId id, long expectedVersion, EventData[] events) {
         switch (expectedVersion) {
             case -3: // no stream
-                if (!await ReadAllAsync().AllAsync(e => e.StreamId != id)) {
-                    onceCompleted.SetResult(WriteResult.Failed(Position, -1, new StreamExistsException()));
+                if (!await ReadAsync(AzStorageStreamStore.AllStream.SingleTenant).AllAsync(e => e.StreamId != id)) {
+                    onceCompleted.SetResult(WriteResult.Failed(-1, -1, new StreamExistsException()));
                     return false;
                 }
                 break;
@@ -83,16 +74,16 @@ public abstract class DurablePersisterBase : IPersister {
                 return true; // how do i know exactly if i have an empty stream?
             default:
                 long eventsInStream = 0;
-                var streamEvents = await ReadAllAsync().Where(@event => @event.StreamId == id).ToListAsync();
+                var streamEvents = await ReadAsync(AzStorageStreamStore.AllStream.SingleTenant).Where(@event => @event.StreamId == id).ToListAsync();
 
                 if (!streamEvents.Any()) {
-                    onceCompleted.SetResult(WriteResult.Failed(Position, expectedVersion, new WrongExpectedVersionException(expectedVersion, ExpectedVersion.NoStream)));
+                    onceCompleted.SetResult(WriteResult.Failed(-1, -1, new WrongExpectedVersionException(expectedVersion, ExpectedVersion.NoStream)));
                 }
 
                 if (streamEvents.Count != expectedVersion) {
                     // if all events are appended, considered as a double request and post-back ok.
                     if (!streamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                        onceCompleted.SetResult(WriteResult.Ok(Position, streamEvents.Count));
+                        onceCompleted.SetResult(WriteResult.Ok(-1, streamEvents.Max(x => x.Revision)));
                         return true;
                     }
 
@@ -100,7 +91,8 @@ public abstract class DurablePersisterBase : IPersister {
                     // -- or --
                     // only some were appended, then throw a wrong expected version.
                     if (events.Select(e => streamEvents.All(s => s.EventId != e.EventId)).Any()) {
-                        onceCompleted.SetResult(WriteResult.Failed(Position, streamEvents.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream,
+                        onceCompleted.SetResult(WriteResult.Failed(-1,
+                            -1,
                             new WrongExpectedVersionException(expectedVersion, streamEvents.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream)));
                         return false;
                     }

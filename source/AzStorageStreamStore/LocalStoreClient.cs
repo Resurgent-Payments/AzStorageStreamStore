@@ -5,11 +5,15 @@ using System.Collections.Concurrent;
 public class LocalStoreClient : IStoreClient {
     private readonly CancellationTokenSource _cts = new();
 
-    private readonly InMemoryPersister _inMemoryPersister = new();
+    private readonly IPersister _persister;
 
     private ConcurrentBag<Action<RecordedEvent>> _subscriptions = new();
     private readonly Dictionary<StreamKey, ConcurrentBag<Action<RecordedEvent>>> _streamKeySubscriptions = new();
     private readonly Dictionary<StreamId, ConcurrentBag<Action<RecordedEvent>>> _streamIdSubscriptions = new();
+
+    public LocalStoreClient(IPersister persister) {
+        _persister = persister;
+    }
 
     public Task InitializeAsync() {
         // holds the task that manages pumping events from the _publisher stream to all handlers.
@@ -20,15 +24,15 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events)
-        => _inMemoryPersister.WriteAsync(key, version, events);
+        => _persister.WriteAsync(key, version, events);
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
-        => _inMemoryPersister.ReadAsync(key);
+        => _persister.ReadAsync(key);
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
-        => _inMemoryPersister.ReadAsync(id);
+        => _persister.ReadAsync(id);
 
     /// <inheritdoc />
     public Task<IDisposable> SubscribeToAllAsync(Action<RecordedEvent> handler) {
@@ -43,7 +47,7 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public async Task<IDisposable> SubscribeToAllFromAsync(long position, Action<RecordedEvent> handler) {
-        await foreach (var @event in _inMemoryPersister.ReadAllAsync(position)) {
+        await foreach (var @event in _persister.ReadAsync(AllStream.SingleTenant)) {
             handler.Invoke(@event);
         }
         return new StreamDisposer(() =>
@@ -64,7 +68,7 @@ public class LocalStoreClient : IStoreClient {
             _streamKeySubscriptions.Add(key, bag);
         }
 
-        await foreach (var @event in _inMemoryPersister.ReadAsync(key, revision)) {
+        await foreach (var @event in _persister.ReadAsync(key, revision)) {
             foreach (var slice in key) {
                 handler.Invoke(@event);
             }
@@ -92,7 +96,7 @@ public class LocalStoreClient : IStoreClient {
             _streamIdSubscriptions.Add(streamId, bag);
         }
 
-        await foreach (var @event in _inMemoryPersister.ReadAsync(streamId, revision)) {
+        await foreach (var @event in _persister.ReadAsync(streamId, revision)) {
             handler.Invoke(@event);
         }
 
@@ -117,7 +121,7 @@ public class LocalStoreClient : IStoreClient {
     protected virtual void Dispose(bool disposing) {
         if (_disposed || !disposing) return;
 
-        _inMemoryPersister.Dispose();
+        _persister.Dispose();
         _cts.Cancel();
         _cts.Dispose();
 
@@ -126,7 +130,7 @@ public class LocalStoreClient : IStoreClient {
 
     private async void MessagePump() {
         while (!_cts.IsCancellationRequested) {
-            await foreach (var e in _inMemoryPersister.AllStream.ReadAllAsync(_cts.Token)) {
+            await foreach (var e in _persister.AllStream.ReadAllAsync(_cts.Token)) {
                 if (_cts.IsCancellationRequested) { return; }
                 foreach (var allAction in _subscriptions) {
                     allAction.Invoke(e);

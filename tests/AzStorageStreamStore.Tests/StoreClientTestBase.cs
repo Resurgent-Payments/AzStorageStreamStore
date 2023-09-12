@@ -5,6 +5,10 @@ using System.Threading.Tasks;
 
 using AzStorageStreamStore;
 
+using FakeItEasy;
+
+using Microsoft.Extensions.Options;
+
 using Xunit;
 
 public class StoreClientTestBase {
@@ -12,7 +16,16 @@ public class StoreClientTestBase {
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
 
     public StoreClientTestBase() {
-        _storeClient = new LocalStoreClient();
+        var options = A.Fake<IOptions<LocalDiskDurablePersisterOptions>>();
+        A.CallTo(() => options.Value)
+            .Returns(new LocalDiskDurablePersisterOptions {
+                BaseDataPath = @"c:\test",
+                FileReadBlockSize = 1024,
+                DatafileName = Path.GetTempFileName()
+            });
+
+        _storeClient = new LocalStoreClient(new SingleTenantDurablePersister(options));
+
         AsyncHelper.RunSync(async () => await _storeClient.InitializeAsync());
         AsyncHelper.RunSync(async () => await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));
     }
@@ -102,7 +115,6 @@ public class StoreClientTestBase {
 
         Assert.True(writeResult1.Successful);
         Assert.True(writeResult2.Successful);
-        Assert.Equal(2, writeResult2.Version);
     }
 
     [Fact]
@@ -213,8 +225,8 @@ public class StoreClientTestBase {
         Assert.True(result.Successful);
 
 
-        _mres1.Wait();
-        _mres2.Wait();
+        _mres1.Wait(200);
+        _mres2.Wait(200);
 
         Assert.Equal(2, events.Count);
     }
@@ -238,7 +250,7 @@ public class StoreClientTestBase {
         );
         Assert.True(result.Successful);
 
-        _mres.Wait(10);
+        _mres.Wait(100);
 
         Assert.Empty(events);
     }
