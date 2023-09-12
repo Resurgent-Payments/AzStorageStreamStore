@@ -5,7 +5,6 @@ using System.Text.Json.Serialization;
 
 public class LocalDiskDurablePersisterOptions {
     public string BaseDataPath { get; set; }
-    public string DatafileName { get; set; } = "chunk.dat";
     public int FileReadBlockSize { get; set; } = 4096;
     public JsonSerializerOptions JsonOptions { get; set; }
     public IList<JsonConverter> JsonConverters { get; set; } = new List<JsonConverter>();

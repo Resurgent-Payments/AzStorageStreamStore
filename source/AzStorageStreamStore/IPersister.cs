@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 public interface IPersister : IDisposable {
     ChannelReader<RecordedEvent> AllStream { get; }
 
+    IAsyncEnumerable<RecordedEvent> ReadAllAsync();
     IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id);
     IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId id, long position);
     IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey key);

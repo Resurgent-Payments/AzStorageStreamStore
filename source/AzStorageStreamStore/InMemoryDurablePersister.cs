@@ -14,7 +14,6 @@ public class InMemoryPersister : IPersister {
     private readonly Channel<RecordedEvent> _allStreamChannel;
     private readonly Channel<PossibleWalEntry> _streamWriterChannel;
 
-    public AllStream AllStreamId { get => AzStorageStreamStore.AllStream.SingleTenant; }
     public ChannelReader<RecordedEvent> AllStream { get; }
 
 
