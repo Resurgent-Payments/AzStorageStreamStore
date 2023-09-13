@@ -3,7 +3,7 @@ namespace AzStorageStreamStore;
 using System.Linq;
 using System.Threading.Channels;
 
-public class InMemoryPersister : IPersister {
+public class SingleTenantInMemoryPersister : IPersister {
     private long _allStreamPosition = -1;
 
     private readonly CancellationTokenSource _cts = new();
@@ -15,7 +15,7 @@ public class InMemoryPersister : IPersister {
 
     public ChannelReader<RecordedEvent> AllStream { get; }
 
-    public InMemoryPersister() {
+    public SingleTenantInMemoryPersister() {
         _allStreamChannel = Channel.CreateUnbounded<RecordedEvent>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = true,

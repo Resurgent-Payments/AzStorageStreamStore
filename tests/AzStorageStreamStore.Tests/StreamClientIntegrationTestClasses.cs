@@ -7,8 +7,8 @@ using Microsoft.Extensions.Options;
 using Xunit;
 
 [Trait("Type", "Integration")]
-public class InMemoryStreamClientIntegrationTests : StreamClientIntegrationTestBase<InMemoryPersister> {
-    protected override InMemoryPersister Persister => new InMemoryPersister();
+public class InMemoryStreamClientIntegrationTests : StreamClientIntegrationTestBase<SingleTenantInMemoryPersister> {
+    protected override SingleTenantInMemoryPersister Persister => new SingleTenantInMemoryPersister();
 }
 
 [Trait("Type", "Integration")]
