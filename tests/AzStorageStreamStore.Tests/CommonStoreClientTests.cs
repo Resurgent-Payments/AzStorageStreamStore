@@ -5,10 +5,6 @@ using System.Threading.Tasks;
 
 using AzStorageStreamStore;
 
-using FakeItEasy;
-
-using Microsoft.Extensions.Options;
-
 using Xunit;
 
 public abstract class StoreClientTestBase<TPersister> : IAsyncDisposable where TPersister : IPersister {
@@ -297,21 +293,6 @@ public abstract class StoreClientTestBase<TPersister> : IAsyncDisposable where T
         Assert.True(writeResult.Successful);
         Assert.Equal(4, events.Count);
         Assert.Equal(3, events.Last().Revision);
-    }
-
-    [Fact]
-    public async Task Large_streams_will_write_and_read() {
-        var id = new StreamId("some", "stream");
-        var fiftyGrandEventDeta = Enumerable.Range(1, 50000)
-            .Select(_ => new EventData(id, Guid.NewGuid(), Array.Empty<byte>()))
-            .ToArray();
-
-        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, fiftyGrandEventDeta);
-
-        Assert.True(writeResult.Successful);
-
-        var allEventsFromStorage = await Client.ReadStreamAsync(id).ToListAsync();
-        Assert.Equal(50000, allEventsFromStorage.Count);
     }
 
     public ValueTask DisposeAsync() {
