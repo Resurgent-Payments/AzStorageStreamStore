@@ -42,7 +42,7 @@ public abstract class LocalStoreClientTestBase<TPersister> : IAsyncDisposable wh
     }
 
     [Fact]
-    public async Task Cannot_append_when_a_stream_exists() {
+    public async Task Cannot_append_events_when_expecting_a_nonexistent_stream() {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
         var id = new StreamId(tenantId, Guid.NewGuid().ToString());
@@ -55,16 +55,18 @@ public abstract class LocalStoreClientTestBase<TPersister> : IAsyncDisposable wh
         Assert.IsType<StreamExistsException>(writeResult.Exception);
     }
 
-    [Fact]
-    public async Task Appending_a_second_time_succeeds_as_a_noop() {
+    [Theory]
+    [InlineData(-2)] // Any stream
+    [InlineData(-1)] // Empty stream
+    public async Task Duplicate_appends_render_a_noop_after_the_first_request(long streamExpectedVersion) {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
         var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
         var e = new EventData(id, eventId, Array.Empty<byte>());
 
-        var writeResult1 = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e });
-        var writeResult2 = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e });
+        var writeResult1 = await Client.AppendToStreamAsync(_loadedStreamId, streamExpectedVersion, new[] { e });
+        var writeResult2 = await Client.AppendToStreamAsync(_loadedStreamId, streamExpectedVersion, new[] { e });
 
         Assert.True(writeResult1.Successful);
         Assert.True(writeResult2.Successful);
