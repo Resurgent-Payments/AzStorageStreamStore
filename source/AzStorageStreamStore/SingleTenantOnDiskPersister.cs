@@ -24,6 +24,14 @@ public class SingleTenantOnDiskPersister : IPersister {
 
     public SingleTenantOnDiskPersister(IOptions<SingleTenantOnDiskPersisterOptions> options) {
         _options = options.Value ?? new();
+
+        if (!Directory.Exists(_options.BaseDataPath)) {
+            Directory.CreateDirectory(_options.BaseDataPath);
+        }
+
+        if (!File.Exists(_chunkFile))
+            File.Create(_chunkFile).Dispose();
+
         _tokenSource.Token.Register(() => _walWriter.Writer.Complete());
         _tokenSource.Token.Register(() => _allStream.Writer.Complete());
         Task.Factory.StartNew(WriteEventsImplAsync, _tokenSource.Token);
@@ -72,8 +80,7 @@ public class SingleTenantOnDiskPersister : IPersister {
         => ReadAllAsync(0);
 
     private async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long position) {
-        using (var file = File.OpenRead(_chunkFile))
-        using (var stream = new StreamReader(file)) {
+        using (var stream = new StreamReader(_chunkFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
             string? line;
             while ((line = await stream.ReadLineAsync()) != null) {
 #pragma warning disable CS8603 // Possible null reference return.
@@ -99,11 +106,11 @@ public class SingleTenantOnDiskPersister : IPersister {
                     break;
                 case -2: // any stream
                 case -1: // empty stream
+                    break;
                 default:
-                    long eventsInStream = 0;
                     var streamEvents = await ReadAllAsync().Where(@event => @event.StreamId == streamId).ToListAsync();
 
-                    if (!streamEvents.Any()) {
+                    if (streamEvents.Any()) {
                         onceCompleted.SetResult(WriteResult.Failed(-1, -1, new WrongExpectedVersionException(expectedVersion, ExpectedVersion.NoStream)));
                         continue;
                     }
@@ -128,36 +135,37 @@ public class SingleTenantOnDiskPersister : IPersister {
                     break;
             }
 
-            // getting current position
-            var position = -1L;
-            var version = -1L;
-            await foreach (var recorded in ReadAllAsync()) {
-                position += 1;
-                if (recorded.StreamId == streamId) {
-                    version += 1;
-                }
-            }
-
 
             try {
-                using (var file = File.Open(_chunkFile, FileMode.Append, FileAccess.Write))
-                using (var writer = new StreamWriter(file)) {
-                    {
-                        foreach (var data in events) {
-                            version += 1;
-                            var recorded = new RecordedEvent(streamId, data.EventId, version, data.Data);
-                            var ser = JsonSerializer.Serialize(recorded, _options.JsonOptions);
-                            await writer.WriteLineAsync(ser);
-                        }
+                // getting current position
+                var position = -1L;
+                var version = -1L;
+                await foreach (var recorded in ReadAllAsync()) {
+                    position += 1;
+                    if (recorded.StreamId == streamId) {
+                        version += 1;
                     }
                 }
+
+                using (var writer = new StreamWriter(_chunkFile, new FileStreamOptions { Access = FileAccess.Write, Mode = FileMode.Append, Options = FileOptions.Asynchronous, Share = FileShare.Read })) {
+                    foreach (var data in events) {
+                        version += 1;
+                        var recorded = new RecordedEvent(streamId, data.EventId, version, data.Data);
+                        var ser = JsonSerializer.Serialize(recorded, _options.JsonOptions);
+                        await writer.WriteLineAsync(ser);
+
+                        await _allStream.Writer.WriteAsync(recorded);
+                    }
+
+                    await writer.FlushAsync();
+                }
+
+                onceCompleted.SetResult(WriteResult.Ok(position, version));
             }
             catch (Exception ex) {
                 onceCompleted.SetException(ex);
                 continue;
             }
-
-            onceCompleted.SetResult(WriteResult.Ok(position, version));
         }
     }
 }

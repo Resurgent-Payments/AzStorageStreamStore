@@ -11,25 +11,27 @@ using Microsoft.Extensions.Options;
 
 using Xunit;
 
-public class StoreClientTestBase {
+public class StoreClientTestBase : IDisposable {
     private readonly IStoreClient _storeClient;
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
+    IOptions<SingleTenantOnDiskPersisterOptions> _options;
 
     public StoreClientTestBase() {
-        //var options = A.Fake<IOptions<LocalDiskDurablePersisterOptions>>();
-        //A.CallTo(() => options.Value)
-        //    .Returns(new LocalDiskDurablePersisterOptions {
-        //        BaseDataPath = @"c:\test",
-        //        FileReadBlockSize = 1024,
-        //        DatafileName = Path.GetTempFileName()
-        //    });
+        var options = new SingleTenantOnDiskPersisterOptions {
+            BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
+            FileReadBlockSize = 1024,
+        };
+        _options = A.Fake<IOptions<SingleTenantOnDiskPersisterOptions>>();
+        A.CallTo(() => _options.Value)
+            .Returns(options);
 
-        //_storeClient = new LocalStoreClient(new SingleTenantDurablePersister(options));
+        _storeClient = new LocalStoreClient(new SingleTenantOnDiskPersister(_options));
 
-        _storeClient = new LocalStoreClient(new InMemoryPersister());
+        //_storeClient = new LocalStoreClient(new InMemoryPersister());
 
         AsyncHelper.RunSync(async () => await _storeClient.InitializeAsync());
-        AsyncHelper.RunSync(async () => await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));
+        var result = AsyncHelper.RunSync(async () => await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));
+        Assert.True(result.Successful);
     }
 
     [Theory]
@@ -159,6 +161,8 @@ public class StoreClientTestBase {
         await _storeClient.AppendToStreamAsync(id2, ExpectedVersion.Any, new[] { e2 });
         await _storeClient.AppendToStreamAsync(id3, ExpectedVersion.Any, new[] { e3 });
 
+        await Task.Delay(1000);
+
         var stream = await _storeClient.ReadStreamAsync(key).ToListAsync();
 
         Assert.Equal(3, stream.Count);
@@ -196,7 +200,7 @@ public class StoreClientTestBase {
         Assert.True(result.Successful);
 
 
-        _mres.Wait(5000);
+        _mres.Wait(500);
 
         Assert.Single(events);
     }
@@ -416,5 +420,9 @@ public class StoreClientTestBase {
         Assert.True(writeResult.Successful);
         Assert.Equal(4, events.Count);
         Assert.Equal(3, events.Last().Revision);
+    }
+
+    public void Dispose() {
+        Directory.Delete(_options.Value.BaseDataPath, true);
     }
 }
