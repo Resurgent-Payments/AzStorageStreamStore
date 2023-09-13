@@ -55,7 +55,7 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public async Task<IDisposable> SubscribeToAllFromAsync(long position, Action<RecordedEvent> handler) {
-        await foreach (var @event in _persister.ReadAllAsync(position)) {
+        await foreach (var @event in _persister.ReadStreamAsync(StreamKey.All, position)) {
             handler.Invoke(@event);
         }
         return new StreamDisposer(() =>

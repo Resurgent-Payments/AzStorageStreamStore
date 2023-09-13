@@ -36,21 +36,6 @@ public class SingleTenantOnDiskPersister : IPersister {
         GC.SuppressFinalize(this);
     }
 
-    public IAsyncEnumerable<RecordedEvent> ReadAllAsync()
-        => ReadAllAsync(0);
-
-    public async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long position) {
-        using (var file = File.OpenRead(_chunkFile))
-        using (var stream = new StreamReader(file)) {
-            string? line;
-            while ((line = await stream.ReadLineAsync()) != null) {
-#pragma warning disable CS8603 // Possible null reference return.
-                yield return await JsonSerializer.DeserializeAsync<RecordedEvent>(new MemoryStream(Encoding.UTF8.GetBytes(line)), _options.JsonOptions);
-#pragma warning restore CS8603 // Possible null reference return.
-            }
-        }
-    }
-
     public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long position) {
         var currentPosition = -1;
         await foreach (var @event in ReadAllAsync()) {
@@ -81,6 +66,21 @@ public class SingleTenantOnDiskPersister : IPersister {
         var tcs = new TaskCompletionSource<WriteResult>();
         await _walWriter.Writer.WriteAsync(new PossibleWalEntry(tcs, id, version, events));
         return await tcs.Task;
+    }
+
+    private IAsyncEnumerable<RecordedEvent> ReadAllAsync()
+        => ReadAllAsync(0);
+
+    private async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long position) {
+        using (var file = File.OpenRead(_chunkFile))
+        using (var stream = new StreamReader(file)) {
+            string? line;
+            while ((line = await stream.ReadLineAsync()) != null) {
+#pragma warning disable CS8603 // Possible null reference return.
+                yield return await JsonSerializer.DeserializeAsync<RecordedEvent>(new MemoryStream(Encoding.UTF8.GetBytes(line)), _options.JsonOptions);
+#pragma warning restore CS8603 // Possible null reference return.
+            }
+        }
     }
 
     private async Task WriteEventsImplAsync() {

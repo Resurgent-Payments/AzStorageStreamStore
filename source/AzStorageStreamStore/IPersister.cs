@@ -7,11 +7,38 @@ using System.Threading.Tasks;
 public interface IPersister : IDisposable {
     ChannelReader<RecordedEvent> AllStream { get; }
 
-    IAsyncEnumerable<RecordedEvent> ReadAllAsync();
-    IAsyncEnumerable<RecordedEvent> ReadAllAsync(long position);
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id);
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long revision);
+
+    /// <summary>
+    /// Reads a stream based on it's "Key"
+    /// </summary>
+    /// <param name="key"></param>
+    /// <returns></returns>
+    /// <remarks>
+    /// <para>This creates a stream similar to EventStore DB's $ce- stream type.  If you want to read all events (akin to reading $all in EventStore DB), you'll pass in <see cref="StreamKey.All"/></para>
+    /// <para>Note: For any multi-tenant scenarios, the value in Categories[0] will be used, in all cases, to differentiate between tenants.  Any attempt to read using <see cref="StreamKey.All"/> will throw an <see cref="InvalidKeyException"/></para>
+    /// </remarks>
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key);
+
+    /// <summary>
+    /// Reads a stream based on it's "Key", and from its revision within the "key" stream.
+    /// </summary>
+    /// <param name="key"></param>
+    /// <param name="revision"></param>
+    /// <returns></returns>
+    /// <remarks>
+    /// <para>This creates a stream similar to EventStore DB's $ce- stream type.  If you want to read all events (akin to reading $all in EventStore DB), you'll pass in <see cref="StreamKey.All"/></para>
+    /// <para>Note: For any multi-tenant scenarios, the value in Categories[0] will be used, in all cases, to differentiate between tenants.  Any attempt to read using <see cref="StreamKey.All"/> will throw an <see cref="InvalidKeyException"/></para>
+    /// </remarks>
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key, long revision);
+
+    /// <summary>
+    /// Writes a series of events to the main timeline stream (EventStore DB calls this the $all stream)
+    /// </summary>
+    /// <param name="id"></param>
+    /// <param name="version"></param>
+    /// <param name="events"></param>
+    /// <returns></returns>
     ValueTask<WriteResult> AppendToStreamAsync(StreamId id, ExpectedVersion version, EventData[] events);
 }

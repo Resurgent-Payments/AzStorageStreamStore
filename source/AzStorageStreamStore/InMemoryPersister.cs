@@ -34,20 +34,6 @@ public class InMemoryPersister : IPersister {
         Task.Factory.StartNew(WriteEventsImplAsync, _cts.Token);
     }
 
-    public IAsyncEnumerable<RecordedEvent> ReadAllAsync()
-        => ReadAllAsync(0);
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="revision"></param>
-    /// <remarks>This is appended with async to allow for keeping syntax when dealing with other forms of perssitence implementations.</remarks>
-    public async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long revision) {
-        foreach (var @event in _allStream.OfType<RecordedEvent>().Skip((int)revision)) {
-            yield return @event;
-        }
-    }
-
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
         => ReadStreamAsync(id, 0);
 
@@ -89,7 +75,7 @@ public class InMemoryPersister : IPersister {
 
             switch (expected) {
                 case -3: // no stream
-                    if (!await ReadAllAsync().AllAsync(e => e.StreamId != streamId)) {
+                    if (!await ReadStreamAsync(StreamKey.All).AllAsync(e => e.StreamId != streamId)) {
                         onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, -1, new StreamExistsException()));
                         continue;
                     }
@@ -156,9 +142,9 @@ public class InMemoryPersister : IPersister {
     }
 
     private bool _disposed = false;
-    
+
     public void Dispose() => Dispose(true);
-    
+
     protected virtual void Dispose(bool disposing) {
         if (_disposed || !disposing) return;
 

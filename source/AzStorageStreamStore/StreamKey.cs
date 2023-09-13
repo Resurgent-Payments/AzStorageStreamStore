@@ -7,6 +7,7 @@ using System.Collections;
 /// </summary>
 /// <param name="Categories"></param>
 public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
+    public static StreamKey All = new StreamKey(Array.Empty<string>());
     public static bool operator ==(StreamKey key, StreamId id) => id == key;
     public static bool operator !=(StreamKey key, StreamId id) => !(key == id);
 
