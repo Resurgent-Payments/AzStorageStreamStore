@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 using Xunit;
 
-public abstract class SingleTenantStoreClientTests<TPersister> : IAsyncDisposable where TPersister : IPersister {
+public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposable where TPersister : IPersister {
     private readonly IStoreClient _storeClient;
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
     IOptions<SingleTenantOnDiskPersisterOptions> _options;
@@ -14,7 +14,7 @@ public abstract class SingleTenantStoreClientTests<TPersister> : IAsyncDisposabl
     protected abstract TPersister Persister { get; }
 
 
-    public SingleTenantStoreClientTests() {
+    public LocalStoreClientAllStreamTests() {
         var options = new SingleTenantOnDiskPersisterOptions {
             BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
             FileReadBlockSize = 1024,
