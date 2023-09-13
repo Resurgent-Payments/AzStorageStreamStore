@@ -76,6 +76,14 @@ public class SingleTenantOnDiskPersister : IPersister {
         return await tcs.Task;
     }
 
+    public ValueTask Truncate() {
+        var files = Directory.GetFiles(_options.BaseDataPath, "*", SearchOption.AllDirectories);
+        foreach (var file in files) {
+            File.Delete(file);
+        }
+        return ValueTask.CompletedTask;
+    }
+
     private IAsyncEnumerable<RecordedEvent> ReadAllAsync()
         => ReadAllAsync(0);
 

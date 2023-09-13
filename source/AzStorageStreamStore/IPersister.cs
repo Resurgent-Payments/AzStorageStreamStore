@@ -41,4 +41,6 @@ public interface IPersister : IDisposable {
     /// <param name="events"></param>
     /// <returns></returns>
     ValueTask<WriteResult> AppendToStreamAsync(StreamId id, ExpectedVersion version, EventData[] events);
+
+    ValueTask Truncate();
 }

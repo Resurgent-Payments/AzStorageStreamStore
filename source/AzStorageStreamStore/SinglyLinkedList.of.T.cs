@@ -34,7 +34,6 @@ public class SinglyLinkedList<T> : IEnumerable<T> where T : class {
         }
     }
 
-
     public long Length { get; private set; }
 
     public long Append(T item) {
@@ -57,6 +56,22 @@ public class SinglyLinkedList<T> : IEnumerable<T> where T : class {
         return Length - 1; // should be the item's index.
     }
 
+    public void Clear() {
+        lock (this) {
+            var nodes = new Stack<ListItem<T>>();
+
+            var childNode = _headNode;
+
+            while ((childNode = childNode.Next) != null) { nodes.Push(childNode); }
+
+            ListItem<T> node;
+            while ((node = nodes.Pop()) != null) {
+                node.Next = null;
+            }
+            _headNode = null;
+            Length = 0;
+        }
+    }
     public void Dispose() {
         // no-op
     }

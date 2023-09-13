@@ -9,7 +9,6 @@ public class InMemoryPersister : IPersister {
     private readonly CancellationTokenSource _cts = new();
 
     private readonly SinglyLinkedList<StreamItem> _allStream = new();
-    private readonly Dictionary<StreamId, List<LinkTo>> _streamIndex = new();
 
     private readonly Channel<RecordedEvent> _allStreamChannel;
     private readonly Channel<PossibleWalEntry> _streamWriterChannel;
@@ -38,11 +37,8 @@ public class InMemoryPersister : IPersister {
         => ReadStreamAsync(id, 0);
 
     public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long revision) {
-        if (!_streamIndex.TryGetValue(id, out var index)) {
-            throw new StreamDoesNotExistException();
-        }
-        foreach (var e in index.Skip((int)revision)) {
-            yield return e.Event;
+        foreach (var e in _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == id).Skip((int)revision)) {
+            yield return e;
         }
     }
 
@@ -66,6 +62,11 @@ public class InMemoryPersister : IPersister {
         return await tcs.Task;
     }
 
+    public ValueTask Truncate() {
+        _allStream.Clear();
+        return ValueTask.CompletedTask;
+    }
+
     private async Task WriteEventsImplAsync() {
         await foreach (var posssibleWalEntry in _streamWriterChannel.Reader.ReadAllAsync()) {
             var onceCompleted = posssibleWalEntry.OnceCompleted;
@@ -73,71 +74,68 @@ public class InMemoryPersister : IPersister {
             var expected = posssibleWalEntry.Version;
             var events = posssibleWalEntry.Events;
 
-            switch (expected) {
-                case -3: // no stream
-                    if (!await ReadStreamAsync(StreamKey.All).AllAsync(e => e.StreamId != streamId)) {
-                        onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, -1, new StreamExistsException()));
-                        continue;
-                    }
-                    break;
-                case -2: // any stream
-                    break;
-                case -1: // empty stream
-                    if (!_streamIndex.TryGetValue(streamId, out var emptyStreamIndex)) {
-                        onceCompleted.SetResult(WriteResult.Failed(ExpectedVersion.EmptyStream, -1, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, ExpectedVersion.NoStream)));
-                        continue;
-                    }
-
-                    if (emptyStreamIndex.Count != 0) {
-                        onceCompleted.SetResult(WriteResult.Failed(ExpectedVersion.EmptyStream, -1, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, emptyStreamIndex.Count)));
-                        continue;
-                    }
-
-                    break;
-                default:
-                    if (!_streamIndex.TryGetValue(streamId, out var index)) {
-                        onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, -1, new WrongExpectedVersionException(expected, ExpectedVersion.NoStream)));
-                    }
-
-                    if (index.Count != expected) {
-                        // if all events are appended, considered as a double request and post-back ok.
-                        if (events.All(e => index.All(i => i.Event.EventId != e.EventId))) {
-
-                            onceCompleted.SetResult(WriteResult.Ok(_allStreamPosition, index.Max(x => x.Revision)));
+            try {
+                switch (expected) {
+                    case -3: // no stream
+                        if (!await ReadStreamAsync(StreamKey.All).AllAsync(e => e.StreamId != streamId)) {
+                            onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, -1, new StreamExistsException()));
                             continue;
                         }
+                        break;
+                    case -2: // any stream
+                    case -1: // empty stream
+                        break;
+                    default:
+                        var filtered = _allStream.OfType<RecordedEvent>().Where(e => e.StreamId == streamId);
 
-                        // if all events were not appended
-                        // -- or --
-                        // only some were appended, then throw a wrong expected version.
-                        if (events.Select(e => index.OfType<LinkTo>().All(s => s.Event.EventId != e.EventId)).Any()) {
-                            onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition,
-                                index.Max(x => x.Revision),
-                                new WrongExpectedVersionException(expected, index.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream)));
-                            continue;
+                        if (!filtered.Any()) {
+                            onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, -1, new WrongExpectedVersionException(expected, ExpectedVersion.NoStream)));
                         }
-                    }
-                    break;
+
+                        if (filtered.Count() != expected) {
+                            // if all events are appended, considered as a double request and post-back ok.
+                            if (events.All(e => filtered.All(i => i.EventId != e.EventId))) {
+
+                                onceCompleted.SetResult(WriteResult.Ok(_allStreamPosition, filtered.Max(x => x.Revision)));
+                                continue;
+                            }
+
+                            // if all events were not appended
+                            // -- or --
+                            // only some were appended, then throw a wrong expected version.
+                            if (events.Select(e => filtered.All(s => s.EventId != e.EventId)).Any()) {
+                                onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition,
+                                    filtered.Max(x => x.Revision),
+                                    new WrongExpectedVersionException(expected, filtered.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream)));
+                                continue;
+                            }
+                        }
+                        break;
+                }
+
+                var newVersion = -1L;
+                foreach (var @event in events) {
+                    var filtered = _allStream.OfType<RecordedEvent>()
+                        .Where(e => e.StreamId == streamId)
+                        .ToArray();
+                    var nextRevision = filtered.Any()
+                        ? filtered.Max(f => f.Revision) + 1
+                        : 0;
+                    var recorded = new RecordedEvent(streamId, @event.EventId, nextRevision, @event.Data);
+
+                    _allStream.Append(recorded);
+
+                    // publish the recorded event.
+                    await _allStreamChannel.Writer.WriteAsync(recorded);
+                    _allStreamPosition += 1;
+                    newVersion = recorded.Revision;
+                }
+
+                onceCompleted.SetResult(WriteResult.Ok(_allStreamPosition, newVersion));
             }
-
-            if (!_streamIndex.TryGetValue(streamId, out var linkTos)) {
-                linkTos = new();
-                _streamIndex.Add(streamId, linkTos);
+            catch (Exception exc) {
+                onceCompleted.SetResult(WriteResult.Failed(-1, -1, exc));
             }
-
-            var newVersion = -1L;
-            foreach (var @event in events) {
-                var recorded = new RecordedEvent(streamId, @event.EventId, linkTos.Count, @event.Data);
-
-                _allStream.Append(recorded);
-                linkTos.Add(new LinkTo(linkTos.Count, recorded));
-
-                // publish the recorded event.
-                await _allStreamChannel.Writer.WriteAsync(recorded);
-                newVersion = recorded.Revision;
-            }
-
-            onceCompleted.SetResult(WriteResult.Ok(_allStreamPosition, newVersion));
         }
     }
 

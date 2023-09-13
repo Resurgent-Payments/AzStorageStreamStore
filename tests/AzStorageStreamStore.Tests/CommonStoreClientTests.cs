@@ -11,26 +11,17 @@ using Microsoft.Extensions.Options;
 
 using Xunit;
 
-public class StoreClientTestBase : IDisposable {
-    private readonly IStoreClient _storeClient;
+public abstract class StoreClientTestBase<TPersister> : IAsyncDisposable where TPersister : IPersister {
+    protected IStoreClient Client { get; set; }
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
-    IOptions<SingleTenantOnDiskPersisterOptions> _options;
+
+    protected abstract TPersister Persister { get; }
 
     public StoreClientTestBase() {
-        var options = new SingleTenantOnDiskPersisterOptions {
-            BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
-            FileReadBlockSize = 1024,
-        };
-        _options = A.Fake<IOptions<SingleTenantOnDiskPersisterOptions>>();
-        A.CallTo(() => _options.Value)
-            .Returns(options);
+        Client = new LocalStoreClient(Persister);
 
-        _storeClient = new LocalStoreClient(new SingleTenantOnDiskPersister(_options));
-
-        //_storeClient = new LocalStoreClient(new InMemoryPersister());
-
-        AsyncHelper.RunSync(async () => await _storeClient.InitializeAsync());
-        var result = AsyncHelper.RunSync(async () => await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));
+        AsyncHelper.RunSync(async () => await Client.InitializeAsync());
+        var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));
         Assert.True(result.Successful);
     }
 
@@ -44,11 +35,11 @@ public class StoreClientTestBase : IDisposable {
 
         var e = new EventData(id, eventId, Array.Empty<byte>());
 
-        var writeResult = await _storeClient.AppendToStreamAsync(id, version, new[] { e });
+        var writeResult = await Client.AppendToStreamAsync(id, version, new[] { e });
 
         Assert.True(writeResult.Successful);
 
-        var events = await _storeClient.ReadStreamAsync(id).ToListAsync();
+        var events = await Client.ReadStreamAsync(id).ToListAsync();
         Assert.Single(events);
         Assert.Equal(id, events.First().StreamId);
         Assert.Equal(eventId, e.EventId);
@@ -62,7 +53,7 @@ public class StoreClientTestBase : IDisposable {
 
         var e = new EventData(id, eventId, Array.Empty<byte>());
 
-        var writeResult = await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.NoStream, new[] { e });
+        var writeResult = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.NoStream, new[] { e });
 
         Assert.False(writeResult.Successful);
         Assert.IsType<StreamExistsException>(writeResult.Exception);
@@ -76,8 +67,8 @@ public class StoreClientTestBase : IDisposable {
 
         var e = new EventData(id, eventId, Array.Empty<byte>());
 
-        var writeResult1 = await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e });
-        var writeResult2 = await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e });
+        var writeResult1 = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e });
+        var writeResult2 = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e });
 
         Assert.True(writeResult1.Successful);
         Assert.True(writeResult2.Successful);
@@ -95,8 +86,8 @@ public class StoreClientTestBase : IDisposable {
         var e2 = new EventData(id, eventId2, Array.Empty<byte>());
         var e3 = new EventData(id, eventId3, Array.Empty<byte>());
 
-        var writeResult1 = await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e1, e2 });
-        var writeResult2 = await _storeClient.AppendToStreamAsync(_loadedStreamId, writeResult1.Version, new[] { e2, e3 });
+        var writeResult1 = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e1, e2 });
+        var writeResult2 = await Client.AppendToStreamAsync(_loadedStreamId, writeResult1.Version, new[] { e2, e3 });
 
         Assert.True(writeResult1.Successful);
         Assert.False(writeResult2.Successful);
@@ -114,8 +105,8 @@ public class StoreClientTestBase : IDisposable {
         var e2 = new EventData(id, eventId2, Array.Empty<byte>());
         var e3 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
 
-        var writeResult1 = await _storeClient.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2 });
-        var writeResult2 = await _storeClient.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e3 });
+        var writeResult1 = await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2 });
+        var writeResult2 = await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e3 });
 
         Assert.True(writeResult1.Successful);
         Assert.True(writeResult2.Successful);
@@ -132,10 +123,10 @@ public class StoreClientTestBase : IDisposable {
         var e2 = new EventData(id, eventId2, Array.Empty<byte>());
         var e3 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
 
-        await _storeClient.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2 });
-        await _storeClient.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e3 });
+        await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2 });
+        await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e3 });
 
-        var stream = await _storeClient.ReadStreamAsync(id).ToListAsync();
+        var stream = await Client.ReadStreamAsync(id).ToListAsync();
 
         Assert.Equal(3, stream.Count);
         Assert.Equal(e1.EventId, stream[0].EventId);
@@ -157,13 +148,13 @@ public class StoreClientTestBase : IDisposable {
         var e2 = new EventData(id2, Guid.NewGuid(), Array.Empty<byte>());
         var e3 = new EventData(id3, Guid.NewGuid(), Array.Empty<byte>());
 
-        await _storeClient.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e1 });
-        await _storeClient.AppendToStreamAsync(id2, ExpectedVersion.Any, new[] { e2 });
-        await _storeClient.AppendToStreamAsync(id3, ExpectedVersion.Any, new[] { e3 });
+        await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e1 });
+        await Client.AppendToStreamAsync(id2, ExpectedVersion.Any, new[] { e2 });
+        await Client.AppendToStreamAsync(id3, ExpectedVersion.Any, new[] { e3 });
 
         await Task.Delay(1000);
 
-        var stream = await _storeClient.ReadStreamAsync(key).ToListAsync();
+        var stream = await Client.ReadStreamAsync(key).ToListAsync();
 
         Assert.Equal(3, stream.Count);
     }
@@ -171,128 +162,14 @@ public class StoreClientTestBase : IDisposable {
     [Fact]
     public async Task Attempting_to_read_a_nonexistent_stream_by_id_should_throw_stream_does_not_exist_exception() {
         var id = new StreamId(Guid.NewGuid().ToString(), Guid.NewGuid().ToString());
-        Assert.Throws<StreamDoesNotExistException>(() => AsyncHelper.RunSync(async () => await _storeClient.ReadStreamAsync(id).ToListAsync()));
+        Assert.Throws<StreamDoesNotExistException>(() => AsyncHelper.RunSync(async () => await Client.ReadStreamAsync(id).ToListAsync()));
     }
 
     [Fact]
     public async Task Attempting_to_read_a_nonexistent_stream_by_key_should_return_no_results() {
         var key = new StreamKey(new[] { Guid.NewGuid().ToString() });
-        var stream = await _storeClient.ReadStreamAsync(key).ToListAsync();
+        var stream = await Client.ReadStreamAsync(key).ToListAsync();
         Assert.Empty(stream);
-    }
-
-    [Fact]
-    public async Task Can_subscribe_to_all_stream() {
-        var events = new List<RecordedEvent>();
-        var _mres = new ManualResetEventSlim(false);
-
-        await _storeClient.SubscribeToAllAsync(x => {
-            events.Add(x);
-            _mres.Set();
-        });
-        var key = new StreamId("test", "stream");
-
-        var result = await _storeClient.AppendToStreamAsync(
-            new StreamId("test", "stream"),
-            ExpectedVersion.Any,
-            new[] { new EventData(key, Guid.NewGuid(), Array.Empty<byte>()) }
-        );
-        Assert.True(result.Successful);
-
-
-        _mres.Wait(500);
-
-        Assert.Single(events);
-    }
-
-    [Fact]
-    public async Task Can_subscribe_to_all_stream_multiple_times() {
-        var events = new List<RecordedEvent>();
-
-        var _mres1 = new ManualResetEventSlim(false);
-        var _mres2 = new ManualResetEventSlim(false);
-
-        await _storeClient.SubscribeToAllAsync(x => {
-            events.Add(x);
-            _mres1.Set();
-        });
-        await _storeClient.SubscribeToAllAsync(x => {
-            events.Add(x);
-            _mres2.Set();
-        });
-
-        var key = new StreamId("test", "stream");
-
-        var result = await _storeClient.AppendToStreamAsync(
-            new StreamId("test", "stream"),
-            ExpectedVersion.Any,
-            new[] { new EventData(key, Guid.NewGuid(), Array.Empty<byte>()) }
-        );
-        Assert.True(result.Successful);
-
-
-        _mres1.Wait(200);
-        _mres2.Wait(200);
-
-        Assert.Equal(2, events.Count);
-    }
-
-    [Fact]
-    public async Task Can_remove_an_allstream_subscription_via_returned_idsposable() {
-        var events = new List<RecordedEvent>();
-        var _mres = new ManualResetEventSlim(false);
-
-        var disposer = await _storeClient.SubscribeToAllAsync(x => {
-            events.Add(x);
-            _mres.Set();
-        });
-        disposer.Dispose();
-
-        var key = new StreamId("test", "stream");
-        var result = await _storeClient.AppendToStreamAsync(
-            new StreamId("test", "stream"),
-            ExpectedVersion.Any,
-            new[] { new EventData(key, Guid.NewGuid(), Array.Empty<byte>()) }
-        );
-        Assert.True(result.Successful);
-
-        _mres.Wait(100);
-
-        Assert.Empty(events);
-    }
-
-    [Fact]
-    public async Task Disposing_an_allstream_subscription_does_not_dispose_all_subscriptions() {
-        var events = new List<RecordedEvent>();
-
-        var _mres1 = new ManualResetEventSlim(false);
-        var _mres2 = new ManualResetEventSlim(false);
-
-        await _storeClient.SubscribeToAllAsync(x => {
-            events.Add(x);
-            _mres1.Set();
-        });
-
-        // create and immedialy dispose to loop the subscription/disposal pipeline.
-        (await _storeClient.SubscribeToAllAsync(x => {
-            events.Add(x);
-            _mres2.Set();
-        })).Dispose();
-
-        var key = new StreamId("test", "stream");
-
-        var result = await _storeClient.AppendToStreamAsync(
-            new StreamId("test", "stream"),
-            ExpectedVersion.Any,
-            new[] { new EventData(key, Guid.NewGuid(), Array.Empty<byte>()) }
-        );
-        Assert.True(result.Successful);
-
-
-        _mres1.Wait(100);
-        _mres2.Wait(100);
-
-        Assert.Single(events);
     }
 
     [Fact]
@@ -305,13 +182,13 @@ public class StoreClientTestBase : IDisposable {
 
         var events = new List<RecordedEvent>();
 
-        var writeResult = await _storeClient.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
+        var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
         var mre = new ManualResetEventSlim(false);
         var waitingToSet = 4;
         var numberOfEvents = 0;
-        var subscription = await _storeClient.SubscribeToStreamFromAsync(id1, 0, e => {
+        var subscription = await Client.SubscribeToStreamFromAsync(id1, 0, e => {
             if (numberOfEvents >= waitingToSet) return;
 
             events.Add(e);
@@ -322,7 +199,7 @@ public class StoreClientTestBase : IDisposable {
             }
         });
 
-        await _storeClient.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
+        await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
 
         mre.Wait(500);
 
@@ -344,7 +221,7 @@ public class StoreClientTestBase : IDisposable {
         var waitingToSet = 1;
         var numberOfEvents = 0;
 
-        (await _storeClient.SubscribeToStreamFromAsync(key, 2, e => {
+        (await Client.SubscribeToStreamFromAsync(key, 2, e => {
             events.Add(e);
             numberOfEvents += 1;
             if (numberOfEvents >= waitingToSet) {
@@ -352,7 +229,7 @@ public class StoreClientTestBase : IDisposable {
             }
         })).Dispose();
 
-        var writeResult = await _storeClient.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
+        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
         Assert.True(writeResult.Successful);
 
         mre.Wait(100);
@@ -374,10 +251,10 @@ public class StoreClientTestBase : IDisposable {
         var waitingToSet = 4;
         var numberOfEvents = 0;
 
-        (await _storeClient.SubscribeToStreamFromAsync(key, 2, e => {
+        (await Client.SubscribeToStreamFromAsync(key, 2, e => {
             // nothing to do
         })).Dispose();
-        await _storeClient.SubscribeToStreamFromAsync(key, 2, e => {
+        await Client.SubscribeToStreamFromAsync(key, 2, e => {
             events.Add(e);
             numberOfEvents += 1;
             if (numberOfEvents >= waitingToSet) {
@@ -385,7 +262,7 @@ public class StoreClientTestBase : IDisposable {
             }
         });
 
-        var writeResult = await _storeClient.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
+        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
         Assert.True(writeResult.Successful);
 
         mre.Wait(100);
@@ -405,15 +282,15 @@ public class StoreClientTestBase : IDisposable {
         // need to create an empty stream to make this work.
         var mre = new ManualResetEventSlim(false);
         var expectedEvents = 4;
-        await _storeClient.AppendToStreamAsync(id, ExpectedVersion.NoStream, Array.Empty<EventData>());
-        await _storeClient.SubscribeToStreamAsync(id, e => {
+        await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, Array.Empty<EventData>());
+        await Client.SubscribeToStreamAsync(id, e => {
             events.Add(e);
             if (events.Count >= expectedEvents) {
                 mre.Set();
             }
         });
 
-        var writeResult = await _storeClient.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2, e3, e4 });
+        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2, e3, e4 });
 
         mre.Wait(1000);
 
@@ -422,7 +299,9 @@ public class StoreClientTestBase : IDisposable {
         Assert.Equal(3, events.Last().Revision);
     }
 
-    public void Dispose() {
-        Directory.Delete(_options.Value.BaseDataPath, true);
+    public ValueTask DisposeAsync() {
+        Persister?.Truncate();
+        Persister?.Dispose();
+        return ValueTask.CompletedTask;
     }
 }
