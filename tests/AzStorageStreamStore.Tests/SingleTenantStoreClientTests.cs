@@ -6,10 +6,13 @@ using Microsoft.Extensions.Options;
 
 using Xunit;
 
-public class SingleTenantStoreClientTests {
+public abstract class SingleTenantStoreClientTests<TPersister> : IAsyncDisposable where TPersister : IPersister {
     private readonly IStoreClient _storeClient;
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
     IOptions<SingleTenantOnDiskPersisterOptions> _options;
+
+    protected abstract TPersister Persister { get; }
+
 
     public SingleTenantStoreClientTests() {
         var options = new SingleTenantOnDiskPersisterOptions {
@@ -142,5 +145,11 @@ public class SingleTenantStoreClientTests {
         _mres2.Wait(100);
 
         Assert.Single(events);
+    }
+
+    public ValueTask DisposeAsync() {
+        Persister?.Truncate();
+        Persister?.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

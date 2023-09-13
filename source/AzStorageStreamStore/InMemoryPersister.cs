@@ -83,7 +83,12 @@ public class InMemoryPersister : IPersister {
                         }
                         break;
                     case -2: // any stream
+                        break;
                     case -1: // empty stream
+                        if (_allStream.OfType<StreamCreated>().All(s => s.StreamId != streamId)) {
+                            var revision = _allStream.OfType<RecordedEvent>().Max(e => e.Revision);
+                            throw new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision);
+                        }
                         break;
                     default:
                         var filtered = _allStream.OfType<RecordedEvent>().Where(e => e.StreamId == streamId);
@@ -111,6 +116,11 @@ public class InMemoryPersister : IPersister {
                             }
                         }
                         break;
+                }
+
+                // if we don't have a StreamCreated event, we need to append one now.
+                if (_allStream.OfType<StreamCreated>().All(e => e.StreamId != streamId)) {
+                    _allStream.Append(new StreamCreated(streamId));
                 }
 
                 var newVersion = -1L;

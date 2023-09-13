@@ -113,7 +113,15 @@ public class SingleTenantOnDiskPersister : IPersister {
                     }
                     break;
                 case -2: // any stream
+                    break;
                 case -1: // empty stream
+                    if (await ReadAllAsync().OfType<StreamCreated>().AllAsync(s => s.StreamId != streamId)) {
+                        var revision = -1;
+                        await foreach (var e in ReadAllAsync().Where(recorded => recorded.StreamId == streamId)) {
+                            var rev = e.Revision > revision ? e.Revision : revision;
+                        }
+                        throw new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision);
+                    }
                     break;
                 default:
                     var streamEvents = await ReadAllAsync().Where(@event => @event.StreamId == streamId).ToListAsync();

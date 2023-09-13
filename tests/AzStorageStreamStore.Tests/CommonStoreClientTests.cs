@@ -158,7 +158,7 @@ public abstract class StoreClientTestBase<TPersister> : IAsyncDisposable where T
     [Fact]
     public async Task Attempting_to_read_a_nonexistent_stream_by_id_should_throw_stream_does_not_exist_exception() {
         var id = new StreamId(Guid.NewGuid().ToString(), Guid.NewGuid().ToString());
-        Assert.Throws<StreamDoesNotExistException>(() => AsyncHelper.RunSync(async () => await Client.ReadStreamAsync(id).ToListAsync()));
+        _ = Assert.ThrowsAsync<StreamDoesNotExistException>(async () => await Client.ReadStreamAsync(id).ToListAsync());
     }
 
     [Fact]
@@ -293,6 +293,24 @@ public abstract class StoreClientTestBase<TPersister> : IAsyncDisposable where T
         Assert.True(writeResult.Successful);
         Assert.Equal(4, events.Count);
         Assert.Equal(3, events.Last().Revision);
+    }
+
+    [Fact]
+    public async Task Cannot_append_when_no_stream_exists_while_expecting_empty() {
+        var id = new StreamId("some", "stream");
+        var e1 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+
+        _ = Assert.ThrowsAsync<WrongExpectedVersionException>(async () => await Client.AppendToStreamAsync(id, ExpectedVersion.EmptyStream, new[] { e1 }));
+    }
+
+    [Fact]
+    public async Task Can_append_events_when_an_empty_stream_has_been_established() {
+        var id = new StreamId("some", "stream");
+        var e1 = new EventData(id, Guid.NewGuid(), Array.Empty<byte>());
+
+        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, Array.Empty<EventData>());
+        Assert.True(writeResult.Successful);
+        _ = Assert.ThrowsAsync<WrongExpectedVersionException>(async () => await Client.AppendToStreamAsync(id, ExpectedVersion.EmptyStream, new[] { e1 }));
     }
 
     public ValueTask DisposeAsync() {
