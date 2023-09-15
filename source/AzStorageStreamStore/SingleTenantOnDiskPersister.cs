@@ -120,22 +120,20 @@ public class SingleTenantOnDiskPersister : IPersister {
                 case -2: // any stream
                     break;
                 case -1: // empty stream
-                    if (await ReadAllAsync().OfType<StreamCreated>().AnyAsync(s => s.StreamId == streamId)) {
-
+                    if (await ReadAllAsync().OfType<StreamCreated>().AllAsync(s => s.StreamId != streamId)) {
+                        var revision = await ReadAllAsync().OfType<RecordedEvent>().MaxAsync(e => e.Revision);
+                        onceCompleted.SetResult(WriteResult.Failed(-1, revision, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision)));
+                        continue;
+                    } else {
                         // check for duplicates here.
                         var nonEmptyStreamEvents = await ReadAllAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
-                        // if all events are appended, considered as a double request and post-back ok.
-                        if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                            onceCompleted.SetResult(WriteResult.Ok(-1, nonEmptyStreamEvents.Max(x => x.Revision)));
-                            continue;
+                        if (nonEmptyStreamEvents.Any()) {
+                            // if all events are appended, considered as a double request and post-back ok.
+                            if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
+                                onceCompleted.SetResult(WriteResult.Ok(-1, nonEmptyStreamEvents.Max(x => x.Revision)));
+                                continue;
+                            }
                         }
-
-                        var revision = -1;
-                        await foreach (var e in ReadAllAsync().Where(recorded => recorded.StreamId == streamId)) {
-                            var rev = e.Revision > revision ? e.Revision : revision;
-                        }
-                        onceCompleted.SetResult(WriteResult.Failed(-1, -1, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision)));
-                        continue;
                     }
                     break;
                 default:
