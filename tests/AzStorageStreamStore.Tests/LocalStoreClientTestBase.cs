@@ -1,6 +1,7 @@
 namespace AzStorageStreamStore.Tests;
 
 using System;
+using System.Text;
 using System.Threading.Tasks;
 
 using AzStorageStreamStore;
@@ -39,6 +40,26 @@ public abstract class LocalStoreClientTestBase<TPersister> : IAsyncDisposable wh
         Assert.Single(events);
         Assert.Equal(id, events.First().StreamId);
         Assert.Equal(eventId, e.EventId);
+    }
+
+    [Fact]
+    public async Task Can_append_events_with_data() {
+        var tenantId = Guid.NewGuid().ToString("N");
+        var eventId = Guid.NewGuid();
+        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var message = "Hello world!";
+
+        var e = new EventData(id, eventId, Encoding.UTF8.GetBytes(message));
+
+        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e });
+
+        Assert.True(writeResult.Successful);
+
+        var @events = await Client.ReadStreamAsync(id).ToListAsync();
+        Assert.Single(@events);
+        var @event = @events.First();
+        Assert.Equal(id, @event.StreamId);
+        Assert.Equal(message, Encoding.UTF8.GetString(@event.Data));
     }
 
     [Fact]
