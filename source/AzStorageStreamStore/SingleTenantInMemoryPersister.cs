@@ -85,7 +85,15 @@ public class SingleTenantInMemoryPersister : IPersister {
                     case -2: // any stream
                         break;
                     case -1: // empty stream
-                        if (_allStream.OfType<StreamCreated>().All(s => s.StreamId != streamId)) {
+                        if (_allStream.OfType<StreamCreated>().Any(s => s.StreamId == streamId)) {
+                            // check for duplicates here.
+                            var nonEmptyStreamEvents = _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == streamId);
+                            // if all events are appended, considered as a double request and post-back ok.
+                            if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
+                                onceCompleted.SetResult(WriteResult.Ok(-1, nonEmptyStreamEvents.Max(x => x.Revision)));
+                                continue;
+                            }
+
                             var revision = _allStream.OfType<RecordedEvent>().Max(e => e.Revision);
                             throw new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision);
                         }

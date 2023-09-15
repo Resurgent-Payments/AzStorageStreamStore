@@ -65,8 +65,8 @@ public abstract class LocalStoreClientTestBase<TPersister> : IAsyncDisposable wh
 
         var e = new EventData(id, eventId, Array.Empty<byte>());
 
-        var writeResult1 = await Client.AppendToStreamAsync(_loadedStreamId, streamExpectedVersion, new[] { e });
-        var writeResult2 = await Client.AppendToStreamAsync(_loadedStreamId, streamExpectedVersion, new[] { e });
+        var writeResult1 = await Client.AppendToStreamAsync(id, streamExpectedVersion, new[] { e });
+        var writeResult2 = await Client.AppendToStreamAsync(id, streamExpectedVersion, new[] { e });
 
         Assert.True(writeResult1.Successful);
         Assert.True(writeResult2.Successful);
