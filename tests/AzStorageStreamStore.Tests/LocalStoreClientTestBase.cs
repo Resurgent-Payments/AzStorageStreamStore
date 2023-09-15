@@ -160,7 +160,7 @@ public abstract class LocalStoreClientTestBase<TPersister> : IAsyncDisposable wh
     [Fact]
     public async Task Attempting_to_read_a_nonexistent_stream_by_id_should_throw_stream_does_not_exist_exception() {
         var id = new StreamId(Guid.NewGuid().ToString(), Guid.NewGuid().ToString());
-        _ = Assert.ThrowsAsync<StreamDoesNotExistException>(async () => await Client.ReadStreamAsync(id).ToListAsync());
+        await Assert.ThrowsAsync<StreamDoesNotExistException>(async () => await Client.ReadStreamAsync(id).ToListAsync());
     }
 
     [Fact]

@@ -106,8 +106,13 @@ public class LocalStoreClient : IStoreClient {
             _streamIdSubscriptions.Add(streamId, bag);
         }
 
-        await foreach (var @event in _persister.ReadStreamAsync(streamId, revision)) {
-            handler.Invoke(@event);
+        try {
+            await foreach (var @event in _persister.ReadStreamAsync(streamId, revision)) {
+                handler.Invoke(@event);
+            }
+        }
+        catch (StreamDoesNotExistException) {
+            // squelch.  We can listen for this stream in the event that it does become a thing.
         }
 
         bag.Add(handler);

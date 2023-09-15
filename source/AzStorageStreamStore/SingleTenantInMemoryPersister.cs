@@ -37,7 +37,11 @@ public class SingleTenantInMemoryPersister : IPersister {
         => ReadStreamAsync(id, 0);
 
     public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long revision) {
-        foreach (var e in _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == id).Skip((int)revision)) {
+        var foundEvents = _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == id).ToArray();
+
+        if(foundEvents.Length == 0) throw new StreamDoesNotExistException();
+
+        foreach (var e in foundEvents.Skip((int)revision)) {
             yield return e;
         }
     }

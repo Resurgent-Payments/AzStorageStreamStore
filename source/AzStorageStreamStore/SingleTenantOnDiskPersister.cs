@@ -46,12 +46,17 @@ public class SingleTenantOnDiskPersister : IPersister {
 
     public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long position) {
         var currentPosition = -1;
-        await foreach (var @event in ReadAllAsync()) {
+        bool haveAnyEventsBeenFound = false;
+
+        await foreach (var @event in ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == id)) {
+            haveAnyEventsBeenFound = true;
             currentPosition += 1;
             if (currentPosition < position) continue;
             if (@event.StreamId == id)
                 yield return @event;
         }
+
+        if (!haveAnyEventsBeenFound) throw new StreamDoesNotExistException();
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key, long position) {
