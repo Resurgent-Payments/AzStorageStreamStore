@@ -1,3 +1,3 @@
 namespace AzStorageStreamStore;
 
-public record StreamCreated(StreamId Id) : StreamItem(Id) { }
+public record StreamCreated(StreamId StreamId) : StreamItem(StreamId) { }
