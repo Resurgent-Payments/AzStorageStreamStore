@@ -39,7 +39,7 @@ public class SingleTenantInMemoryPersister : IPersister {
     public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long revision) {
         var foundEvents = _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == id).ToArray();
 
-        if(foundEvents.Length == 0) throw new StreamDoesNotExistException();
+        if (foundEvents.Length == 0) throw new StreamDoesNotExistException();
 
         foreach (var e in foundEvents.Skip((int)revision)) {
             yield return e;
@@ -89,17 +89,22 @@ public class SingleTenantInMemoryPersister : IPersister {
                     case -2: // any stream
                         break;
                     case -1: // empty stream
-                        if (_allStream.OfType<StreamCreated>().Any(s => s.StreamId == streamId)) {
+                        if (_allStream.OfType<StreamCreated>().All(s => s.StreamId != streamId)) {
+                            var revision = _allStream.OfType<RecordedEvent>().Max(e => e.Revision);
+                            onceCompleted.SetResult(WriteResult.Failed(-1, -1, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision)));
+                            continue;
+                        } else {
                             // check for duplicates here.
                             var nonEmptyStreamEvents = _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == streamId);
-                            // if all events are appended, considered as a double request and post-back ok.
-                            if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                                onceCompleted.SetResult(WriteResult.Ok(-1, nonEmptyStreamEvents.Max(x => x.Revision)));
-                                continue;
-                            }
 
-                            var revision = _allStream.OfType<RecordedEvent>().Max(e => e.Revision);
-                            throw new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision);
+                            if (nonEmptyStreamEvents.Any()) {
+
+                                // if all events are appended, considered as a double request and post-back ok.
+                                if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
+                                    onceCompleted.SetResult(WriteResult.Ok(-1, nonEmptyStreamEvents.Max(x => x.Revision)));
+                                    continue;
+                                }
+                            }
                         }
                         break;
                     default:
