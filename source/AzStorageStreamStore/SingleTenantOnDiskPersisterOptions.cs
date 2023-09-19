@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 public class SingleTenantOnDiskPersisterOptions {
     public string BaseDataPath { get; set; }
     public int FileReadBlockSize { get; set; } = 4096;
-    public JsonSerializerOptions JsonOptions { get; set; }
+    public JsonSerializerOptions JsonOptions { get; private set; }
     public IList<JsonConverter> JsonConverters { get; set; } = new List<JsonConverter>();
 
     public SingleTenantOnDiskPersisterOptions() {
@@ -16,6 +16,7 @@ public class SingleTenantOnDiskPersisterOptions {
             IncludeFields = true,
             PropertyNameCaseInsensitive = true,
             WriteIndented = false,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             Converters = {
                 new JsonStringEnumConverter(),
                 new StreamIdJsonConverter(),
