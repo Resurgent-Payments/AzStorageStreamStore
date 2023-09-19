@@ -17,7 +17,9 @@ public class SingleTenantOnDiskPersisterOptions {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false,
             Converters = {
-                new JsonStringEnumConverter()
+                new JsonStringEnumConverter(),
+                new StreamIdJsonConverter(),
+                new StreamItemJsonConverter()
             }
         };
         foreach (var converter in JsonConverters) {

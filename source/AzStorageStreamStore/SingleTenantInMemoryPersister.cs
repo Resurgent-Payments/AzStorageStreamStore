@@ -10,13 +10,13 @@ public class SingleTenantInMemoryPersister : IPersister {
 
     private readonly SinglyLinkedList<StreamItem> _allStream = new();
 
-    private readonly Channel<RecordedEvent> _allStreamChannel;
+    private readonly Channel<StreamItem> _allStreamChannel;
     private readonly Channel<PossibleWalEntry> _streamWriterChannel;
 
-    public ChannelReader<RecordedEvent> AllStream { get; }
+    public ChannelReader<StreamItem> AllStream { get; }
 
     public SingleTenantInMemoryPersister() {
-        _allStreamChannel = Channel.CreateUnbounded<RecordedEvent>(new UnboundedChannelOptions {
+        _allStreamChannel = Channel.CreateUnbounded<StreamItem>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = true,
             AllowSynchronousContinuations = false
@@ -33,10 +33,10 @@ public class SingleTenantInMemoryPersister : IPersister {
         Task.Factory.StartNew(WriteEventsImplAsync, _cts.Token);
     }
 
-    public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
+    public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id)
         => ReadStreamAsync(id, 0);
 
-    public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long revision) {
+    public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id, long revision) {
         var foundEvents = _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == id).ToArray();
 
         if (foundEvents.Length == 0) throw new StreamDoesNotExistException();
@@ -46,10 +46,10 @@ public class SingleTenantInMemoryPersister : IPersister {
         }
     }
 
-    public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
+    public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key)
         => ReadStreamAsync(key, 0);
 
-    public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key, long revision) {
+    public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key, long revision) {
         var subStream = _allStream
             .OfType<RecordedEvent>()
             .Where(@event => @event.StreamId == key)

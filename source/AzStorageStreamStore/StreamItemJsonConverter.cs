@@ -82,7 +82,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
             if (reader.TokenType != JsonTokenType.PropertyName) continue;
 
             var nameOfProperty = reader.GetString();
-            nameOfProperty = string.IsNullOrEmpty(nameOfProperty) ? nameOfProperty : options?.PropertyNamingPolicy?.ConvertName(nameOfProperty);
+            nameOfProperty = string.IsNullOrEmpty(nameOfProperty) ? nameOfProperty : options?.PropertyNamingPolicy?.ConvertName(nameOfProperty) ?? nameOfProperty;
 
             var expectedNameOfProperty = options?.PropertyNamingPolicy?.ConvertName("StreamId") ?? "StreamId";
 

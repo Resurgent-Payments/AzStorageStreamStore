@@ -38,11 +38,11 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
-        => _persister.ReadStreamAsync(key);
+        => _persister.ReadStreamAsync(key).OfType<RecordedEvent>();
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
-        => _persister.ReadStreamAsync(id);
+        => _persister.ReadStreamAsync(id).OfType<RecordedEvent>();
 
     /// <inheritdoc />
     public Task<IDisposable> SubscribeToAllAsync(Action<RecordedEvent> handler) {
@@ -57,7 +57,7 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public async Task<IDisposable> SubscribeToAllFromAsync(long position, Action<RecordedEvent> handler) {
-        await foreach (var @event in _persister.ReadStreamAsync(StreamKey.All, position)) {
+        await foreach (var @event in _persister.ReadStreamAsync(StreamKey.All, position).OfType<RecordedEvent>()) {
             handler.Invoke(@event);
         }
         return new StreamDisposer(() =>
@@ -78,7 +78,7 @@ public class LocalStoreClient : IStoreClient {
             _streamKeySubscriptions.Add(key, bag);
         }
 
-        await foreach (var @event in _persister.ReadStreamAsync(key, revision)) {
+        await foreach (var @event in _persister.ReadStreamAsync(key, revision).OfType<RecordedEvent>()) {
             foreach (var slice in key) {
                 handler.Invoke(@event);
             }
@@ -107,7 +107,7 @@ public class LocalStoreClient : IStoreClient {
         }
 
         try {
-            await foreach (var @event in _persister.ReadStreamAsync(streamId, revision)) {
+            await foreach (var @event in _persister.ReadStreamAsync(streamId, revision).OfType<RecordedEvent>()) {
                 handler.Invoke(@event);
             }
         }
@@ -145,7 +145,7 @@ public class LocalStoreClient : IStoreClient {
 
     private async void MessagePump() {
         while (!_cts.IsCancellationRequested) {
-            await foreach (var e in _persister.AllStream.ReadAllAsync(_cts.Token)) {
+            await foreach (var e in _persister.AllStream.ReadAllAsync(_cts.Token).OfType<RecordedEvent>()) {
                 if (_cts.IsCancellationRequested) { return; }
                 foreach (var allAction in _subscriptions) {
                     allAction.Invoke(e);

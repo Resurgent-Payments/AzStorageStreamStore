@@ -17,7 +17,7 @@ public class SingleTenantOnDiskPersister : IPersister {
         SingleReader = true,
         SingleWriter = false
     });
-    private Channel<RecordedEvent> _allStream = Channel.CreateUnbounded<RecordedEvent>(new UnboundedChannelOptions {
+    private Channel<StreamItem> _allStream = Channel.CreateUnbounded<StreamItem>(new UnboundedChannelOptions {
         SingleReader = true,
         SingleWriter = true
     });
@@ -37,14 +37,14 @@ public class SingleTenantOnDiskPersister : IPersister {
         Task.Factory.StartNew(WriteEventsImplAsync, _tokenSource.Token);
     }
 
-    public ChannelReader<RecordedEvent> AllStream => _allStream.Reader;
+    public ChannelReader<StreamItem> AllStream => _allStream.Reader;
 
     public void Dispose() {
         _tokenSource.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id, long position) {
+    public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id, long position) {
         var currentPosition = -1;
         bool haveAnyEventsBeenFound = false;
 
@@ -59,7 +59,7 @@ public class SingleTenantOnDiskPersister : IPersister {
         if (!haveAnyEventsBeenFound) throw new StreamDoesNotExistException();
     }
 
-    public async IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key, long position) {
+    public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key, long position) {
         var currentPosition = -1;
         await foreach (var @event in ReadAllAsync()) {
             currentPosition += 1;
@@ -69,10 +69,10 @@ public class SingleTenantOnDiskPersister : IPersister {
         }
     }
 
-    public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
+    public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id)
         => ReadStreamAsync(id, 0);
 
-    public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
+    public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key)
         => ReadStreamAsync(key, 0);
 
     public async ValueTask<WriteResult> AppendToStreamAsync(StreamId id, ExpectedVersion version, EventData[] events) {
@@ -89,15 +89,15 @@ public class SingleTenantOnDiskPersister : IPersister {
         return ValueTask.CompletedTask;
     }
 
-    private IAsyncEnumerable<RecordedEvent> ReadAllAsync()
+    private IAsyncEnumerable<StreamItem> ReadAllAsync()
         => ReadAllAsync(0);
 
-    private async IAsyncEnumerable<RecordedEvent> ReadAllAsync(long position) {
+    private async IAsyncEnumerable<StreamItem> ReadAllAsync(long position) {
         using (var stream = new StreamReader(_chunkFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
             string? line;
             while ((line = await stream.ReadLineAsync()) != null) {
 #pragma warning disable CS8603 // Possible null reference return.
-                yield return await JsonSerializer.DeserializeAsync<RecordedEvent>(new MemoryStream(Encoding.UTF8.GetBytes(line)), _options.JsonOptions);
+                yield return await JsonSerializer.DeserializeAsync<StreamItem>(new MemoryStream(Encoding.UTF8.GetBytes(line)), _options.JsonOptions);
 #pragma warning restore CS8603 // Possible null reference return.
             }
         }
@@ -110,9 +110,10 @@ public class SingleTenantOnDiskPersister : IPersister {
             var expectedVersion = posssibleWalEntry.Version;
             var events = posssibleWalEntry.Events;
 
-            switch (expectedVersion) {
+            try {
+                switch (expectedVersion) {
                 case -3: // no stream
-                    if (!await ReadAllAsync().AllAsync(e => e.StreamId != streamId)) {
+                    if (!await ReadAllAsync().OfType<StreamCreated>().AllAsync(e => e.StreamId != streamId)) {
                         onceCompleted.SetResult(WriteResult.Failed(-1, -1, new StreamExistsException()));
                         continue;
                     }
@@ -137,7 +138,7 @@ public class SingleTenantOnDiskPersister : IPersister {
                     }
                     break;
                 default:
-                    var streamEvents = await ReadAllAsync().Where(@event => @event.StreamId == streamId).ToListAsync();
+                    var streamEvents = await ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == streamId).ToListAsync();
 
                     if (streamEvents.Any()) {
                         onceCompleted.SetResult(WriteResult.Failed(-1, -1, new WrongExpectedVersionException(expectedVersion, ExpectedVersion.NoStream)));
@@ -165,18 +166,24 @@ public class SingleTenantOnDiskPersister : IPersister {
             }
 
 
-            try {
                 // getting current position
                 var position = -1L;
                 var version = -1L;
-                await foreach (var recorded in ReadAllAsync()) {
+                await foreach (var recorded in ReadAllAsync().OfType<RecordedEvent>()) {
                     position += 1;
                     if (recorded.StreamId == streamId) {
                         version += 1;
                     }
                 }
 
+                bool needsCreatedEvent = await ReadAllAsync().OfType<StreamCreated>().AllAsync((@event) => @event.StreamId != streamId);
+
                 using (var writer = new StreamWriter(_chunkFile, new FileStreamOptions { Access = FileAccess.Write, Mode = FileMode.Append, Options = FileOptions.Asynchronous, Share = FileShare.Read })) {
+                    if (needsCreatedEvent) {
+                        var createdEvent = new StreamCreated(streamId);
+                        var created = JsonSerializer.Serialize(createdEvent, _options.JsonOptions);
+                        await writer.WriteLineAsync(created);
+                    }
                     foreach (var data in events) {
                         version += 1;
                         var recorded = new RecordedEvent(streamId, data.EventId, version, data.Data);
