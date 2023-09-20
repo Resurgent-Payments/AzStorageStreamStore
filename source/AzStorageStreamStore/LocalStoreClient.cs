@@ -47,7 +47,7 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public async Task<IDisposable> SubscribeToAllFromAsync(long position, Action<RecordedEvent> handler) {
-        await foreach (var @event in _persister.ReadStreamAsync(StreamKey.All, position).OfType<RecordedEvent>()) {
+        await foreach (var @event in _persister.ReadStreamFromAsync(StreamKey.All, position).OfType<RecordedEvent>()) {
             handler.Invoke(@event);
         }
         return new StreamDisposer(() =>
@@ -68,7 +68,7 @@ public class LocalStoreClient : IStoreClient {
             _streamKeySubscriptions.Add(key, bag);
         }
 
-        await foreach (var @event in _persister.ReadStreamAsync(key, revision).OfType<RecordedEvent>()) {
+        await foreach (var @event in _persister.ReadStreamFromAsync(key, revision).OfType<RecordedEvent>()) {
             foreach (var slice in key) {
                 handler.Invoke(@event);
             }
@@ -97,7 +97,7 @@ public class LocalStoreClient : IStoreClient {
         }
 
         try {
-            await foreach (var @event in _persister.ReadStreamAsync(streamId, revision).OfType<RecordedEvent>()) {
+            await foreach (var @event in _persister.ReadStreamFromAsync(streamId, revision).OfType<RecordedEvent>()) {
                 handler.Invoke(@event);
             }
         }

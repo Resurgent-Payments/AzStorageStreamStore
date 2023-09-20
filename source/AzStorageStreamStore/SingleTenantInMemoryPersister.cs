@@ -37,27 +37,28 @@ public class SingleTenantInMemoryPersister : IPersister {
         Task.Factory.StartNew(WriteEventsImplAsync, _cts.Token);
     }
 
-    public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id)
-        => ReadStreamAsync(id, 0);
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id, long revision) {
+    public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id)
+        => ReadStreamFromAsync(id, 0);
+
+    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, long startingRevision) {
         if (_allStream.OfType<StreamCreated>().All(sc => sc.StreamId != id)) throw new StreamDoesNotExistException();
 
         var foundEvents = _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == id).ToArray();
 
-        foreach (var e in foundEvents.Skip((int)revision)) {
+        foreach (var e in foundEvents.Skip((int)startingRevision)) {
             yield return e;
         }
     }
 
     public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key)
-        => ReadStreamAsync(key, 0);
+        => ReadStreamFromAsync(key, 0);
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key, long revision) {
+    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, long startingRevision) {
         var subStream = _allStream
             .OfType<RecordedEvent>()
             .Where(@event => @event.StreamId == key)
-            .Skip((int)revision);
+            .Skip((int)startingRevision);
 
         foreach (var e in subStream) {
             if (e.StreamId == key) yield return e;

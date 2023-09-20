@@ -9,7 +9,7 @@ public interface IPersister : IDisposable {
     ChannelReader<StreamItem> AllStream { get; }
 
     IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id);
-    IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id, long revision);
+    IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, long startingRevision);
 
     /// <summary>
     /// Reads a stream based on it's "Key"
@@ -32,7 +32,7 @@ public interface IPersister : IDisposable {
     /// <para>This creates a stream similar to EventStore DB's $ce- stream type.  If you want to read all events (akin to reading $all in EventStore DB), you'll pass in <see cref="StreamKey.All"/></para>
     /// <para>Note: For any multi-tenant scenarios, the value in Categories[0] will be used, in all cases, to differentiate between tenants.  Any attempt to read using <see cref="StreamKey.All"/> will throw an <see cref="InvalidKeyException"/></para>
     /// </remarks>
-    IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key, long revision);
+    IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, long startingRevision);
 
     /// <summary>
     /// Writes a series of events to the main timeline stream (EventStore DB calls this the $all stream)

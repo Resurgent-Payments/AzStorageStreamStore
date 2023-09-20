@@ -66,33 +66,30 @@ public class SingleTenantOnDiskPersister : IPersister {
         GC.SuppressFinalize(this);
     }
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id, long position) {
+    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, long startingRevision) {
         if (await ReadAllAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != id)) throw new StreamDoesNotExistException();
 
-        var currentPosition = -1;
 
-        await foreach (var @event in ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == id)) {
-            currentPosition += 1;
-            if (currentPosition < position) continue;
+        await foreach (var @event in ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == id && @event.Revision >= startingRevision)) {
             yield return @event;
         }
     }
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key, long position) {
+    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, long startingRevision) {
         var currentPosition = -1;
         await foreach (var @event in ReadAllAsync()) {
             currentPosition += 1;
-            if (currentPosition < position) continue;
+            if (currentPosition < startingRevision) continue;
             if (@event.StreamId == key)
                 yield return @event;
         }
     }
 
     public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id)
-        => ReadStreamAsync(id, 0);
+        => ReadStreamFromAsync(id, 0);
 
     public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key)
-        => ReadStreamAsync(key, 0);
+        => ReadStreamFromAsync(key, 0);
 
     public async ValueTask<WriteResult> AppendToStreamAsync(StreamId id, ExpectedVersion version, EventData[] events) {
         var tcs = new TaskCompletionSource<WriteResult>();
