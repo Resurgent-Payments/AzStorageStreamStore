@@ -1,4 +1,4 @@
 namespace AzStorageStreamStore.Tests;
-public class InMemoryLocalStoreClientTests : LocalStoreClientTestBase<SingleTenantInMemoryPersister> {
+public class InMemoryLocalStoreClientTests : ClientTestBase<SingleTenantInMemoryPersister> {
     protected override SingleTenantInMemoryPersister Persister => new SingleTenantInMemoryPersister();
 }

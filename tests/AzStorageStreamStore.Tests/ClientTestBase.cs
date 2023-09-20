@@ -8,14 +8,14 @@ using AzStorageStreamStore;
 
 using Xunit;
 
-public abstract class LocalStoreClientTestBase<TPersister> : IAsyncDisposable where TPersister : IPersister {
+public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersister : IPersister {
     protected IStoreClient Client { get; set; }
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
     private readonly StreamId _emptyStreamId = new("empty-id", "stream-id");
 
     protected abstract TPersister Persister { get; }
 
-    public LocalStoreClientTestBase() {
+    public ClientTestBase() {
         Client = new LocalStoreClient(Persister);
 
         AsyncHelper.RunSync(async () => await Client.InitializeAsync());

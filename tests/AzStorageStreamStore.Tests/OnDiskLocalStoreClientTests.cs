@@ -6,7 +6,7 @@ using FakeItEasy;
 
 using Microsoft.Extensions.Options;
 
-public class OnDiskLocalStoreClientTests : LocalStoreClientTestBase<SingleTenantOnDiskPersister> {
+public class OnDiskLocalStoreClientTests : ClientTestBase<SingleTenantOnDiskPersister> {
 
     protected override SingleTenantOnDiskPersister Persister {
         get {
