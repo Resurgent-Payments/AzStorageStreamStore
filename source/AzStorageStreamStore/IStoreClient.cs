@@ -7,8 +7,6 @@ public interface IStoreClient : IDisposable {
     Task InitializeAsync();
     ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events);
 
-    IEnumerable<RecordedEvent> ReadAllAsync();
-    IEnumerable<RecordedEvent> ReadAllAsync(long position);
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id);
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key);
 

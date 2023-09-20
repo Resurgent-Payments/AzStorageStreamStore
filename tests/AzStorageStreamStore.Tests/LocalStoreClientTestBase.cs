@@ -11,6 +11,7 @@ using Xunit;
 public abstract class LocalStoreClientTestBase<TPersister> : IAsyncDisposable where TPersister : IPersister {
     protected IStoreClient Client { get; set; }
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
+    private readonly StreamId _emptyStreamId = new("empty-id", "stream-id");
 
     protected abstract TPersister Persister { get; }
 
@@ -19,6 +20,9 @@ public abstract class LocalStoreClientTestBase<TPersister> : IAsyncDisposable wh
 
         AsyncHelper.RunSync(async () => await Client.InitializeAsync());
         var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));
+        Assert.True(result.Successful);
+
+        result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_emptyStreamId, ExpectedVersion.Any, Array.Empty<EventData>()));
         Assert.True(result.Successful);
     }
 
@@ -177,9 +181,17 @@ public abstract class LocalStoreClientTestBase<TPersister> : IAsyncDisposable wh
     }
 
     [Fact]
-    public async Task Attempting_to_read_a_nonexistent_stream_by_id_should_throw_stream_does_not_exist_exception() {
+    public async Task Attempting_to_read_a_nonexistent_stream_by_id_should_throw_StreamDoesNotExistException() {
         var id = new StreamId(Guid.NewGuid().ToString(), Guid.NewGuid().ToString());
         await Assert.ThrowsAsync<StreamDoesNotExistException>(async () => await Client.ReadStreamAsync(id).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Reading_an_empty_stream_by_id_should_return_no_events() {
+        List<RecordedEvent> events = null;
+        var exc = await Record.ExceptionAsync(async () => events = await Client.ReadStreamAsync(_emptyStreamId).ToListAsync());
+        Assert.Null(exc);
+        Assert.Empty(events);
     }
 
     [Fact]

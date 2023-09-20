@@ -45,18 +45,15 @@ public class SingleTenantOnDiskPersister : IPersister {
     }
 
     public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id, long position) {
+        if (await ReadAllAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != id)) throw new StreamDoesNotExistException();
+
         var currentPosition = -1;
-        bool haveAnyEventsBeenFound = false;
 
         await foreach (var @event in ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == id)) {
-            haveAnyEventsBeenFound = true;
             currentPosition += 1;
             if (currentPosition < position) continue;
-            if (@event.StreamId == id)
-                yield return @event;
+            yield return @event;
         }
-
-        if (!haveAnyEventsBeenFound) throw new StreamDoesNotExistException();
     }
 
     public async IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key, long position) {
@@ -112,58 +109,58 @@ public class SingleTenantOnDiskPersister : IPersister {
 
             try {
                 switch (expectedVersion) {
-                case -3: // no stream
-                    if (!await ReadAllAsync().OfType<StreamCreated>().AllAsync(e => e.StreamId != streamId)) {
-                        onceCompleted.SetResult(WriteResult.Failed(-1, -1, new StreamExistsException()));
-                        continue;
-                    }
-                    break;
-                case -2: // any stream
-                    break;
-                case -1: // empty stream
-                    if (await ReadAllAsync().OfType<StreamCreated>().AllAsync(s => s.StreamId != streamId)) {
-                        var revision = await ReadAllAsync().OfType<RecordedEvent>().MaxAsync(e => e.Revision);
-                        onceCompleted.SetResult(WriteResult.Failed(-1, revision, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision)));
-                        continue;
-                    } else {
-                        // check for duplicates here.
-                        var nonEmptyStreamEvents = await ReadAllAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
-                        if (nonEmptyStreamEvents.Any()) {
+                    case -3: // no stream
+                        if (!await ReadAllAsync().OfType<StreamCreated>().AllAsync(e => e.StreamId != streamId)) {
+                            onceCompleted.SetResult(WriteResult.Failed(-1, -1, new StreamExistsException()));
+                            continue;
+                        }
+                        break;
+                    case -2: // any stream
+                        break;
+                    case -1: // empty stream
+                        if (await ReadAllAsync().OfType<StreamCreated>().AllAsync(s => s.StreamId != streamId)) {
+                            var revision = await ReadAllAsync().OfType<RecordedEvent>().MaxAsync(e => e.Revision);
+                            onceCompleted.SetResult(WriteResult.Failed(-1, revision, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision)));
+                            continue;
+                        } else {
+                            // check for duplicates here.
+                            var nonEmptyStreamEvents = await ReadAllAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
+                            if (nonEmptyStreamEvents.Any()) {
+                                // if all events are appended, considered as a double request and post-back ok.
+                                if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
+                                    onceCompleted.SetResult(WriteResult.Ok(-1, nonEmptyStreamEvents.Max(x => x.Revision)));
+                                    continue;
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                        var streamEvents = await ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == streamId).ToListAsync();
+
+                        if (streamEvents.Any()) {
+                            onceCompleted.SetResult(WriteResult.Failed(-1, -1, new WrongExpectedVersionException(expectedVersion, ExpectedVersion.NoStream)));
+                            continue;
+                        }
+
+                        if (streamEvents.Count != expectedVersion) {
                             // if all events are appended, considered as a double request and post-back ok.
-                            if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                                onceCompleted.SetResult(WriteResult.Ok(-1, nonEmptyStreamEvents.Max(x => x.Revision)));
+                            if (!streamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
+                                onceCompleted.SetResult(WriteResult.Ok(-1, streamEvents.Max(x => x.Revision)));
+                                continue;
+                            }
+
+                            // if all events were not appended
+                            // -- or --
+                            // only some were appended, then throw a wrong expected version.
+                            if (events.Select(e => streamEvents.All(s => s.EventId != e.EventId)).Any()) {
+                                onceCompleted.SetResult(WriteResult.Failed(-1,
+                                    -1,
+                                    new WrongExpectedVersionException(expectedVersion, streamEvents.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream)));
                                 continue;
                             }
                         }
-                    }
-                    break;
-                default:
-                    var streamEvents = await ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == streamId).ToListAsync();
-
-                    if (streamEvents.Any()) {
-                        onceCompleted.SetResult(WriteResult.Failed(-1, -1, new WrongExpectedVersionException(expectedVersion, ExpectedVersion.NoStream)));
-                        continue;
-                    }
-
-                    if (streamEvents.Count != expectedVersion) {
-                        // if all events are appended, considered as a double request and post-back ok.
-                        if (!streamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                            onceCompleted.SetResult(WriteResult.Ok(-1, streamEvents.Max(x => x.Revision)));
-                            continue;
-                        }
-
-                        // if all events were not appended
-                        // -- or --
-                        // only some were appended, then throw a wrong expected version.
-                        if (events.Select(e => streamEvents.All(s => s.EventId != e.EventId)).Any()) {
-                            onceCompleted.SetResult(WriteResult.Failed(-1,
-                                -1,
-                                new WrongExpectedVersionException(expectedVersion, streamEvents.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream)));
-                            continue;
-                        }
-                    }
-                    break;
-            }
+                        break;
+                }
 
 
                 // getting current position

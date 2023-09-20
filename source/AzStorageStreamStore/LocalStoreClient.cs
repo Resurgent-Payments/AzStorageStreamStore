@@ -26,16 +26,6 @@ public class LocalStoreClient : IStoreClient {
     public ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events)
         => _persister.AppendToStreamAsync(key, version, events);
 
-    /// <inheritdoc/>
-    public IEnumerable<RecordedEvent> ReadAllAsync() {
-        throw new NotImplementedException();
-    }
-
-    /// <inheritdoc/>
-    public IEnumerable<RecordedEvent> ReadAllAsync(long position) {
-        throw new NotImplementedException();
-    }
-
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
         => _persister.ReadStreamAsync(key).OfType<RecordedEvent>();

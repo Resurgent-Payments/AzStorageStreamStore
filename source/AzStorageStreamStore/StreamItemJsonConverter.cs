@@ -89,7 +89,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
             if (!string.IsNullOrWhiteSpace(nameOfProperty) && nameOfProperty.Equals(expectedNameOfProperty)) {
                 reader.Read();
                 var streamId = JsonSerializer.Deserialize<StreamId>(ref reader, options);
-                if (streamId == null) throw new JsonException();
+                if (streamId is null) throw new JsonException();
                 created = new StreamCreated(streamId);
                 reader.Read();
             }
@@ -104,7 +104,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
         long Revision = -1;
         byte[] Data = null;
 
-        while(reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
             if (reader.TokenType != JsonTokenType.PropertyName) continue;
 
             var propertyName = options?.PropertyNamingPolicy?.ConvertName(reader.GetString() ?? string.Empty) ?? reader.GetString();
@@ -124,7 +124,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
             }
         }
 
-        if (StreamId == null || EventId == Guid.Empty || Revision < 0) throw new JsonException();
+        if (StreamId is null || EventId == Guid.Empty || Revision < 0) throw new JsonException();
 
         return new RecordedEvent(StreamId, EventId, Revision, Data);
     }
