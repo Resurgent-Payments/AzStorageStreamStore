@@ -4,7 +4,10 @@ using System.Linq;
 using System.Threading.Channels;
 
 public class SingleTenantInMemoryPersister : IPersister {
-    private long _allStreamPosition = -1;
+    internal long Position { get; private set; } = -1;
+    long IPersister.Position => Position;
+
+    private readonly PersistenceUtils _utils;
 
     private readonly CancellationTokenSource _cts = new();
 
@@ -16,6 +19,7 @@ public class SingleTenantInMemoryPersister : IPersister {
     public ChannelReader<StreamItem> AllStream { get; }
 
     public SingleTenantInMemoryPersister() {
+        _utils = new(this);
         _allStreamChannel = Channel.CreateUnbounded<StreamItem>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = true,
@@ -79,61 +83,7 @@ public class SingleTenantInMemoryPersister : IPersister {
             var events = posssibleWalEntry.Events;
 
             try {
-                switch (expected) {
-                    case -3: // no stream
-                        if (!await ReadStreamAsync(StreamKey.All).AllAsync(e => e.StreamId != streamId)) {
-                            onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, -1, new StreamExistsException()));
-                            continue;
-                        }
-                        break;
-                    case -2: // any stream
-                        break;
-                    case -1: // empty stream
-                        if (_allStream.OfType<StreamCreated>().All(s => s.StreamId != streamId)) {
-                            var revision = _allStream.OfType<RecordedEvent>().Max(e => e.Revision);
-                            onceCompleted.SetResult(WriteResult.Failed(-1, -1, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision)));
-                            continue;
-                        } else {
-                            // check for duplicates here.
-                            var nonEmptyStreamEvents = _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == streamId);
-
-                            if (nonEmptyStreamEvents.Any()) {
-
-                                // if all events are appended, considered as a double request and post-back ok.
-                                if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                                    onceCompleted.SetResult(WriteResult.Ok(-1, nonEmptyStreamEvents.Max(x => x.Revision)));
-                                    continue;
-                                }
-                            }
-                        }
-                        break;
-                    default:
-                        var filtered = _allStream.OfType<RecordedEvent>().Where(e => e.StreamId == streamId);
-
-                        if (!filtered.Any()) {
-                            onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition, -1, new WrongExpectedVersionException(expected, ExpectedVersion.NoStream)));
-                        }
-
-                        if (filtered.Count() != expected) {
-                            // if all events are appended, considered as a double request and post-back ok.
-                            if (events.All(e => filtered.All(i => i.EventId != e.EventId))) {
-
-                                onceCompleted.SetResult(WriteResult.Ok(_allStreamPosition, filtered.Max(x => x.Revision)));
-                                continue;
-                            }
-
-                            // if all events were not appended
-                            // -- or --
-                            // only some were appended, then throw a wrong expected version.
-                            if (events.Select(e => filtered.All(s => s.EventId != e.EventId)).Any()) {
-                                onceCompleted.SetResult(WriteResult.Failed(_allStreamPosition,
-                                    filtered.Max(x => x.Revision),
-                                    new WrongExpectedVersionException(expected, filtered.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream)));
-                                continue;
-                            }
-                        }
-                        break;
-                }
+                if (!await _utils.PassesStreamValidationAsync(onceCompleted, streamId, expected, events)) continue;
 
                 // if we don't have a StreamCreated event, we need to append one now.
                 if (_allStream.OfType<StreamCreated>().All(e => e.StreamId != streamId)) {
@@ -154,11 +104,11 @@ public class SingleTenantInMemoryPersister : IPersister {
 
                     // publish the recorded event.
                     await _allStreamChannel.Writer.WriteAsync(recorded);
-                    _allStreamPosition += 1;
+                    Position += 1;
                     newVersion = recorded.Revision;
                 }
 
-                onceCompleted.SetResult(WriteResult.Ok(_allStreamPosition, newVersion));
+                onceCompleted.SetResult(WriteResult.Ok(Position, newVersion));
             }
             catch (Exception exc) {
                 onceCompleted.SetResult(WriteResult.Failed(-1, -1, exc));

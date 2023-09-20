@@ -23,9 +23,7 @@ public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposa
         A.CallTo(() => _options.Value)
             .Returns(options);
 
-        _storeClient = new LocalStoreClient(new SingleTenantOnDiskPersister(_options));
-
-        //_storeClient = new LocalStoreClient(new InMemoryPersister());
+        _storeClient = new LocalStoreClient(Persister);
 
         AsyncHelper.RunSync(async () => await _storeClient.InitializeAsync());
         var result = AsyncHelper.RunSync(async () => await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));

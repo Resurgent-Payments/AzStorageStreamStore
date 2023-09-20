@@ -10,9 +10,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 
 public class SingleTenantOnDiskPersister : IPersister {
+    private readonly PersistenceUtils _utils;
     private readonly CancellationTokenSource _tokenSource = new();
     private readonly SingleTenantOnDiskPersisterOptions _options;
     private string _chunkFile => Path.Combine(_options.BaseDataPath, "chunk.dat");
+    private string _positionFile => Path.Combine(_options.BaseDataPath, "position.dat");
     private Channel<PossibleWalEntry> _walWriter = Channel.CreateUnbounded<PossibleWalEntry>(new UnboundedChannelOptions {
         SingleReader = true,
         SingleWriter = false
@@ -24,6 +26,7 @@ public class SingleTenantOnDiskPersister : IPersister {
 
     public SingleTenantOnDiskPersister(IOptions<SingleTenantOnDiskPersisterOptions> options) {
         _options = options.Value ?? new();
+        _utils = new(this);
 
         if (!Directory.Exists(_options.BaseDataPath)) {
             Directory.CreateDirectory(_options.BaseDataPath);
@@ -38,6 +41,25 @@ public class SingleTenantOnDiskPersister : IPersister {
     }
 
     public ChannelReader<StreamItem> AllStream => _allStream.Reader;
+
+    long IPersister.Position => Position;
+    internal long Position {
+        get {
+            if (!File.Exists(_positionFile)) return -1;
+
+            using (var stream = new StreamReader(_positionFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
+                var data = stream.ReadToEnd();
+                return Convert.ToInt64(data);
+            }
+        }
+        set {
+            if (File.Exists(_positionFile)) File.Delete(_positionFile);
+            using (var writer = new StreamWriter(_positionFile, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write })) {
+                writer.Write(value);
+                writer.Flush();
+            }
+        }
+    }
 
     public void Dispose() {
         _tokenSource.Dispose();
@@ -104,73 +126,23 @@ public class SingleTenantOnDiskPersister : IPersister {
         await foreach (var posssibleWalEntry in _walWriter.Reader.ReadAllAsync()) {
             var onceCompleted = posssibleWalEntry.OnceCompleted;
             var streamId = posssibleWalEntry.Id;
-            var expectedVersion = posssibleWalEntry.Version;
+            var expected = posssibleWalEntry.Version;
             var events = posssibleWalEntry.Events;
 
             try {
-                switch (expectedVersion) {
-                    case -3: // no stream
-                        if (!await ReadAllAsync().OfType<StreamCreated>().AllAsync(e => e.StreamId != streamId)) {
-                            onceCompleted.SetResult(WriteResult.Failed(-1, -1, new StreamExistsException()));
-                            continue;
-                        }
-                        break;
-                    case -2: // any stream
-                        break;
-                    case -1: // empty stream
-                        if (await ReadAllAsync().OfType<StreamCreated>().AllAsync(s => s.StreamId != streamId)) {
-                            var revision = await ReadAllAsync().OfType<RecordedEvent>().MaxAsync(e => e.Revision);
-                            onceCompleted.SetResult(WriteResult.Failed(-1, revision, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, revision)));
-                            continue;
-                        } else {
-                            // check for duplicates here.
-                            var nonEmptyStreamEvents = await ReadAllAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
-                            if (nonEmptyStreamEvents.Any()) {
-                                // if all events are appended, considered as a double request and post-back ok.
-                                if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                                    onceCompleted.SetResult(WriteResult.Ok(-1, nonEmptyStreamEvents.Max(x => x.Revision)));
-                                    continue;
-                                }
-                            }
-                        }
-                        break;
-                    default:
-                        var streamEvents = await ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == streamId).ToListAsync();
-
-                        if (streamEvents.Any()) {
-                            onceCompleted.SetResult(WriteResult.Failed(-1, -1, new WrongExpectedVersionException(expectedVersion, ExpectedVersion.NoStream)));
-                            continue;
-                        }
-
-                        if (streamEvents.Count != expectedVersion) {
-                            // if all events are appended, considered as a double request and post-back ok.
-                            if (!streamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                                onceCompleted.SetResult(WriteResult.Ok(-1, streamEvents.Max(x => x.Revision)));
-                                continue;
-                            }
-
-                            // if all events were not appended
-                            // -- or --
-                            // only some were appended, then throw a wrong expected version.
-                            if (events.Select(e => streamEvents.All(s => s.EventId != e.EventId)).Any()) {
-                                onceCompleted.SetResult(WriteResult.Failed(-1,
-                                    -1,
-                                    new WrongExpectedVersionException(expectedVersion, streamEvents.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream)));
-                                continue;
-                            }
-                        }
-                        break;
-                }
-
+                if (!await _utils.PassesStreamValidationAsync(onceCompleted, streamId, expected, events)) continue;
 
                 // getting current position
-                var position = -1L;
-                var version = -1L;
-                await foreach (var recorded in ReadAllAsync().OfType<RecordedEvent>()) {
-                    position += 1;
-                    if (recorded.StreamId == streamId) {
-                        version += 1;
-                    }
+                var cPosition = Position;
+                long version = -1;
+                try {
+                    version = await ReadAllAsync()
+                        .OfType<RecordedEvent>()
+                        .Where(x => x.StreamId == streamId)
+                        .MaxAsync(x => x.Revision);
+                }
+                catch (Exception exc) {
+                    // squelch, hopefully.
                 }
 
                 bool needsCreatedEvent = await ReadAllAsync().OfType<StreamCreated>().AllAsync((@event) => @event.StreamId != streamId);
@@ -188,12 +160,14 @@ public class SingleTenantOnDiskPersister : IPersister {
                         await writer.WriteLineAsync(ser);
 
                         await _allStream.Writer.WriteAsync(recorded);
+                        cPosition += 1;
                     }
 
                     await writer.FlushAsync();
+                    Position = cPosition;
                 }
 
-                onceCompleted.SetResult(WriteResult.Ok(position, version));
+                onceCompleted.SetResult(WriteResult.Ok(cPosition, version));
             }
             catch (Exception ex) {
                 onceCompleted.SetException(ex);
