@@ -126,7 +126,10 @@ public class SingleTenantPersister : IPersister {
 
     private bool _disposed = false;
 
-    public void Dispose() => Dispose(true);
+    public void Dispose() {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
     protected virtual void Dispose(bool disposing) {
         if (_disposed || !disposing) return;
@@ -135,8 +138,6 @@ public class SingleTenantPersister : IPersister {
         _cts.Dispose();
 
         _disposed = true;
-
-        GC.SuppressFinalize(this);
     }
 
     private async IAsyncEnumerable<StreamItem> ReadLogAsync() {
