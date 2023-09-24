@@ -9,17 +9,17 @@ using Xunit;
 public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposable where TPersister : IPersister {
     private readonly IStoreClient _storeClient;
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
-    IOptions<SingleTenantOnDiskPersisterOptions> _options;
+    IOptions<LocalDiskFileManagerOptions> _options;
 
     protected abstract TPersister Persister { get; }
 
 
     public LocalStoreClientAllStreamTests() {
-        var options = new SingleTenantOnDiskPersisterOptions {
+        var options = new LocalDiskFileManagerOptions {
             BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
             FileReadBlockSize = 1024,
         };
-        _options = A.Fake<IOptions<SingleTenantOnDiskPersisterOptions>>();
+        _options = A.Fake<IOptions<LocalDiskFileManagerOptions>>();
         A.CallTo(() => _options.Value)
             .Returns(options);
 

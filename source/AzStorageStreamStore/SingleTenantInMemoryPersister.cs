@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Channels;
 
+using Microsoft.Extensions.Options;
+
 public class SingleTenantInMemoryPersister : IPersister {
     const byte NULL = 0x00;
     const byte END_OF_RECORD = 0x1E;
@@ -17,10 +19,13 @@ public class SingleTenantInMemoryPersister : IPersister {
     private readonly Channel<StreamItem> _allStreamChannel;
     private readonly Channel<PossibleWalEntry> _streamWriterChannel;
 
+    private readonly SingleTenantInMemoryPersisterOptions _options;
+
     public ChannelReader<StreamItem> AllStream { get; }
 
-    public SingleTenantInMemoryPersister(IDataFileManager dataFileManager) {
+    public SingleTenantInMemoryPersister(IDataFileManager dataFileManager, IOptions<SingleTenantInMemoryPersisterOptions> options) {
         _dataFileManager = dataFileManager;
+        _options = options.Value ?? new();
         _utils = new(this);
         _allStreamChannel = Channel.CreateUnbounded<StreamItem>(new UnboundedChannelOptions {
             SingleReader = true,
@@ -85,7 +90,7 @@ public class SingleTenantInMemoryPersister : IPersister {
                     // write the stream created event.
                     var ms = new MemoryStream();
 
-                    JsonSerializer.Serialize(ms, new StreamCreated(streamId), JsonSerializationConstants.Options);
+                    JsonSerializer.Serialize(ms, new StreamCreated(streamId), _options.JsonOptions);
                     ms.WriteByte(END_OF_RECORD);
                     await _dataFileManager.WriteAsync(ms.ToArray());
                 }
@@ -103,7 +108,7 @@ public class SingleTenantInMemoryPersister : IPersister {
                     // write the stream created event.
                     var ms = new MemoryStream();
 
-                    JsonSerializer.Serialize(ms, recorded, JsonSerializationConstants.Options);
+                    JsonSerializer.Serialize(ms, recorded, _options.JsonOptions);
                     ms.WriteByte(END_OF_RECORD);
                     await _dataFileManager.WriteAsync(ms.ToArray());
 
@@ -150,7 +155,7 @@ public class SingleTenantInMemoryPersister : IPersister {
                 if (buffer[idx] == END_OF_RECORD) { // found a point whereas we need to deserialize what we have in the buffer, yield it back to the caller, then advance the index by 1.
                     ms.Seek(0, SeekOrigin.Begin);
 
-                    yield return JsonSerializer.Deserialize<StreamItem>(ms, JsonSerializationConstants.Options);
+                    yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions);
 
                     ms?.Dispose();
                     ms = new MemoryStream();
@@ -163,7 +168,7 @@ public class SingleTenantInMemoryPersister : IPersister {
         } while (offset != 0);
 
         if (ms.Length > 0) {
-            yield return JsonSerializer.Deserialize<StreamItem>(ms, JsonSerializationConstants.Options);
+            yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions);
         }
     }
 }
