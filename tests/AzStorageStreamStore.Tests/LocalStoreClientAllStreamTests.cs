@@ -146,7 +146,6 @@ public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposa
     }
 
     public ValueTask DisposeAsync() {
-        Persister?.Truncate();
         Persister?.Dispose();
         return ValueTask.CompletedTask;
     }

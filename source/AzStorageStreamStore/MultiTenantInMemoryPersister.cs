@@ -25,11 +25,11 @@ public class MultiTenantInMemoryPersister : IPersister {
         throw new NotImplementedException();
     }
 
-    public IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, long startingRevision) {
+    public IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, int start) {
         throw new NotImplementedException();
     }
 
-    public IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, long startingRevision) {
+    public IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, int start) {
         throw new NotImplementedException();
     }
 

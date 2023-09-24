@@ -46,7 +46,7 @@ public class LocalStoreClient : IStoreClient {
     }
 
     /// <inheritdoc />
-    public async Task<IDisposable> SubscribeToAllFromAsync(long position, Action<RecordedEvent> handler) {
+    public async Task<IDisposable> SubscribeToAllFromAsync(int position, Action<RecordedEvent> handler) {
         await foreach (var @event in _persister.ReadStreamFromAsync(StreamKey.All, position).OfType<RecordedEvent>()) {
             handler.Invoke(@event);
         }
@@ -61,7 +61,7 @@ public class LocalStoreClient : IStoreClient {
         => SubscribeToStreamFromAsync(key, 0, handler);
 
     /// <inheritdoc />
-    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamKey key, long revision, Action<RecordedEvent> handler) {
+    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamKey key, int revision, Action<RecordedEvent> handler) {
         // build subscription for specific stream.
         if (!_streamKeySubscriptions.TryGetValue(key, out var bag)) {
             bag = new();
@@ -90,7 +90,7 @@ public class LocalStoreClient : IStoreClient {
         => SubscribeToStreamFromAsync(streamId, 0, handler);
 
     /// <inheritdoc />
-    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, long revision, Action<RecordedEvent> handler) {
+    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, int revision, Action<RecordedEvent> handler) {
         if (!_streamIdSubscriptions.TryGetValue(streamId, out var bag)) {
             bag = new();
             _streamIdSubscriptions.Add(streamId, bag);

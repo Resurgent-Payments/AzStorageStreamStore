@@ -24,9 +24,9 @@ public interface IStoreClient : IDisposable {
     /// <param name="handler"></param>
     /// <returns></returns>
     /// <remarks>Do not use this witin your system if you think you want to support tenant-per-data style programming.</remarks>
-    Task<IDisposable> SubscribeToAllFromAsync(long posititon, Action<RecordedEvent> handler);
+    Task<IDisposable> SubscribeToAllFromAsync(int posititon, Action<RecordedEvent> handler);
     Task<IDisposable> SubscribeToStreamAsync(StreamKey key, Action<RecordedEvent> handler);
     Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Action<RecordedEvent> handler);
-    Task<IDisposable> SubscribeToStreamFromAsync(StreamKey key, long revision, Action<RecordedEvent> handler);
-    Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, long revision, Action<RecordedEvent> handler);
+    Task<IDisposable> SubscribeToStreamFromAsync(StreamKey key, int revision, Action<RecordedEvent> handler);
+    Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, int revision, Action<RecordedEvent> handler);
 }

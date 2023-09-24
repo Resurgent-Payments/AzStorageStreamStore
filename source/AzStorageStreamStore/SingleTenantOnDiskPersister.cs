@@ -66,20 +66,20 @@ public class SingleTenantOnDiskPersister : IPersister {
         GC.SuppressFinalize(this);
     }
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, long startingRevision) {
+    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, int start) {
         if (await ReadAllAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != id)) throw new StreamDoesNotExistException();
 
 
-        await foreach (var @event in ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == id && @event.Revision >= startingRevision)) {
+        await foreach (var @event in ReadAllAsync().OfType<RecordedEvent>().Where(@event => @event.StreamId == id && @event.Revision >= start)) {
             yield return @event;
         }
     }
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, long startingRevision) {
+    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, int start) {
         var currentPosition = -1;
         await foreach (var @event in ReadAllAsync()) {
             currentPosition += 1;
-            if (currentPosition < startingRevision) continue;
+            if (currentPosition < start) continue;
             if (@event.StreamId == key)
                 yield return @event;
         }

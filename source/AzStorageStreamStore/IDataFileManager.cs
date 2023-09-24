@@ -96,8 +96,10 @@ namespace AzStorageStreamStore {
                 }
             }
 
+            var cPos = _memoryStream.Position;
             _memoryStream.Seek(Checkpoint, SeekOrigin.Begin);
             await _memoryStream.WriteAsync(data, 0, data.Length);
+            _memoryStream.Seek(cPos, SeekOrigin.Begin);
 
             Checkpoint += endOfData;
         }

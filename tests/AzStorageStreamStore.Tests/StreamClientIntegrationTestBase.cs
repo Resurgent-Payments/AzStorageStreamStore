@@ -35,7 +35,6 @@ public abstract class StreamClientIntegrationTestBase<TPersister> : IAsyncDispos
     }
 
     public ValueTask DisposeAsync() {
-        Persister?.Truncate();
         Persister?.Dispose();
         return ValueTask.CompletedTask;
     }

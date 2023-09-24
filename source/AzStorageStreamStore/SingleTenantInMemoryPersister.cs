@@ -1,9 +1,14 @@
 namespace AzStorageStreamStore;
 
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Channels;
 
 public class SingleTenantInMemoryPersister : IPersister {
+    const byte NULL = 0x00;
+    const byte END_OF_RECORD = 0x1E;
+
+    IDataFileManager _dataFileManager;
     internal long Position { get; private set; } = -1;
     long IPersister.Position => Position;
 
@@ -11,14 +16,13 @@ public class SingleTenantInMemoryPersister : IPersister {
 
     private readonly CancellationTokenSource _cts = new();
 
-    private readonly SinglyLinkedList<StreamItem> _allStream = new();
-
     private readonly Channel<StreamItem> _allStreamChannel;
     private readonly Channel<PossibleWalEntry> _streamWriterChannel;
 
     public ChannelReader<StreamItem> AllStream { get; }
 
     public SingleTenantInMemoryPersister() {
+        _dataFileManager = new MemoryDataFileManager();
         _utils = new(this);
         _allStreamChannel = Channel.CreateUnbounded<StreamItem>(new UnboundedChannelOptions {
             SingleReader = true,
@@ -41,12 +45,12 @@ public class SingleTenantInMemoryPersister : IPersister {
     public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id)
         => ReadStreamFromAsync(id, 0);
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, long startingRevision) {
-        if (_allStream.OfType<StreamCreated>().All(sc => sc.StreamId != id)) throw new StreamDoesNotExistException();
+    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, int startingRevision) {
+        // full scan.
+        if (await ReadLogAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != id)) throw new StreamDoesNotExistException();
 
-        var foundEvents = _allStream.OfType<RecordedEvent>().Where(s => s.StreamId == id).ToArray();
-
-        foreach (var e in foundEvents.Skip((int)startingRevision)) {
+        // second full scan
+        await foreach (var e in ReadLogAsync().OfType<RecordedEvent>().Where(s => s.StreamId == id).Skip(startingRevision)) {
             yield return e;
         }
     }
@@ -54,14 +58,10 @@ public class SingleTenantInMemoryPersister : IPersister {
     public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey key)
         => ReadStreamFromAsync(key, 0);
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, long startingRevision) {
-        var subStream = _allStream
-            .OfType<RecordedEvent>()
-            .Where(@event => @event.StreamId == key)
-            .Skip((int)startingRevision);
-
-        foreach (var e in subStream) {
-            if (e.StreamId == key) yield return e;
+    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, int startingRevision) {
+        // full scan
+        await foreach (var e in ReadLogAsync().OfType<RecordedEvent>().Where(s => s.StreamId == key).Skip(startingRevision)) {
+            yield return e;
         }
     }
 
@@ -69,11 +69,6 @@ public class SingleTenantInMemoryPersister : IPersister {
         var tcs = new TaskCompletionSource<WriteResult>();
         await _streamWriterChannel.Writer.WriteAsync(new PossibleWalEntry(tcs, id, version, events));
         return await tcs.Task;
-    }
-
-    public ValueTask Truncate() {
-        _allStream.Clear();
-        return ValueTask.CompletedTask;
     }
 
     private async Task WriteEventsImplAsync() {
@@ -86,30 +81,40 @@ public class SingleTenantInMemoryPersister : IPersister {
             try {
                 if (!await _utils.PassesStreamValidationAsync(onceCompleted, streamId, expected, events)) continue;
 
+                // first full scan
                 // if we don't have a StreamCreated event, we need to append one now.
-                if (_allStream.OfType<StreamCreated>().All(e => e.StreamId != streamId)) {
-                    _allStream.Append(new StreamCreated(streamId));
+                if (await ReadLogAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
+                    // write the stream created event.
+                    var ms = new MemoryStream();
+
+                    JsonSerializer.Serialize(ms, new StreamCreated(streamId), JsonSerializationConstants.Options);
+                    ms.WriteByte(END_OF_RECORD);
+                    await _dataFileManager.WriteAsync(ms.ToArray());
                 }
 
-                var newVersion = -1L;
-                foreach (var @event in events) {
-                    var filtered = _allStream.OfType<RecordedEvent>()
-                        .Where(e => e.StreamId == streamId)
-                        .ToArray();
-                    var nextRevision = filtered.Any()
-                        ? filtered.Max(f => f.Revision) + 1
-                        : 0;
-                    var recorded = new RecordedEvent(streamId, @event.EventId, nextRevision, @event.Data);
+                // second full scan
+                var revision = (await ReadLogAsync()
+                    .OfType<RecordedEvent>()
+                    .Where(e => e.StreamId == streamId)
+                    .LastOrDefaultAsync())?.Revision ?? -1L;
 
-                    _allStream.Append(recorded);
+                foreach (var @event in events) {
+                    revision += 1;
+                    var recorded = new RecordedEvent(streamId, @event.EventId, revision, @event.Data);
+
+                    // write the stream created event.
+                    var ms = new MemoryStream();
+
+                    JsonSerializer.Serialize(ms, recorded, JsonSerializationConstants.Options);
+                    ms.WriteByte(END_OF_RECORD);
+                    await _dataFileManager.WriteAsync(ms.ToArray());
 
                     // publish the recorded event.
                     await _allStreamChannel.Writer.WriteAsync(recorded);
                     Position += 1;
-                    newVersion = recorded.Revision;
                 }
 
-                onceCompleted.SetResult(WriteResult.Ok(Position, newVersion));
+                onceCompleted.SetResult(WriteResult.Ok(Position, revision));
             }
             catch (Exception exc) {
                 onceCompleted.SetResult(WriteResult.Failed(-1, -1, exc));
@@ -130,5 +135,38 @@ public class SingleTenantInMemoryPersister : IPersister {
         _disposed = true;
 
         GC.SuppressFinalize(this);
+    }
+
+    private async IAsyncEnumerable<StreamItem> ReadLogAsync() {
+        var buffer = new byte[4096];
+        var ms = new MemoryStream();
+
+        _dataFileManager.Seek(0, 0);
+        int offset;
+        do {
+            Array.Clear(buffer);
+            offset = await _dataFileManager.ReadLogAsync(buffer, buffer.Length);
+
+            for (var idx = 0; idx < offset; idx++) {
+                if (buffer[idx] == NULL) break; // if null, then no further data exists.
+
+                if (buffer[idx] == END_OF_RECORD) { // found a point whereas we need to deserialize what we have in the buffer, yield it back to the caller, then advance the index by 1.
+                    ms.Seek(0, SeekOrigin.Begin);
+
+                    yield return JsonSerializer.Deserialize<StreamItem>(ms, JsonSerializationConstants.Options);
+
+                    ms?.Dispose();
+                    ms = new MemoryStream();
+
+                    continue;
+                }
+
+                ms.WriteByte(buffer[idx]);
+            }
+        } while (offset != 0);
+
+        if (ms.Length > 0) {
+            yield return JsonSerializer.Deserialize<StreamItem>(ms, JsonSerializationConstants.Options);
+        }
     }
 }

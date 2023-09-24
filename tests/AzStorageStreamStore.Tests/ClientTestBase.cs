@@ -348,7 +348,6 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     }
 
     public ValueTask DisposeAsync() {
-        Persister?.Truncate();
         Persister?.Dispose();
         return ValueTask.CompletedTask;
     }

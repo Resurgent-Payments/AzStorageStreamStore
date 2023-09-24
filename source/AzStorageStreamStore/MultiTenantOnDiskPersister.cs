@@ -32,11 +32,11 @@ public class MultiTenantOnDiskPersister : IPersister {
         throw new NotImplementedException();
     }
 
-    public IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, long startingRevision) {
+    public IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId id, int startingRevision) {
         throw new NotImplementedException();
     }
 
-    public IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, long startingRevision) {
+    public IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey key, int startingRevision) {
         throw new NotImplementedException();
     }
 
