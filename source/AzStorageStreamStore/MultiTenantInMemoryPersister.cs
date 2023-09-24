@@ -5,8 +5,6 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 
 public class MultiTenantInMemoryPersister : IPersister {
-    long IPersister.Position => throw new NotImplementedException();
-
     public ChannelReader<StreamItem> AllStream => throw new NotImplementedException();
 
     public ValueTask<WriteResult> AppendToStreamAsync(StreamId id, ExpectedVersion version, EventData[] events) {

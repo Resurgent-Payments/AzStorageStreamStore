@@ -9,8 +9,6 @@ public class SingleTenantInMemoryPersister : IPersister {
     const byte END_OF_RECORD = 0x1E;
 
     IDataFileManager _dataFileManager;
-    internal long Position { get; private set; } = -1;
-    long IPersister.Position => Position;
 
     private readonly PersistenceUtils _utils;
 
@@ -111,13 +109,12 @@ public class SingleTenantInMemoryPersister : IPersister {
 
                     // publish the recorded event.
                     await _allStreamChannel.Writer.WriteAsync(recorded);
-                    Position += 1;
                 }
 
-                onceCompleted.SetResult(WriteResult.Ok(Position, revision));
+                onceCompleted.SetResult(WriteResult.Ok(revision));
             }
             catch (Exception exc) {
-                onceCompleted.SetResult(WriteResult.Failed(-1, -1, exc));
+                onceCompleted.SetResult(WriteResult.Failed(-1, exc));
             }
         }
     }

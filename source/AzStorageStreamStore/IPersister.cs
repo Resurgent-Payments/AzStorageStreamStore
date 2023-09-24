@@ -5,7 +5,6 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 
 public interface IPersister : IDisposable {
-    internal long Position { get; }
     ChannelReader<StreamItem> AllStream { get; }
 
     IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId id);

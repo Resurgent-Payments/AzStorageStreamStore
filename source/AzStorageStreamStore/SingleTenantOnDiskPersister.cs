@@ -14,7 +14,6 @@ public class SingleTenantOnDiskPersister : IPersister {
     private readonly CancellationTokenSource _tokenSource = new();
     private readonly SingleTenantOnDiskPersisterOptions _options;
     private string _chunkFile => Path.Combine(_options.BaseDataPath, "chunk.dat");
-    private string _positionFile => Path.Combine(_options.BaseDataPath, "position.dat");
     private Channel<PossibleWalEntry> _walWriter = Channel.CreateUnbounded<PossibleWalEntry>(new UnboundedChannelOptions {
         SingleReader = true,
         SingleWriter = false
@@ -41,25 +40,6 @@ public class SingleTenantOnDiskPersister : IPersister {
     }
 
     public ChannelReader<StreamItem> AllStream => _allStream.Reader;
-
-    long IPersister.Position => Position;
-    internal long Position {
-        get {
-            if (!File.Exists(_positionFile)) return -1;
-
-            using (var stream = new StreamReader(_positionFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
-                var data = stream.ReadToEnd();
-                return Convert.ToInt64(data);
-            }
-        }
-        set {
-            if (File.Exists(_positionFile)) File.Delete(_positionFile);
-            using (var writer = new StreamWriter(_positionFile, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write })) {
-                writer.Write(value);
-                writer.Flush();
-            }
-        }
-    }
 
     public void Dispose() {
         _tokenSource.Dispose();
@@ -130,7 +110,6 @@ public class SingleTenantOnDiskPersister : IPersister {
                 if (!await _utils.PassesStreamValidationAsync(onceCompleted, streamId, expected, events)) continue;
 
                 // getting current position
-                var cPosition = Position;
                 long version = -1;
                 try {
                     version = await ReadAllAsync()
@@ -157,14 +136,12 @@ public class SingleTenantOnDiskPersister : IPersister {
                         await writer.WriteLineAsync(ser);
 
                         await _allStream.Writer.WriteAsync(recorded);
-                        cPosition += 1;
                     }
 
                     await writer.FlushAsync();
-                    Position = cPosition;
                 }
 
-                onceCompleted.SetResult(WriteResult.Ok(cPosition, version));
+                onceCompleted.SetResult(WriteResult.Ok(version));
             }
             catch (Exception ex) {
                 onceCompleted.SetException(ex);

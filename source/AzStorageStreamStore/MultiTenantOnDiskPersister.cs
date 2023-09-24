@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 
 public class MultiTenantOnDiskPersister : IPersister {
-    long IPersister.Position => throw new NotImplementedException();
     private readonly MultiTenantOnDiskPersisterOptions _options;
 
     public MultiTenantOnDiskPersister(IOptions<MultiTenantOnDiskPersisterOptions> options) {

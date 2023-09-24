@@ -13,7 +13,7 @@ internal class PersistenceUtils {
             switch (expected) {
                 case -3: // no stream
                     if (!await _persister.ReadStreamAsync(StreamKey.All).AllAsync(e => e.StreamId != streamId)) {
-                        onceCompleted.SetResult(WriteResult.Failed(_persister.Position, -1, new StreamExistsException()));
+                        onceCompleted.SetResult(WriteResult.Failed(-1, new StreamExistsException()));
                         return false;
                     }
                     break;
@@ -22,7 +22,7 @@ internal class PersistenceUtils {
                 case -1: // empty stream
                     if (await _persister.ReadStreamAsync(StreamKey.All).AllAsync(s => s.StreamId != streamId)) {
                         var revision = _persister.ReadStreamAsync(StreamKey.All).OfType<RecordedEvent>().MaxAsync(e => e.Revision);
-                        onceCompleted.SetResult(WriteResult.Failed(_persister.Position, -1, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, -1)));
+                        onceCompleted.SetResult(WriteResult.Failed(-1, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, -1)));
                         return false;
                     } else {
                         // check for duplicates here.
@@ -31,7 +31,7 @@ internal class PersistenceUtils {
                         if (nonEmptyStreamEvents.Any()) {
                             // if all events are appended, considered as a double request and post-back ok.
                             if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                                onceCompleted.SetResult(WriteResult.Ok(_persister.Position, nonEmptyStreamEvents.Max(x => x.Revision)));
+                                onceCompleted.SetResult(WriteResult.Ok(nonEmptyStreamEvents.Max(x => x.Revision)));
                                 return false;
                             }
                         }
@@ -41,7 +41,7 @@ internal class PersistenceUtils {
                     var filtered = await _persister.ReadStreamAsync(StreamKey.All).OfType<RecordedEvent>().Where(e => e.StreamId == streamId).ToListAsync();
 
                     if (!filtered.Any()) {
-                        onceCompleted.SetResult(WriteResult.Failed(_persister.Position, -1, new WrongExpectedVersionException(expected, ExpectedVersion.NoStream)));
+                        onceCompleted.SetResult(WriteResult.Failed(-1, new WrongExpectedVersionException(expected, ExpectedVersion.NoStream)));
                         return false;
                     }
 
@@ -49,7 +49,7 @@ internal class PersistenceUtils {
                         // if all events are appended, considered as a double request and post-back ok.
                         if (events.All(e => filtered.All(i => i.EventId != e.EventId))) {
 
-                            onceCompleted.SetResult(WriteResult.Ok(_persister.Position, filtered.Max(x => x.Revision)));
+                            onceCompleted.SetResult(WriteResult.Ok(filtered.Max(x => x.Revision)));
                             return false;
                         }
 
@@ -57,8 +57,7 @@ internal class PersistenceUtils {
                         // -- or --
                         // only some were appended, then throw a wrong expected version.
                         if (events.Select(e => filtered.All(s => s.EventId != e.EventId)).Any()) {
-                            onceCompleted.SetResult(WriteResult.Failed(_persister.Position,
-                                filtered.Max(x => x.Revision),
+                            onceCompleted.SetResult(WriteResult.Failed(filtered.Max(x => x.Revision),
                                 new WrongExpectedVersionException(expected, filtered.LastOrDefault()?.Revision ?? ExpectedVersion.NoStream)));
                             return false;
                         }
