@@ -19,8 +19,8 @@ public class SingleTenantInMemoryPersister : IPersister {
 
     public ChannelReader<StreamItem> AllStream { get; }
 
-    public SingleTenantInMemoryPersister() {
-        _dataFileManager = new MemoryDataFileManager();
+    public SingleTenantInMemoryPersister(IDataFileManager dataFileManager) {
+        _dataFileManager = dataFileManager;
         _utils = new(this);
         _allStreamChannel = Channel.CreateUnbounded<StreamItem>(new UnboundedChannelOptions {
             SingleReader = true,

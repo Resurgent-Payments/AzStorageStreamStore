@@ -6,18 +6,18 @@ using FakeItEasy;
 
 using Microsoft.Extensions.Options;
 
-public class OnDiskLocalStoreClientAllStreamTests : LocalStoreClientAllStreamTests<SingleTenantOnDiskPersister> {
-    protected override SingleTenantOnDiskPersister Persister {
+public class OnDiskLocalStoreClientAllStreamTests : LocalStoreClientAllStreamTests<SingleTenantInMemoryPersister> {
+    protected override SingleTenantInMemoryPersister Persister {
         get {
-            var options = new SingleTenantOnDiskPersisterOptions {
+            var options = new LocalDiskFileManagerOptions {
                 BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
-                FileReadBlockSize = 1024,
+                FileReadBlockSize = 4096 // 4k block size.
             };
-            var fake = A.Fake<IOptions<SingleTenantOnDiskPersisterOptions>>();
+            var fake = A.Fake<IOptions<LocalDiskFileManagerOptions>>();
             A.CallTo(() => fake.Value)
                 .Returns(options);
 
-            return new SingleTenantOnDiskPersister(fake);
+            return new SingleTenantInMemoryPersister(new LocalDiskFileManager(fake));
         }
     }
 }
