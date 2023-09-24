@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Options;
 
-public class MultiTenantOnDiskPersister : IPersister {
-    private readonly MultiTenantOnDiskPersisterOptions _options;
+public class MultiTenantPersister : IPersister {
+    private readonly MultiTenantPersisterOptions _options;
 
-    public MultiTenantOnDiskPersister(IOptions<MultiTenantOnDiskPersisterOptions> options) {
-        _options = options.Value ?? new MultiTenantOnDiskPersisterOptions();
+    public MultiTenantPersister(IOptions<MultiTenantPersisterOptions> options) {
+        _options = options.Value ?? new MultiTenantPersisterOptions();
     }
 
     public ChannelReader<StreamItem> AllStream => throw new NotImplementedException();

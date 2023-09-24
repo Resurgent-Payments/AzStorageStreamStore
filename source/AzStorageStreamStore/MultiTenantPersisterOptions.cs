@@ -1,5 +1,5 @@
 namespace AzStorageStreamStore;
 
-public class MultiTenantOnDiskPersisterOptions {
+public class MultiTenantPersisterOptions {
 
 }
