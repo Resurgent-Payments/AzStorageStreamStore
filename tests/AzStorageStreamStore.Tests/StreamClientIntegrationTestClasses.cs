@@ -7,22 +7,22 @@ using Microsoft.Extensions.Options;
 using Xunit;
 
 [Trait("Type", "Integration")]
-public class InMemoryStreamClientIntegrationTests : StreamClientIntegrationTestBase<SingleTenantInMemoryPersister> {
-    protected override SingleTenantInMemoryPersister Persister {
+public class InMemoryStreamClientIntegrationTests : StreamClientIntegrationTestBase<SingleTenantPersister> {
+    protected override SingleTenantPersister Persister {
         get {
-            var options = new SingleTenantInMemoryPersisterOptions();
-            var fake = A.Fake<IOptions<SingleTenantInMemoryPersisterOptions>>();
+            var options = new SingleTenantPersisterOptions();
+            var fake = A.Fake<IOptions<SingleTenantPersisterOptions>>();
             A.CallTo(() => fake.Value)
                 .Returns(options);
 
-            return new SingleTenantInMemoryPersister(new MemoryDataFileManager(), fake);
+            return new SingleTenantPersister(new MemoryDataFileManager(), fake);
         }
     }
 }
 
 [Trait("Type", "Integration")]
-public class LocalDiskPersisterIntegrationTests : StreamClientIntegrationTestBase<SingleTenantInMemoryPersister> {
-    protected override SingleTenantInMemoryPersister Persister {
+public class LocalDiskPersisterIntegrationTests : StreamClientIntegrationTestBase<SingleTenantPersister> {
+    protected override SingleTenantPersister Persister {
         get {
             var diskOptions = new LocalDiskFileManagerOptions {
                 BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
@@ -32,13 +32,13 @@ public class LocalDiskPersisterIntegrationTests : StreamClientIntegrationTestBas
             A.CallTo(() => diskOptionsAccessor.Value)
                 .Returns(diskOptions);
 
-            var persisterOptions = new SingleTenantInMemoryPersisterOptions();
-            var persisterOptionsAccessor = A.Fake<IOptions<SingleTenantInMemoryPersisterOptions>>();
+            var persisterOptions = new SingleTenantPersisterOptions();
+            var persisterOptionsAccessor = A.Fake<IOptions<SingleTenantPersisterOptions>>();
             A.CallTo(() => persisterOptionsAccessor.Value)
                 .Returns(persisterOptions);
 
 
-            return new SingleTenantInMemoryPersister(new LocalDiskFileManager(diskOptionsAccessor), persisterOptionsAccessor);
+            return new SingleTenantPersister(new LocalDiskFileManager(diskOptionsAccessor), persisterOptionsAccessor);
         }
     }
 }

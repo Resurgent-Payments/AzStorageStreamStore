@@ -6,9 +6,9 @@ using FakeItEasy;
 
 using Microsoft.Extensions.Options;
 
-public class LocalClientWithSingleTenantOnDiskPersisterTests : ClientTestBase<SingleTenantInMemoryPersister> {
+public class LocalClientWithSingleTenantOnDiskPersisterTests : ClientTestBase<SingleTenantPersister> {
 
-    protected override SingleTenantInMemoryPersister Persister {
+    protected override SingleTenantPersister Persister {
         get {
             var diskOptions = new LocalDiskFileManagerOptions {
                 BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
@@ -18,13 +18,13 @@ public class LocalClientWithSingleTenantOnDiskPersisterTests : ClientTestBase<Si
             A.CallTo(() => diskOptionsAccessor.Value)
                 .Returns(diskOptions);
 
-            var persisterOptions = new SingleTenantInMemoryPersisterOptions();
-            var persisterOptionsAccessor = A.Fake<IOptions<SingleTenantInMemoryPersisterOptions>>();
+            var persisterOptions = new SingleTenantPersisterOptions();
+            var persisterOptionsAccessor = A.Fake<IOptions<SingleTenantPersisterOptions>>();
             A.CallTo(() => persisterOptionsAccessor.Value)
                 .Returns(persisterOptions);
 
 
-            return new SingleTenantInMemoryPersister(new LocalDiskFileManager(diskOptionsAccessor), persisterOptionsAccessor);
+            return new SingleTenantPersister(new LocalDiskFileManager(diskOptionsAccessor), persisterOptionsAccessor);
         }
     }
 }

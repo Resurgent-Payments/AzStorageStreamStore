@@ -6,15 +6,15 @@ using FakeItEasy;
 
 using Microsoft.Extensions.Options;
 
-public class InMemoryLocalStoreClientAllStreamTests : LocalStoreClientAllStreamTests<SingleTenantInMemoryPersister> {
-    protected override SingleTenantInMemoryPersister Persister {
+public class InMemoryLocalStoreClientAllStreamTests : LocalStoreClientAllStreamTests<SingleTenantPersister> {
+    protected override SingleTenantPersister Persister {
         get {
-            var options = new SingleTenantInMemoryPersisterOptions();
-            var fake = A.Fake<IOptions<SingleTenantInMemoryPersisterOptions>>();
+            var options = new SingleTenantPersisterOptions();
+            var fake = A.Fake<IOptions<SingleTenantPersisterOptions>>();
             A.CallTo(() => fake.Value)
                 .Returns(options);
 
-            return new SingleTenantInMemoryPersister(new MemoryDataFileManager(), fake);
+            return new SingleTenantPersister(new MemoryDataFileManager(), fake);
         }
     }
 }

@@ -3,11 +3,11 @@ namespace AzStorageStreamStore;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 
-public class SingleTenantInMemoryPersisterOptions {
+public class SingleTenantPersisterOptions {
     public JsonSerializerOptions JsonOptions { get; private set; }
     public IList<JsonConverter> JsonConverters { get; set; } = new List<JsonConverter>();
 
-    public SingleTenantInMemoryPersisterOptions() {
+    public SingleTenantPersisterOptions() {
         JsonOptions = new JsonSerializerOptions() {
             IgnoreReadOnlyFields = true,
             IgnoreReadOnlyProperties = true,

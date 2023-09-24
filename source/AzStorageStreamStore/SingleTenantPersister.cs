@@ -6,7 +6,7 @@ using System.Threading.Channels;
 
 using Microsoft.Extensions.Options;
 
-public class SingleTenantInMemoryPersister : IPersister {
+public class SingleTenantPersister : IPersister {
     const byte NULL = 0x00;
     const byte END_OF_RECORD = 0x1E;
 
@@ -19,11 +19,11 @@ public class SingleTenantInMemoryPersister : IPersister {
     private readonly Channel<StreamItem> _allStreamChannel;
     private readonly Channel<PossibleWalEntry> _streamWriterChannel;
 
-    private readonly SingleTenantInMemoryPersisterOptions _options;
+    private readonly SingleTenantPersisterOptions _options;
 
     public ChannelReader<StreamItem> AllStream { get; }
 
-    public SingleTenantInMemoryPersister(IDataFileManager dataFileManager, IOptions<SingleTenantInMemoryPersisterOptions> options) {
+    public SingleTenantPersister(IDataFileManager dataFileManager, IOptions<SingleTenantPersisterOptions> options) {
         _dataFileManager = dataFileManager;
         _options = options.Value ?? new();
         _utils = new(this);
