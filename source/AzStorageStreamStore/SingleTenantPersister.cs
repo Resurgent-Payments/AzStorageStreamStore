@@ -101,6 +101,8 @@ public class SingleTenantPersister : IPersister {
                     .Where(e => e.StreamId == streamId)
                     .LastOrDefaultAsync())?.Revision ?? -1L;
 
+                // cache the current checkpoint.
+
                 foreach (var @event in events) {
                     revision += 1;
                     var recorded = new RecordedEvent(streamId, @event.EventId, revision, @event.Data);
@@ -108,13 +110,20 @@ public class SingleTenantPersister : IPersister {
                     // write the stream created event.
                     var ms = new MemoryStream();
 
+                    var startIdx = _dataFileManager.Checkpoint;
                     JsonSerializer.Serialize(ms, recorded, _options.JsonOptions);
                     ms.WriteByte(END_OF_RECORD);
                     await _dataFileManager.WriteAsync(ms.ToArray());
+                    var eventOffset = _dataFileManager.Checkpoint - startIdx;
+                    // todo: write startIdx and eventOffset to 'index'
 
                     // publish the recorded event.
                     await _allStreamChannel.Writer.WriteAsync(recorded);
                 }
+
+                // capture the offset here.
+
+                // write the index log entry.
 
                 onceCompleted.SetResult(WriteResult.Ok(revision));
             }
