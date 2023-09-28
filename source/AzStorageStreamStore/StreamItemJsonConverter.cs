@@ -103,6 +103,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
         StreamId? StreamId = null;
         Guid EventId = Guid.Empty;
         long Revision = -1;
+        byte[] Metadata = Array.Empty<byte>();
         byte[] Data = Array.Empty<byte>();
         string Type = string.Empty;
 
@@ -121,6 +122,8 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
                 Guid.TryParse(guidString, out EventId);
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Revision)) ?? nameof(Revision))) {
                 Revision = reader.GetInt64();
+            } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Metadata)) ?? nameof(Metadata))) {
+                Metadata = reader.GetBytesFromBase64();
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Data)) ?? nameof(Data))) {
                 Data = reader.GetBytesFromBase64();
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Type)) ?? nameof(Type))) {
@@ -130,7 +133,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
 
         if (StreamId is null || EventId == Guid.Empty || Revision < 0) throw new JsonException();
 
-        return new RecordedEvent(StreamId, EventId, Revision, Type, Data);
+        return new RecordedEvent(StreamId, EventId, Revision, Type, Metadata, Data);
     }
 
     enum StreamItemTypes {

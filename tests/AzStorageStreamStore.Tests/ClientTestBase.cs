@@ -21,7 +21,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         Client = new LocalStoreClient(Persister);
 
         AsyncHelper.RunSync(async () => await Client.InitializeAsync());
-        var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), EventType, Array.Empty<byte>()) }));
+        var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>()) }));
         Assert.True(result.Successful);
 
         result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_emptyStreamId, ExpectedVersion.Any, Array.Empty<EventData>()));
@@ -36,7 +36,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var eventId = Guid.NewGuid();
         var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
-        var e = new EventData(id, eventId, EventType, Array.Empty<byte>());
+        var e = new EventData(id, eventId, EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var writeResult = await Client.AppendToStreamAsync(id, version, new[] { e });
 
@@ -55,7 +55,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var id = new StreamId(tenantId, Guid.NewGuid().ToString());
         var message = "Hello world!";
 
-        var e = new EventData(id, eventId, EventType, Encoding.UTF8.GetBytes(message));
+        var e = new EventData(id, eventId, EventType, Array.Empty<byte>(), Encoding.UTF8.GetBytes(message));
 
         var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e });
 
@@ -74,7 +74,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var eventId = Guid.NewGuid();
         var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
-        var e = new EventData(id, eventId, EventType, Array.Empty<byte>());
+        var e = new EventData(id, eventId, EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var writeResult = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.NoStream, new[] { e });
 
@@ -88,7 +88,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var eventId = Guid.NewGuid();
         var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
-        var e = new EventData(id, eventId, EventType, Array.Empty<byte>());
+        var e = new EventData(id, eventId, EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var writeResult1 = await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e });
         var writeResult2 = await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e });
@@ -105,9 +105,9 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var eventId3 = Guid.NewGuid();
         var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
-        var e1 = new EventData(id, eventId1, EventType, Array.Empty<byte>());
-        var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>());
-        var e3 = new EventData(id, eventId3, EventType, Array.Empty<byte>());
+        var e1 = new EventData(id, eventId1, EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(id, eventId3, EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var writeResult1 = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e1, e2 });
         var writeResult2 = await Client.AppendToStreamAsync(_loadedStreamId, writeResult1.Version, new[] { e2, e3 });
@@ -124,9 +124,9 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var eventId2 = Guid.NewGuid();
         var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
-        var e1 = new EventData(id, eventId1, EventType, Array.Empty<byte>());
-        var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>());
-        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
+        var e1 = new EventData(id, eventId1, EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var writeResult1 = await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2 });
         var writeResult2 = await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e3 });
@@ -142,9 +142,9 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var eventId2 = Guid.NewGuid();
         var id = new StreamId(tenantId, Guid.NewGuid().ToString());
 
-        var e1 = new EventData(id, eventId1, EventType, Array.Empty<byte>());
-        var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>());
-        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
+        var e1 = new EventData(id, eventId1, EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2 });
         await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e3 });
@@ -167,9 +167,9 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
 
         var key = new StreamKey(new[] { tenantId });
 
-        var e1 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e2 = new EventData(id2, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e3 = new EventData(id3, Guid.NewGuid(), EventType, Array.Empty<byte>());
+        var e1 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(id2, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(id3, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e1 });
         await Client.AppendToStreamAsync(id2, ExpectedVersion.Any, new[] { e2 });
@@ -206,10 +206,10 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     [Fact]
     public async Task Can_subscribe_to_a_stream_from_a_given_position() {
         var id1 = new StreamId("Tenant", "stream");
-        var e1 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e2 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e3 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e4 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>());
+        var e1 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e4 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var events = new List<RecordedEvent>();
 
@@ -241,10 +241,10 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     public async Task Can_dispose_a_subscription_from_a_given_position() {
         var id = new StreamId("some", "stream");
         var key = new StreamKey(new[] { "some" });
-        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
+        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var events = new List<RecordedEvent>();
 
@@ -271,10 +271,10 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     public async Task Disposing_of_a_subscription_from_a_given_position_does_not_affect_other_instances_of_same() {
         var id = new StreamId("some", "stream");
         var key = new StreamKey(new[] { "some" });
-        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
+        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var events = new List<RecordedEvent>();
 
@@ -303,10 +303,10 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     [Fact]
     public async Task Records_proper_stream_revision() {
         var id = new StreamId("some", "stream");
-        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
-        var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
+        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var events = new List<RecordedEvent>();
 
@@ -333,7 +333,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     [Fact]
     public async Task Cannot_append_when_no_stream_exists_while_expecting_empty() {
         var id = new StreamId("some", "stream");
-        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
+        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var result = await Client.AppendToStreamAsync(id, ExpectedVersion.EmptyStream, new[] { e1 });
         Assert.IsType<WrongExpectedVersionException>(result.Exception);
@@ -342,7 +342,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     [Fact]
     public async Task Can_append_events_when_an_empty_stream_has_been_established() {
         var id = new StreamId("some", "stream");
-        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>());
+        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, Array.Empty<EventData>());
         Assert.True(writeResult.Successful);

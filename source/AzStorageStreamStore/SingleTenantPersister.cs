@@ -105,7 +105,7 @@ public class SingleTenantPersister : IPersister {
 
                 foreach (var @event in events) {
                     revision += 1;
-                    var recorded = new RecordedEvent(streamId, @event.EventId, revision, @event.EventType, @event.Data);
+                    var recorded = new RecordedEvent(streamId, @event.EventId, revision, @event.Type, @event.Metadata, @event.Data);
 
                     // write the stream created event.
                     var ms = new MemoryStream();
@@ -165,7 +165,7 @@ public class SingleTenantPersister : IPersister {
                 if (buffer[idx] == END_OF_RECORD) { // found a point whereas we need to deserialize what we have in the buffer, yield it back to the caller, then advance the index by 1.
                     ms.Seek(0, SeekOrigin.Begin);
 
-                    yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions);
+                    yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
 
                     ms?.Dispose();
                     ms = new MemoryStream();
@@ -178,7 +178,7 @@ public class SingleTenantPersister : IPersister {
         } while (offset != 0);
 
         if (ms.Length > 0) {
-            yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions);
+            yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
         }
     }
 }
