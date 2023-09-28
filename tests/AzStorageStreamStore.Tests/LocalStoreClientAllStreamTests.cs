@@ -10,6 +10,7 @@ public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposa
     private readonly IStoreClient _storeClient;
     private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
     IOptions<LocalDiskFileManagerOptions> _options;
+    const string AllStreamEventType = "all-stream-event-type";
 
     protected abstract TPersister Persister { get; }
 
@@ -26,7 +27,7 @@ public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposa
         _storeClient = new LocalStoreClient(Persister);
 
         AsyncHelper.RunSync(async () => await _storeClient.InitializeAsync());
-        var result = AsyncHelper.RunSync(async () => await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), Array.Empty<byte>()) }));
+        var result = AsyncHelper.RunSync(async () => await _storeClient.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>()) }));
         Assert.True(result.Successful);
 
     }
@@ -45,7 +46,7 @@ public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposa
         var result = await _storeClient.AppendToStreamAsync(
             new StreamId("test", "stream"),
             ExpectedVersion.Any,
-            new[] { new EventData(key, Guid.NewGuid(), Array.Empty<byte>()) }
+            new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>()) }
         );
         Assert.True(result.Successful);
 
@@ -76,7 +77,7 @@ public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposa
         var result = await _storeClient.AppendToStreamAsync(
             new StreamId("test", "stream"),
             ExpectedVersion.Any,
-            new[] { new EventData(key, Guid.NewGuid(), Array.Empty<byte>()) }
+            new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>()) }
         );
         Assert.True(result.Successful);
 
@@ -102,7 +103,7 @@ public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposa
         var result = await _storeClient.AppendToStreamAsync(
             new StreamId("test", "stream"),
             ExpectedVersion.Any,
-            new[] { new EventData(key, Guid.NewGuid(), Array.Empty<byte>()) }
+            new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>()) }
         );
         Assert.True(result.Successful);
 
@@ -134,7 +135,7 @@ public abstract class LocalStoreClientAllStreamTests<TPersister> : IAsyncDisposa
         var result = await _storeClient.AppendToStreamAsync(
             new StreamId("test", "stream"),
             ExpectedVersion.Any,
-            new[] { new EventData(key, Guid.NewGuid(), Array.Empty<byte>()) }
+            new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>()) }
         );
         Assert.True(result.Successful);
 
