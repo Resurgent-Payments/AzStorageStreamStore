@@ -64,6 +64,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
                 writer.WriteNumber(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Revision)) ?? nameof(@event.Revision), @event.Revision);
                 writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Type)) ?? nameof(@event.Type), @event.Type);
                 //todo: determine how to write a byte array here.  can this be a json text at the end?
+                writer.WriteBase64String(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Metadata)) ?? nameof(@event.Metadata), @event.Metadata);
                 writer.WriteBase64String(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Data)) ?? nameof(@event.Data), @event.Data);
 
                 break;
