@@ -62,6 +62,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
 
                 writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.EventId)) ?? nameof(@event.EventId), @event.EventId);
                 writer.WriteNumber(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Revision)) ?? nameof(@event.Revision), @event.Revision);
+                writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Type)) ?? nameof(@event.Type), @event.Type);
                 //todo: determine how to write a byte array here.  can this be a json text at the end?
                 writer.WriteBase64String(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Data)) ?? nameof(@event.Data), @event.Data);
 
@@ -102,7 +103,8 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
         StreamId? StreamId = null;
         Guid EventId = Guid.Empty;
         long Revision = -1;
-        byte[] Data = null;
+        byte[] Data = Array.Empty<byte>();
+        string Type = string.Empty;
 
         while (reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
             if (reader.TokenType != JsonTokenType.PropertyName) continue;
@@ -121,12 +123,14 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
                 Revision = reader.GetInt64();
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Data)) ?? nameof(Data))) {
                 Data = reader.GetBytesFromBase64();
+            } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Type)) ?? nameof(Type))) {
+                Type = reader.GetString()!;
             }
         }
 
         if (StreamId is null || EventId == Guid.Empty || Revision < 0) throw new JsonException();
 
-        return new RecordedEvent(StreamId, EventId, Revision, Data);
+        return new RecordedEvent(StreamId, EventId, Revision, Type, Data);
     }
 
     enum StreamItemTypes {

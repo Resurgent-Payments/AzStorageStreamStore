@@ -74,7 +74,7 @@ public class StreamItemJsonConverterTests {
     public void Recorded_event_without_data_can_be_serialized() {
         var key = new StreamId("stream", "id");
         var eventId = Guid.NewGuid();
-        var @event = new RecordedEvent(key, eventId, 1, Array.Empty<byte>());
+        var @event = new RecordedEvent(key, eventId, 1, "type", Array.Empty<byte>());
 
         var ms = new MemoryStream();
         var options = new JsonSerializerOptions {

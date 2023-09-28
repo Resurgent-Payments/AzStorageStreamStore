@@ -105,7 +105,7 @@ public class SingleTenantPersister : IPersister {
 
                 foreach (var @event in events) {
                     revision += 1;
-                    var recorded = new RecordedEvent(streamId, @event.EventId, revision, @event.Data);
+                    var recorded = new RecordedEvent(streamId, @event.EventId, revision, @event.EventType, @event.Data);
 
                     // write the stream created event.
                     var ms = new MemoryStream();
