@@ -6,7 +6,7 @@ using FakeItEasy;
 
 using Microsoft.Extensions.Options;
 
-public class LocalClientWithSingleTenantInMemoryPersisterTests : ClientTestBase {
+public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
     private MemoryEventStream? _stream;
 
     protected override EventStream Stream {
