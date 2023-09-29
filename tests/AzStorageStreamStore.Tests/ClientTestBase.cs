@@ -464,6 +464,22 @@ public abstract class ClientTestBase : IDisposable {
         Assert.Single(events);
     }
 
+    [Fact]
+    [Trait("Type", "Integration")]
+    public async Task Large_streams_will_write_and_read() {
+        var id = new StreamId("some", Array.Empty<string>(), "stream");
+        var fiftyGrandEventDeta = Enumerable.Range(1, 50000)
+            .Select(_ => new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>()))
+            .ToArray();
+
+        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, fiftyGrandEventDeta);
+
+        Assert.True(writeResult.Successful);
+
+        var allEventsFromStorage = await Client.ReadStreamAsync(id).ToListAsync();
+        Assert.Equal(50000, allEventsFromStorage.Count);
+    }
+
     public void Dispose() {
         Stream?.Dispose();
     }
