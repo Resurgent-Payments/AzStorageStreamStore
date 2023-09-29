@@ -1,5 +1,5 @@
-namespace AzStorageStreamStore;
+//namespace AzStorageStreamStore;
 
-public class MultiTenantPersisterOptions {
+//public class MultiTenantPersisterOptions {
 
-}
+//}

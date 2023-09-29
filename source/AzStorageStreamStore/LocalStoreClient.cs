@@ -5,14 +5,14 @@ using System.Collections.Concurrent;
 public class LocalStoreClient : IStoreClient {
     private readonly CancellationTokenSource _cts = new();
 
-    private readonly IPersister _persister;
+    private readonly EventStream _eventStream;
 
     private ConcurrentBag<Action<RecordedEvent>> _subscriptions = new();
     private readonly Dictionary<StreamKey, ConcurrentBag<Action<RecordedEvent>>> _streamKeySubscriptions = new();
     private readonly Dictionary<StreamId, ConcurrentBag<Action<RecordedEvent>>> _streamIdSubscriptions = new();
 
-    public LocalStoreClient(IPersister persister) {
-        _persister = persister;
+    public LocalStoreClient(EventStream eventStream) {
+        _eventStream = eventStream;
     }
 
     public Task InitializeAsync() {
@@ -24,15 +24,15 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events)
-        => _persister.AppendToStreamAsync(key, version, events);
+        => _eventStream.AppendToStreamAsync(key, version, events);
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
-        => _persister.ReadStreamAsync(key).OfType<RecordedEvent>();
+        => _eventStream.ReadStreamAsync(key).OfType<RecordedEvent>();
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
-        => _persister.ReadStreamAsync(id).OfType<RecordedEvent>();
+        => _eventStream.ReadStreamAsync(id).OfType<RecordedEvent>();
 
     /// <inheritdoc />
     public Task<IDisposable> SubscribeToAllAsync(Action<RecordedEvent> handler) {
@@ -47,7 +47,7 @@ public class LocalStoreClient : IStoreClient {
 
     /// <inheritdoc />
     public async Task<IDisposable> SubscribeToAllFromAsync(int position, Action<RecordedEvent> handler) {
-        await foreach (var @event in _persister.ReadStreamFromAsync(StreamKey.All, position).OfType<RecordedEvent>()) {
+        await foreach (var @event in _eventStream.ReadStreamFromAsync(StreamKey.All, position).OfType<RecordedEvent>()) {
             handler.Invoke(@event);
         }
         return new StreamDisposer(() =>
@@ -68,7 +68,7 @@ public class LocalStoreClient : IStoreClient {
             _streamKeySubscriptions.Add(key, bag);
         }
 
-        await foreach (var @event in _persister.ReadStreamFromAsync(key, revision).OfType<RecordedEvent>()) {
+        await foreach (var @event in _eventStream.ReadStreamFromAsync(key, revision).OfType<RecordedEvent>()) {
             foreach (var slice in key) {
                 handler.Invoke(@event);
             }
@@ -97,7 +97,7 @@ public class LocalStoreClient : IStoreClient {
         }
 
         try {
-            await foreach (var @event in _persister.ReadStreamFromAsync(streamId, revision).OfType<RecordedEvent>()) {
+            await foreach (var @event in _eventStream.ReadStreamFromAsync(streamId, revision).OfType<RecordedEvent>()) {
                 handler.Invoke(@event);
             }
         }
@@ -126,7 +126,7 @@ public class LocalStoreClient : IStoreClient {
     protected virtual void Dispose(bool disposing) {
         if (_disposed || !disposing) return;
 
-        _persister.Dispose();
+        _eventStream.Dispose();
         _cts.Cancel();
         _cts.Dispose();
 
@@ -135,7 +135,7 @@ public class LocalStoreClient : IStoreClient {
 
     private async void MessagePump() {
         while (!_cts.IsCancellationRequested) {
-            await foreach (var e in _persister.AllStream.ReadAllAsync(_cts.Token).OfType<RecordedEvent>()) {
+            await foreach (var e in _eventStream.Stream.ReadAllAsync(_cts.Token).OfType<RecordedEvent>()) {
                 if (_cts.IsCancellationRequested) { return; }
                 foreach (var allAction in _subscriptions) {
                     allAction.Invoke(e);

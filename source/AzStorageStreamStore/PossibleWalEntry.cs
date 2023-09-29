@@ -1,2 +1,2 @@
 namespace AzStorageStreamStore;
-public record PossibleWalEntry(TaskCompletionSource<WriteResult> OnceCompleted, StreamId Id, ExpectedVersion Version, EventData[] Events);
+public record WriteToStreamArgs(TaskCompletionSource<WriteResult> OnceCompleted, StreamId Id, ExpectedVersion Version, IEnumerable<EventData> Events);

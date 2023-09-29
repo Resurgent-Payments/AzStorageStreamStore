@@ -28,7 +28,7 @@ public class StreamIdJsonConverter : JsonConverter<StreamId> {
         }
 
         return (!string.IsNullOrEmpty(idProperty) && !string.IsNullOrEmpty(tenantIdProperty))
-            ? new StreamId(tenantIdProperty, idProperty)
+            ? new StreamId(tenantIdProperty, Array.Empty<string>(), idProperty) // todo: de-serialize array.
             : null;
     }
 
@@ -36,6 +36,9 @@ public class StreamIdJsonConverter : JsonConverter<StreamId> {
         writer.WriteStartObject();
 
         writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(value.Id)) ?? nameof(value.Id), value.Id);
+        writer.WriteStartArray(options?.PropertyNamingPolicy?.ConvertName(nameof(value.Hierarchy)) ?? nameof(value.Hierarchy));
+        foreach (var item in value.Hierarchy) { writer.WriteStringValue(item); }
+        writer.WriteEndArray();
         writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(value.TenantId)) ?? nameof(value.TenantId), value.TenantId);
 
         writer.WriteEndObject();
