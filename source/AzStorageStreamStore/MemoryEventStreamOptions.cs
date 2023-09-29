@@ -7,8 +7,6 @@ using System.Text.Json.Serialization;
 public class MemoryEventStreamOptions : IEventStreamOptions {
     public JsonSerializerOptions JsonOptions { get; private set; }
     public IList<JsonConverter> JsonConverters { get; set; } = new List<JsonConverter>();
-    public string BaseDataPath { get; set; } = string.Empty;
-    public int FileReadBlockSize { get; set; } = 4096;
 
     public MemoryEventStreamOptions() {
         JsonOptions = new JsonSerializerOptions() {
@@ -20,7 +18,7 @@ public class MemoryEventStreamOptions : IEventStreamOptions {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             Converters = {
                 new JsonStringEnumConverter(),
-                new StreamIdJsonConverter(),
+                //new StreamIdJsonConverter(),
                 new StreamItemJsonConverter()
             }
         };

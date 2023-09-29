@@ -4,43 +4,47 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public class StreamIdJsonConverter : JsonConverter<StreamId> {
-    public override StreamId? Read(ref Utf8JsonReader reader, Type _, JsonSerializerOptions options) {
-        string Id = options?.PropertyNamingPolicy?.ConvertName(nameof(Id)) ?? nameof(Id);
-        string TenantId = options?.PropertyNamingPolicy?.ConvertName(nameof(TenantId)) ?? nameof(TenantId);
+//public class StreamIdJsonConverter : JsonConverter<StreamId> {
+//    public override StreamId? Read(ref Utf8JsonReader reader, Type _, JsonSerializerOptions options) {
+//        string Id = options?.PropertyNamingPolicy?.ConvertName(nameof(Id)) ?? nameof(Id);
+//        string TenantId = options?.PropertyNamingPolicy?.ConvertName(nameof(TenantId)) ?? nameof(TenantId);
 
-        var idProperty = string.Empty;
-        var tenantIdProperty = string.Empty;
+//        var idProperty = string.Empty;
+//        var tenantIdProperty = string.Empty;
 
 
-        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
-            var propertyName = reader.GetString();
+//        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
+//            if(reader.TokenType == JsonTokenType.StartArray) {
+//                // read the entire array of string values into a List<string>()
+//            }
 
-            if (string.IsNullOrEmpty(propertyName)) continue;
+//            var propertyName = reader.GetString();
 
-            reader.Read(); // now at the value.
+//            if (string.IsNullOrEmpty(propertyName)) continue;
 
-            if (propertyName.Equals(Id)) {
-                idProperty = reader.GetString();
-            } else if (propertyName.Equals(TenantId)) {
-                tenantIdProperty = reader.GetString();
-            }
-        }
+//            reader.Read(); // now at the value.
 
-        return (!string.IsNullOrEmpty(idProperty) && !string.IsNullOrEmpty(tenantIdProperty))
-            ? new StreamId(tenantIdProperty, Array.Empty<string>(), idProperty) // todo: de-serialize array.
-            : null;
-    }
+//            if (propertyName.Equals(Id)) {
+//                idProperty = reader.GetString();
+//            } else if (propertyName.Equals(TenantId)) {
+//                tenantIdProperty = reader.GetString();
+//            }
+//        }
 
-    public override void Write(Utf8JsonWriter writer, StreamId value, JsonSerializerOptions options) {
-        writer.WriteStartObject();
+//        return (!string.IsNullOrEmpty(idProperty) && !string.IsNullOrEmpty(tenantIdProperty))
+//            ? new StreamId(tenantIdProperty, Array.Empty<string>(), idProperty) // todo: de-serialize array.
+//            : null;
+//    }
 
-        writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(value.Id)) ?? nameof(value.Id), value.Id);
-        writer.WriteStartArray(options?.PropertyNamingPolicy?.ConvertName(nameof(value.Hierarchy)) ?? nameof(value.Hierarchy));
-        foreach (var item in value.Hierarchy) { writer.WriteStringValue(item); }
-        writer.WriteEndArray();
-        writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(value.TenantId)) ?? nameof(value.TenantId), value.TenantId);
+//    public override void Write(Utf8JsonWriter writer, StreamId value, JsonSerializerOptions options) {
+//        writer.WriteStartObject();
 
-        writer.WriteEndObject();
-    }
-}
+//        writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(value.Id)) ?? nameof(value.Id), value.Id);
+//        writer.WriteStartArray(options?.PropertyNamingPolicy?.ConvertName(nameof(value.Hierarchy)) ?? nameof(value.Hierarchy));
+//        foreach (var item in value.Hierarchy) { writer.WriteStringValue(item); }
+//        writer.WriteEndArray();
+//        writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(value.TenantId)) ?? nameof(value.TenantId), value.TenantId);
+
+//        writer.WriteEndObject();
+//    }
+//}

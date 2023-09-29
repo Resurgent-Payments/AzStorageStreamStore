@@ -1,4 +1,4 @@
-﻿namespace AzStorageStreamStore;
+namespace AzStorageStreamStore;
 
 using System.Collections.Generic;
 using System.Text.Json;
@@ -20,7 +20,7 @@ public class LocalStorageEventStreamOptions : IEventStreamOptions {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             Converters = {
                 new JsonStringEnumConverter(),
-                new StreamIdJsonConverter(),
+                //new StreamIdJsonConverter(),
                 new StreamItemJsonConverter()
             }
         };
