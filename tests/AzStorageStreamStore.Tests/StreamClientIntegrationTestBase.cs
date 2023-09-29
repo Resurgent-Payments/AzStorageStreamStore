@@ -5,24 +5,24 @@ using System.Threading.Tasks;
 using Xunit;
 
 [Trait("Type", "Integration")]
-public abstract class StreamClientIntegrationTestBase<TPersister> : IAsyncDisposable where TPersister : IPersister {
+public abstract class StreamClientIntegrationTestBase : IAsyncDisposable {
     protected IStoreClient Client { get; set; }
-    private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
+    private readonly StreamId _loadedStreamId = new("tenant-id", Array.Empty<string>(), "some-id");
     const string integration_event_type = "integration-event";
 
-    protected abstract TPersister Persister { get; }
+    protected abstract EventStream Stream { get; }
 
     public StreamClientIntegrationTestBase() {
-        Client = new LocalStoreClient(Persister);
+        Client = new LocalStoreClient(Stream);
 
-        AsyncHelper.RunSync(async () => await Client.InitializeAsync());
+        AsyncHelper.RunSync(Client.InitializeAsync);
         var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), integration_event_type, Array.Empty<byte>(), Array.Empty<byte>()) }));
         Assert.True(result.Successful);
     }
 
     [Fact]
     public async Task Large_streams_will_write_and_read() {
-        var id = new StreamId("some", "stream");
+        var id = new StreamId("some", Array.Empty<string>(), "stream");
         var fiftyGrandEventDeta = Enumerable.Range(1, 50000)
             .Select(_ => new EventData(id, Guid.NewGuid(), integration_event_type, Array.Empty<byte>(), Array.Empty<byte>()))
             .ToArray();
@@ -36,7 +36,7 @@ public abstract class StreamClientIntegrationTestBase<TPersister> : IAsyncDispos
     }
 
     public ValueTask DisposeAsync() {
-        Persister?.Dispose();
+        Stream?.Dispose();
         return ValueTask.CompletedTask;
     }
 }

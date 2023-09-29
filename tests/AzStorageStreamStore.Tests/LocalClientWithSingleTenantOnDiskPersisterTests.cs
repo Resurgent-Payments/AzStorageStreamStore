@@ -6,25 +6,22 @@ using FakeItEasy;
 
 using Microsoft.Extensions.Options;
 
-public class LocalClientWithSingleTenantOnDiskPersisterTests : ClientTestBase<SingleTenantPersister> {
-
-    protected override SingleTenantPersister Persister {
+public class LocalClientWithSingleTenantOnDiskPersisterTests : ClientTestBase {
+    private EventStream? _stream;
+    protected override EventStream Stream {
         get {
-            var diskOptions = new LocalDiskFileManagerOptions {
-                BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
-                FileReadBlockSize = 4096 // 4k block size.
-            };
-            var diskOptionsAccessor = A.Fake<IOptions<LocalDiskFileManagerOptions>>();
-            A.CallTo(() => diskOptionsAccessor.Value)
-                .Returns(diskOptions);
+            if (_stream == null) {
+                var diskOptions = new LocalStorageEventStreamOptions {
+                    BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
+                    FileReadBlockSize = 4096 // 4k block size.
+                };
+                var diskOptionsAccessor = A.Fake<IOptions<IEventStreamOptions>>();
+                A.CallTo(() => diskOptionsAccessor.Value)
+                    .Returns(diskOptions);
 
-            var persisterOptions = new SingleTenantPersisterOptions();
-            var persisterOptionsAccessor = A.Fake<IOptions<SingleTenantPersisterOptions>>();
-            A.CallTo(() => persisterOptionsAccessor.Value)
-                .Returns(persisterOptions);
-
-
-            return new SingleTenantPersister(new LocalDiskFileManager(diskOptionsAccessor), persisterOptionsAccessor);
+                _stream = new LocalStorageEventStream(diskOptionsAccessor);
+            }
+            return _stream;
         }
     }
 }

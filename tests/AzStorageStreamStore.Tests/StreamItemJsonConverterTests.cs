@@ -8,7 +8,7 @@ using Xunit;
 
 public class StreamItemJsonConverterTests {
     StreamItemJsonConverter _sut;
-    SingleTenantPersisterOptions _options;
+    MemoryEventStreamOptions _options;
 
     public StreamItemJsonConverterTests() {
         _sut = new StreamItemJsonConverter();
@@ -24,7 +24,7 @@ public class StreamItemJsonConverterTests {
 
     [Fact]
     public void Stream_created_event_type_can_be_serialized() {
-        var @event = new StreamCreated(new StreamId("stream", "id"));
+        var @event = new StreamCreated(new StreamId("stream", Array.Empty<string>(), "id"));
         var ms = new MemoryStream();
 
         JsonSerializer.Serialize(ms, @event, _options.JsonOptions);
@@ -40,7 +40,7 @@ public class StreamItemJsonConverterTests {
 
     [Fact]
     public void Stream_id_can_be_serialized() {
-        var key = new StreamId("stream", "id");
+        var key = new StreamId("stream", Array.Empty<string>(), "id");
         var ms = new MemoryStream();
 
         JsonSerializer.Serialize(ms, key, _options.JsonOptions);
@@ -56,7 +56,7 @@ public class StreamItemJsonConverterTests {
 
     [Fact]
     public void Recorded_event_without_data_can_be_serialized() {
-        var key = new StreamId("stream", "id");
+        var key = new StreamId("stream", Array.Empty<string>(), "id");
         var eventId = Guid.NewGuid();
         var @event = new RecordedEvent(key, eventId, 1, "type", Array.Empty<byte>(), Array.Empty<byte>());
 
@@ -75,7 +75,7 @@ public class StreamItemJsonConverterTests {
 
     [Fact]
     public void Recorded_event_with_data_can_be_serialized() {
-        var key = new StreamId("stream", "id");
+        var key = new StreamId("stream", Array.Empty<string>(), "id");
         var eventId = Guid.NewGuid();
         var @event = new RecordedEvent(key, eventId, 1, "type", Array.Empty<byte>(), new byte[] { 1, 2, 3, 4 });
 
@@ -94,7 +94,7 @@ public class StreamItemJsonConverterTests {
 
     [Fact]
     public void Recorded_event_with_metadata_can_be_serialized() {
-        var key = new StreamId("stream", "id");
+        var key = new StreamId("stream", Array.Empty<string>(), "id");
         var eventId = Guid.NewGuid();
         var @event = new RecordedEvent(key, eventId, 1, "type", new byte[] { 1, 2, 3, 4 }, Array.Empty<byte>());
 

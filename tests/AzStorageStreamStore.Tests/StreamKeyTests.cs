@@ -8,7 +8,7 @@ public class KeyTests {
     [Fact]
     public void A_stream_id_can_convert_to_a_stream_key_when_casted() {
         var key = new StreamKey(new[] { "stream", "id" });
-        var id = new StreamId("stream", "id");
+        var id = new StreamId("stream", Array.Empty<string>(), "id");
 
         Assert.Equal((StreamKey)id, key);
     }
@@ -16,7 +16,7 @@ public class KeyTests {
     [Fact]
     public void A_stream_id_is_equivalent_to_a_stream_key() {
         var key = new StreamKey(new[] { "stream", "id" });
-        var id = new StreamId("stream", "id");
+        var id = new StreamId("stream", Array.Empty<string>(), "id");
 
         Assert.True(key.Equals(id));
     }

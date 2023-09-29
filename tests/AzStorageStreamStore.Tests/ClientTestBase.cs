@@ -8,17 +8,18 @@ using AzStorageStreamStore;
 
 using Xunit;
 
-public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersister : IPersister {
-    protected IStoreClient Client { get; set; }
-    private readonly StreamId _loadedStreamId = new("tenant-id", "some-id");
-    private readonly StreamId _emptyStreamId = new("empty-id", "stream-id");
+public abstract class ClientTestBase : IDisposable {
+    private readonly StreamId _loadedStreamId = new("tenant-id", Array.Empty<string>(), "some-id");
+    private readonly StreamId _emptyStreamId = new("empty-id", Array.Empty<string>(), "stream-id");
 
-    private const string EventType = "event-type";
+    const string EventType = "event-type";
+    const string AllStreamEventType = "$all";
 
-    protected abstract TPersister Persister { get; }
+    protected abstract EventStream Stream { get; }
+    public IStoreClient Client { get; }
 
     public ClientTestBase() {
-        Client = new LocalStoreClient(Persister);
+        Client = new LocalStoreClient(Stream);
 
         AsyncHelper.RunSync(async () => await Client.InitializeAsync());
         var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>()) }));
@@ -34,7 +35,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     public async Task Can_append_a_single_event(long version) {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
-        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
 
         var e = new EventData(id, eventId, EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
@@ -52,7 +53,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     public async Task Can_append_events_with_data() {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
-        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
         var message = "Hello world!";
 
         var e = new EventData(id, eventId, EventType, Array.Empty<byte>(), Encoding.UTF8.GetBytes(message));
@@ -72,7 +73,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     public async Task Cannot_append_events_when_expecting_a_nonexistent_stream() {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
-        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
 
         var e = new EventData(id, eventId, EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
@@ -86,7 +87,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     public async Task Duplicate_appends_render_a_noop_after_the_first_request() {
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
-        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
 
         var e = new EventData(id, eventId, EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
@@ -103,7 +104,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var eventId1 = Guid.NewGuid();
         var eventId2 = Guid.NewGuid();
         var eventId3 = Guid.NewGuid();
-        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
 
         var e1 = new EventData(id, eventId1, EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>(), Array.Empty<byte>());
@@ -122,7 +123,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId1 = Guid.NewGuid();
         var eventId2 = Guid.NewGuid();
-        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
 
         var e1 = new EventData(id, eventId1, EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>(), Array.Empty<byte>());
@@ -140,7 +141,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId1 = Guid.NewGuid();
         var eventId2 = Guid.NewGuid();
-        var id = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
 
         var e1 = new EventData(id, eventId1, EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>(), Array.Empty<byte>());
@@ -161,9 +162,9 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
     public async Task Can_read_a_stream_by_stream_key() {
         var tenantId = Guid.NewGuid().ToString("N");
 
-        var id1 = new StreamId(tenantId, Guid.NewGuid().ToString());
-        var id2 = new StreamId(tenantId, Guid.NewGuid().ToString());
-        var id3 = new StreamId(tenantId, Guid.NewGuid().ToString());
+        var id1 = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
+        var id2 = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
+        var id3 = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
 
         var key = new StreamKey(new[] { tenantId });
 
@@ -184,7 +185,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
 
     [Fact]
     public async Task Attempting_to_read_a_nonexistent_stream_by_id_should_throw_StreamDoesNotExistException() {
-        var id = new StreamId(Guid.NewGuid().ToString(), Guid.NewGuid().ToString());
+        var id = new StreamId(Guid.NewGuid().ToString(), Array.Empty<string>(), Guid.NewGuid().ToString());
         await Assert.ThrowsAsync<StreamDoesNotExistException>(async () => await Client.ReadStreamAsync(id).ToListAsync());
     }
 
@@ -205,7 +206,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
 
     [Fact]
     public async Task Can_subscribe_to_a_stream_from_a_given_position() {
-        var id1 = new StreamId("Tenant", "stream");
+        var id1 = new StreamId("Tenant", Array.Empty<string>(), "stream");
         var e1 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e2 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e3 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
@@ -239,7 +240,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
 
     [Fact]
     public async Task Can_dispose_a_subscription_from_a_given_position() {
-        var id = new StreamId("some", "stream");
+        var id = new StreamId("some", Array.Empty<string>(), "stream");
         var key = new StreamKey(new[] { "some" });
         var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
@@ -269,7 +270,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
 
     [Fact]
     public async Task Disposing_of_a_subscription_from_a_given_position_does_not_affect_other_instances_of_same() {
-        var id = new StreamId("some", "stream");
+        var id = new StreamId("some", Array.Empty<string>(), "stream");
         var key = new StreamKey(new[] { "some" });
         var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
@@ -302,7 +303,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
 
     [Fact]
     public async Task Records_proper_stream_revision() {
-        var id = new StreamId("some", "stream");
+        var id = new StreamId("some", Array.Empty<string>(), "stream");
         var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
@@ -332,7 +333,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
 
     [Fact]
     public async Task Cannot_append_when_no_stream_exists_while_expecting_empty() {
-        var id = new StreamId("some", "stream");
+        var id = new StreamId("some", Array.Empty<string>(), "stream");
         var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var result = await Client.AppendToStreamAsync(id, ExpectedVersion.EmptyStream, new[] { e1 });
@@ -341,7 +342,7 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
 
     [Fact]
     public async Task Can_append_events_when_an_empty_stream_has_been_established() {
-        var id = new StreamId("some", "stream");
+        var id = new StreamId("some", Array.Empty<string>(), "stream");
         var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, Array.Empty<EventData>());
@@ -349,8 +350,121 @@ public abstract class ClientTestBase<TPersister> : IAsyncDisposable where TPersi
         await Client.AppendToStreamAsync(id, ExpectedVersion.EmptyStream, new[] { e1 });
     }
 
-    public ValueTask DisposeAsync() {
-        Persister?.Dispose();
-        return ValueTask.CompletedTask;
+    [Fact]
+    public async Task Can_subscribe_to_all_stream() {
+        var events = new List<RecordedEvent>();
+        var _mres = new ManualResetEventSlim(false);
+
+        await Client.SubscribeToAllAsync(x => {
+            events.Add(x);
+            _mres.Set();
+        });
+        var key = new StreamId("test", Array.Empty<string>(), "stream");
+
+        var result = await Client.AppendToStreamAsync(
+            new StreamId("test", Array.Empty<string>(), "stream"),
+            ExpectedVersion.Any,
+            new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>(), Array.Empty<byte>()) }
+        );
+        Assert.True(result.Successful);
+
+
+        _mres.Wait(500);
+
+        Assert.Single(events);
+    }
+
+    [Fact]
+    public async Task Can_subscribe_to_all_stream_multiple_times() {
+        var events = new List<RecordedEvent>();
+
+        var _mres1 = new ManualResetEventSlim(false);
+        var _mres2 = new ManualResetEventSlim(false);
+
+        await Client.SubscribeToAllAsync(x => {
+            events.Add(x);
+            _mres1.Set();
+        });
+        await Client.SubscribeToAllAsync(x => {
+            events.Add(x);
+            _mres2.Set();
+        });
+
+        var key = new StreamId("test", Array.Empty<string>(), "stream");
+
+        var result = await Client.AppendToStreamAsync(
+            new StreamId("test", Array.Empty<string>(), "stream"),
+            ExpectedVersion.Any,
+            new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>(), Array.Empty<byte>()) }
+        );
+        Assert.True(result.Successful);
+
+
+        _mres1.Wait(200);
+        _mres2.Wait(200);
+
+        Assert.Equal(2, events.Count);
+    }
+
+    [Fact]
+    public async Task Can_remove_an_allstream_subscription_via_returned_idsposable() {
+        var events = new List<RecordedEvent>();
+        var _mres = new ManualResetEventSlim(false);
+
+        var disposer = await Client.SubscribeToAllAsync(x => {
+            events.Add(x);
+            _mres.Set();
+        });
+        disposer.Dispose();
+
+        var key = new StreamId("test", Array.Empty<string>(), "stream");
+        var result = await Client.AppendToStreamAsync(
+            new StreamId("test", Array.Empty<string>(), "stream"),
+            ExpectedVersion.Any,
+            new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>(), Array.Empty<byte>()) }
+        );
+        Assert.True(result.Successful);
+
+        _mres.Wait(100);
+
+        Assert.Empty(events);
+    }
+
+    [Fact]
+    public async Task Disposing_an_allstream_subscription_does_not_dispose_all_subscriptions() {
+        var events = new List<RecordedEvent>();
+
+        var _mres1 = new ManualResetEventSlim(false);
+        var _mres2 = new ManualResetEventSlim(false);
+
+        await Client.SubscribeToAllAsync(x => {
+            events.Add(x);
+            _mres1.Set();
+        });
+
+        // create and immedialy dispose to loop the subscription/disposal pipeline.
+        (await Client.SubscribeToAllAsync(x => {
+            events.Add(x);
+            _mres2.Set();
+        })).Dispose();
+
+        var key = new StreamId("test", Array.Empty<string>(), "stream");
+
+        var result = await Client.AppendToStreamAsync(
+            new StreamId("test", Array.Empty<string>(), "stream"),
+            ExpectedVersion.Any,
+            new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>(), Array.Empty<byte>()) }
+        );
+        Assert.True(result.Successful);
+
+
+        _mres1.Wait(100);
+        _mres2.Wait(100);
+
+        Assert.Single(events);
+    }
+
+    public void Dispose() {
+        Stream?.Dispose();
     }
 }
