@@ -2,7 +2,7 @@ namespace AzStorageStreamStore;
 
 using System.Collections.Concurrent;
 
-public class LocalStoreClient : IEventStreamClient {
+public class InProcessEventStreamClient : IEventStreamClient {
     private readonly CancellationTokenSource _cts = new();
 
     private readonly EventStream _eventStream;
@@ -11,7 +11,7 @@ public class LocalStoreClient : IEventStreamClient {
     private readonly Dictionary<StreamKey, ConcurrentBag<Action<RecordedEvent>>> _streamKeySubscriptions = new();
     private readonly Dictionary<StreamId, ConcurrentBag<Action<RecordedEvent>>> _streamIdSubscriptions = new();
 
-    public LocalStoreClient(EventStream eventStream) {
+    public InProcessEventStreamClient(EventStream eventStream) {
         _eventStream = eventStream;
     }
 
