@@ -16,7 +16,7 @@ public abstract class ClientTestBase : IDisposable {
     const string AllStreamEventType = "$all";
 
     protected abstract EventStream Stream { get; }
-    public IStoreClient Client { get; }
+    public IEventStreamClient Client { get; }
 
     public ClientTestBase() {
         Client = new LocalStoreClient(Stream);
