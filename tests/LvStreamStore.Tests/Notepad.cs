@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore.Tests;
+namespace LvStreamStore.Tests;
 
 using System.Text.Json;
 
@@ -9,7 +9,7 @@ public class Notepad {
     public async Task A_stream_can_be_written_and_read() {
         List<long> intervals = new();
 
-        long startTime = DateTime.UtcNow.Ticks;
+        var startTime = DateTime.UtcNow.Ticks;
 
         var tempFile = Path.GetTempFileName();
         var eventsToWrite = Enumerable.Range(1, 50000)
@@ -19,7 +19,7 @@ public class Notepad {
             await JsonSerializer.SerializeAsync(file, eventsToWrite);
             await file.FlushAsync();
         }
-        long endTime = DateTime.UtcNow.Ticks;
+        var endTime = DateTime.UtcNow.Ticks;
 
         intervals.Add(endTime - startTime);
 

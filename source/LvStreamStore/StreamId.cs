@@ -1,4 +1,4 @@
-using AzStorageStreamStore;
+using LvStreamStore;
 
 /// <summary>
 /// the "id" of an actual stream.

@@ -1,10 +1,8 @@
-namespace AzStorageStreamStore.Tests;
+namespace LvStreamStore.Tests;
 
 using System;
 using System.Text;
 using System.Threading.Tasks;
-
-using AzStorageStreamStore;
 
 using Xunit;
 

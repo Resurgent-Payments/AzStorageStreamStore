@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 
 using System.Collections;
 

@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore.Tests;
+namespace LvStreamStore.Tests;
 
 using System.Diagnostics;
 using System.Text;

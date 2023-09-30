@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 
 using System;
 using System.Text.Json;
@@ -102,11 +102,11 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
 
     private static RecordedEvent DeserializeRecordedEvent(ref Utf8JsonReader reader, JsonSerializerOptions options) {
         StreamId? StreamId = null;
-        Guid EventId = Guid.Empty;
+        var EventId = Guid.Empty;
         long Revision = -1;
-        byte[] Metadata = Array.Empty<byte>();
-        byte[] Data = Array.Empty<byte>();
-        string Type = string.Empty;
+        var Metadata = Array.Empty<byte>();
+        var Data = Array.Empty<byte>();
+        var Type = string.Empty;
 
         while (reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
             if (reader.TokenType != JsonTokenType.PropertyName) continue;

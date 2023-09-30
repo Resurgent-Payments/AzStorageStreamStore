@@ -1,5 +1,4 @@
-namespace AzStorageStreamStore;
-
+namespace LvStreamStore;
 public class ExpectedVersion {
     public long Value { get; set; }
 

@@ -1,3 +1,3 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 
 public class InvalidKeyException : Exception { }

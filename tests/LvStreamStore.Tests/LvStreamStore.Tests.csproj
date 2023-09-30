@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\source\AzStorageStreamStore\AzStorageStreamStore.csproj" />
+    <ProjectReference Include="..\..\source\LvStreamStore\LvStreamStore.csproj" />
   </ItemGroup>
 
 </Project>

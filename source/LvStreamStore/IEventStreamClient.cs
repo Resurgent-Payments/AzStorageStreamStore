@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 /// <summary>
 ///  interface to access the underlying event files.
 /// </summary>

@@ -1,6 +1,4 @@
-namespace AzStorageStreamStore.Tests;
-
-using AzStorageStreamStore;
+namespace LvStreamStore.Tests;
 
 using Xunit;
 

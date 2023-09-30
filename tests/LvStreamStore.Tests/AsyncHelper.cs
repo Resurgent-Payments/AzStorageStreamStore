@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore.Tests;
+namespace LvStreamStore.Tests;
 
 using System;
 using System.Threading;

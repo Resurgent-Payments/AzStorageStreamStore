@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 
 sealed class StreamDisposer : IDisposable {
     private readonly Action _ondisposal;

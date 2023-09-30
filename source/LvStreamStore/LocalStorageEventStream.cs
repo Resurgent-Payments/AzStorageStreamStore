@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 
 using System.Collections.Generic;
 using System.IO;
@@ -13,7 +13,7 @@ public class LocalStorageEventStream : EventStream {
     private readonly FileStream _stream;
 
     public LocalStorageEventStream(IOptions<IEventStreamOptions> options) : base(options) {
-        _options = (options.Value as LocalStorageEventStreamOptions) ?? new LocalStorageEventStreamOptions();
+        _options = options.Value as LocalStorageEventStreamOptions ?? new LocalStorageEventStreamOptions();
         _dataFile = Path.Combine(_options.BaseDataPath, "chunk.dat");
 
         if (!Directory.Exists(_options.BaseDataPath)) {
@@ -62,7 +62,7 @@ public class LocalStorageEventStream : EventStream {
 
 
     protected override async Task Persist(byte[] data) {
-        int endOfData = data.Length;
+        var endOfData = data.Length;
 
         for (var i = 0; i < data.Length; i++) {
             if (data[i] == 0x00) {

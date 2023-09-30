@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 
 using System.Text.Json;
 using System.Threading.Channels;
@@ -60,7 +60,7 @@ public abstract class EventStream : IDisposable {
 
     public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey streamKey, int revision) {
         if (revision == int.MaxValue) yield break;
-        
+
         // full scan
         await foreach (var e in ReadLogAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamKey).Skip(revision)) {
             yield return e;

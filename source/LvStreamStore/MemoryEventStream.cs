@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 
 using System.Collections.Generic;
 using System.IO;
@@ -12,11 +12,11 @@ public class MemoryEventStream : EventStream {
     private readonly MemoryEventStreamOptions _options;
 
     public MemoryEventStream(IOptions<IEventStreamOptions> options) : base(options) {
-        _options = (options.Value as MemoryEventStreamOptions) ?? new MemoryEventStreamOptions();
+        _options = options.Value as MemoryEventStreamOptions ?? new MemoryEventStreamOptions();
     }
 
     protected override async Task Persist(byte[] data) {
-        int endOfData = data.Length;
+        var endOfData = data.Length;
 
         for (var i = 0; i < data.Length; i++) {
             if (data[i] == 0x00) {

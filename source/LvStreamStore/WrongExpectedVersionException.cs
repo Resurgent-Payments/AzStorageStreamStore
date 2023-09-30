@@ -1,4 +1,4 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 
 public class WrongExpectedVersionException : Exception {
     public long ExpectedVersion { get; private set; }

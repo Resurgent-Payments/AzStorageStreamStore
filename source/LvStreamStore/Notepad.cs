@@ -1,2 +1,2 @@
-namespace AzStorageStreamStore;
+namespace LvStreamStore;
 
