@@ -20,11 +20,6 @@ public abstract class EventStream : IDisposable {
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
     protected ChannelWriter<StreamItem> StreamPublisher => _stream.Writer;
 
-    /// <summary>
-    /// This is akin to the $all stream in ESDB
-    /// </summary>
-    public ChannelReader<StreamItem> Stream => _stream.Reader;
-
     public int Checkpoint { get; protected set; }
 
     public EventStream(IOptions<IEventStreamOptions> options) {
@@ -43,6 +38,8 @@ public abstract class EventStream : IDisposable {
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
     }
 
+    public IAsyncEnumerable<StreamItem> ListenForChangesAsync(CancellationToken token = default) => _stream.Reader.ReadAllAsync(token);
+
     public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId streamId)
         => ReadStreamFromAsync(streamId, 0);
 
@@ -53,6 +50,8 @@ public abstract class EventStream : IDisposable {
         // full scan.
         if (await ReadLogAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) throw new StreamDoesNotExistException();
 
+        if (revision == int.MaxValue) yield break;
+
         // second full scan
         await foreach (var e in ReadLogAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamId).Skip(revision)) {
             yield return e;
@@ -60,6 +59,8 @@ public abstract class EventStream : IDisposable {
     }
 
     public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey streamKey, int revision) {
+        if (revision == int.MaxValue) yield break;
+        
         // full scan
         await foreach (var e in ReadLogAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamKey).Skip(revision)) {
             yield return e;
@@ -92,6 +93,9 @@ public abstract class EventStream : IDisposable {
 
             try {
                 if (!await PassesStreamValidationAsync(onceCompleted, streamId, expected, events)) continue;
+
+
+                // refactor to create one memorystream to be appended to a WAL.
 
                 // first full scan
                 // if we don't have a StreamCreated event, we need to append one now.
@@ -134,6 +138,13 @@ public abstract class EventStream : IDisposable {
                 // capture the offset here.
 
                 // write the index log entry.
+
+
+                // dump WAL to disc
+                // - - - - - 
+                // emit message to append WAL to data file.
+                //  - capture last-modified for data file, send to wal writer
+                //  - if wal writer finds last-modified changed, then reject write request.
 
                 onceCompleted.SetResult(WriteResult.Ok(revision));
             }

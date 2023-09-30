@@ -135,7 +135,7 @@ public class InProcessEventStreamClient : IEventStreamClient {
 
     private async void MessagePump() {
         while (!_cts.IsCancellationRequested) {
-            await foreach (var e in _eventStream.Stream.ReadAllAsync(_cts.Token).OfType<RecordedEvent>()) {
+            await foreach (var e in _eventStream.ListenForChangesAsync(_cts.Token).OfType<RecordedEvent>()) {
                 if (_cts.IsCancellationRequested) { return; }
                 foreach (var allAction in _subscriptions) {
                     allAction.Invoke(e);
