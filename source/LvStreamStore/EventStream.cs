@@ -18,8 +18,7 @@ public abstract class EventStream : IDisposable {
     private bool _disposed = false;
 
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
-    protected ChannelWriter<StreamItem> StreamPublisher => _stream.Writer;
-
+    
     public int Checkpoint { get; protected set; }
 
     public EventStream(IOptions<IEventStreamOptions> options) {
@@ -132,7 +131,7 @@ public abstract class EventStream : IDisposable {
                     // todo: write startIdx and eventOffset to 'index'
 
                     // publish the recorded event.
-                    await StreamPublisher.WriteAsync(recorded);
+                    await _stream.Writer.WriteAsync(recorded);
                 }
 
                 // capture the offset here.

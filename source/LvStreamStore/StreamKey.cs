@@ -7,7 +7,7 @@ using System.Collections;
 /// </summary>
 /// <param name="Categories"></param>
 public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
-    public static StreamKey All = new StreamKey(Array.Empty<string>());
+    public static StreamKey All = new StreamKey(new[] { "*" });
     public static implicit operator StreamId(StreamKey key) => new(key.Categories.First(), key.Categories.Skip(1).Take(key.Categories.Length - 2).ToArray(), key.Categories.Last());
     public static bool operator ==(StreamKey key, StreamId id) => id == key;
     public static bool operator !=(StreamKey key, StreamId id) => !(key == id);
@@ -27,6 +27,7 @@ public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
         if (Categories.Length > other.Categories.Length) return false;
 
         for (var i = 0; i < Categories.Length; i++) {
+            if (Categories[i] == "*") continue;
             if (!Categories[i].Equals(other.Categories[i]))
                 return false;
         }

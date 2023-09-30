@@ -1,10 +1,12 @@
-namespace LvStreamStore.Tests;
+namespace LvStreamStore.LocalStorage.Tests;
 
 using FakeItEasy;
 
+using LvStreamStore.Tests;
+
 using Microsoft.Extensions.Options;
 
-public class LocalClientWithLocalStorageEventStreamTests : ClientTestBase {
+public class LocalStorageEventStreamTests : ClientTestBase {
     private EventStream? _stream;
     protected override EventStream Stream {
         get {

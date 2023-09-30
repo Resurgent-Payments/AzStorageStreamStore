@@ -35,28 +35,6 @@ public class InProcessEventStreamClient : IEventStreamClient {
         => _eventStream.ReadStreamAsync(id).OfType<RecordedEvent>();
 
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToAllAsync(Action<RecordedEvent> handler) {
-        _subscriptions.Add(handler);
-        return Task.FromResult<IDisposable>(
-            new StreamDisposer(() =>
-            Interlocked.Exchange(
-                ref _subscriptions,
-                new ConcurrentBag<Action<RecordedEvent>>(_subscriptions.Except(new[] { handler }))))
-        );
-    }
-
-    /// <inheritdoc />
-    public async Task<IDisposable> SubscribeToAllFromAsync(int position, Action<RecordedEvent> handler) {
-        await foreach (var @event in _eventStream.ReadStreamFromAsync(StreamKey.All, position).OfType<RecordedEvent>()) {
-            handler.Invoke(@event);
-        }
-        return new StreamDisposer(() =>
-            Interlocked.Exchange(
-                ref _subscriptions,
-                new ConcurrentBag<Action<RecordedEvent>>(_subscriptions.Except(new[] { handler }))));
-    }
-
-    /// <inheritdoc />
     public Task<IDisposable> SubscribeToStreamAsync(StreamKey key, Action<RecordedEvent> handler)
         => SubscribeToStreamFromAsync(key, 0, handler);
 
@@ -74,12 +52,20 @@ public class InProcessEventStreamClient : IEventStreamClient {
             }
         }
 
-        bag.Add(handler);
+        if (key == StreamKey.All) {
+            _subscriptions.Add(handler);
+        } else {
+            bag.Add(handler);
+        }
 
         return new StreamDisposer(() => {
             Interlocked.Exchange(
                 ref bag,
                 new ConcurrentBag<Action<RecordedEvent>>(bag.Except(new[] { handler }))
+            );
+            Interlocked.Exchange(
+                ref _subscriptions,
+                new ConcurrentBag<Action<RecordedEvent>>(_subscriptions.Except(new[] { handler }))
             );
             _streamKeySubscriptions[key] = bag;
         });

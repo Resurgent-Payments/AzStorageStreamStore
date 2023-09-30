@@ -353,7 +353,7 @@ public abstract class ClientTestBase : IDisposable {
         var events = new List<RecordedEvent>();
         var _mres = new ManualResetEventSlim(false);
 
-        await Client.SubscribeToAllAsync(x => {
+        await Client.SubscribeToStreamFromAsync(StreamKey.All, int.MaxValue, x => {
             events.Add(x);
             _mres.Set();
         });
@@ -379,11 +379,11 @@ public abstract class ClientTestBase : IDisposable {
         var _mres1 = new ManualResetEventSlim(false);
         var _mres2 = new ManualResetEventSlim(false);
 
-        await Client.SubscribeToAllAsync(x => {
+        await Client.SubscribeToStreamFromAsync(StreamKey.All, int.MaxValue, x => {
             events.Add(x);
             _mres1.Set();
         });
-        await Client.SubscribeToAllAsync(x => {
+        await Client.SubscribeToStreamFromAsync(StreamKey.All, int.MaxValue, x => {
             events.Add(x);
             _mres2.Set();
         });
@@ -409,7 +409,7 @@ public abstract class ClientTestBase : IDisposable {
         var events = new List<RecordedEvent>();
         var _mres = new ManualResetEventSlim(false);
 
-        var disposer = await Client.SubscribeToAllAsync(x => {
+        var disposer = await Client.SubscribeToStreamFromAsync(StreamKey.All, int.MaxValue, x => {
             events.Add(x);
             _mres.Set();
         });
@@ -435,13 +435,13 @@ public abstract class ClientTestBase : IDisposable {
         var _mres1 = new ManualResetEventSlim(false);
         var _mres2 = new ManualResetEventSlim(false);
 
-        await Client.SubscribeToAllAsync(x => {
+        await Client.SubscribeToStreamFromAsync(StreamKey.All, int.MaxValue, x => {
             events.Add(x);
             _mres1.Set();
         });
 
         // create and immedialy dispose to loop the subscription/disposal pipeline.
-        (await Client.SubscribeToAllAsync(x => {
+        (await Client.SubscribeToStreamFromAsync(StreamKey.All, int.MaxValue, x => {
             events.Add(x);
             _mres2.Set();
         })).Dispose();
