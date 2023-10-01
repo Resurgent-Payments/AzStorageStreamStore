@@ -1,105 +1,76 @@
 namespace LvStreamStore;
 
-using System.Collections.Concurrent;
+using System.Reactive;
 
 public class InProcessEventStreamClient : IEventStreamClient {
     private readonly CancellationTokenSource _cts = new();
 
     private readonly EventStream _eventStream;
 
-    private ConcurrentBag<Action<RecordedEvent>> _subscriptions = new();
-    private readonly Dictionary<StreamKey, ConcurrentBag<Action<RecordedEvent>>> _streamKeySubscriptions = new();
-    private readonly Dictionary<StreamId, ConcurrentBag<Action<RecordedEvent>>> _streamIdSubscriptions = new();
-
     public InProcessEventStreamClient(EventStream eventStream) {
         _eventStream = eventStream;
     }
 
     public Task InitializeAsync() {
-        // holds the task that manages pumping events from the _publisher stream to all handlers.
-        Task.Factory.StartNew(MessagePump, _cts.Token);
-
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events)
-        => _eventStream.AppendToStreamAsync(key, version, events);
+        => _eventStream.AppendAsync(key, version, events);
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
-        => _eventStream.ReadStreamAsync(key).OfType<RecordedEvent>();
+        => _eventStream.ReadAsync(key).OfType<RecordedEvent>();
 
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id)
-        => _eventStream.ReadStreamAsync(id).OfType<RecordedEvent>();
+        => _eventStream.ReadAsync(id).OfType<RecordedEvent>();
+
 
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToStreamAsync(StreamKey key, Action<RecordedEvent> handler)
-        => SubscribeToStreamFromAsync(key, 0, handler);
-
-    /// <inheritdoc />
-    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamKey key, int revision, Action<RecordedEvent> handler) {
-        // build subscription for specific stream.
-        if (!_streamKeySubscriptions.TryGetValue(key, out var bag)) {
-            bag = new();
-            _streamKeySubscriptions.Add(key, bag);
-        }
-
-        await foreach (var @event in _eventStream.ReadStreamFromAsync(key, revision).OfType<RecordedEvent>()) {
-            foreach (var slice in key) {
-                handler.Invoke(@event);
+    public IDisposable SubscribeToAll(Action<RecordedEvent> handler) {
+        return _eventStream.SubscribeToAll(Observer.Create((StreamItem item) => {
+            if (item is RecordedEvent) {
+                handler.Invoke((RecordedEvent)item);
             }
-        }
-
-        if (key == StreamKey.All) {
-            _subscriptions.Add(handler);
-        } else {
-            bag.Add(handler);
-        }
-
-        return new StreamDisposer(() => {
-            Interlocked.Exchange(
-                ref bag,
-                new ConcurrentBag<Action<RecordedEvent>>(bag.Except(new[] { handler }))
-            );
-            Interlocked.Exchange(
-                ref _subscriptions,
-                new ConcurrentBag<Action<RecordedEvent>>(_subscriptions.Except(new[] { handler }))
-            );
-            _streamKeySubscriptions[key] = bag;
-        });
+        }));
     }
 
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Action<RecordedEvent> handler)
-        => SubscribeToStreamFromAsync(streamId, 0, handler);
+    public IDisposable SubscribeToStream(StreamKey key, Action<RecordedEvent> handler) {
+        return _eventStream.SubscribeToStream(key, Observer.Create((StreamItem item) => {
+            if (item is RecordedEvent && item.StreamId == key) {
+                handler.Invoke((RecordedEvent)item);
+            }
+        }));
+    }
+
+    /// <inheritdoc />
+    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamKey key, int revision, Action<RecordedEvent> handler) {
+        return await _eventStream.SubscribeToStreamFromAsync(key, revision, Observer.Create((StreamItem item) => {
+            if (item is RecordedEvent && item.StreamId == key) {
+                handler.Invoke((RecordedEvent)item);
+            }
+        }));
+    }
+
+    /// <inheritdoc />
+    public IDisposable SubscribeToStream(StreamId streamId, Action<RecordedEvent> handler) {
+        return _eventStream.SubscribeToStream(streamId, Observer.Create((StreamItem item) => {
+            if (item is RecordedEvent && streamId == item.StreamId) {
+                handler.Invoke((RecordedEvent)item);
+            }
+        }));
+    }
 
     /// <inheritdoc />
     public async Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, int revision, Action<RecordedEvent> handler) {
-        if (!_streamIdSubscriptions.TryGetValue(streamId, out var bag)) {
-            bag = new();
-            _streamIdSubscriptions.Add(streamId, bag);
-        }
-
-        try {
-            await foreach (var @event in _eventStream.ReadStreamFromAsync(streamId, revision).OfType<RecordedEvent>()) {
-                handler.Invoke(@event);
+        return await _eventStream.SubscribeToStreamFromAsync(streamId, revision, Observer.Create((StreamItem item) => {
+            if (item is RecordedEvent && streamId == item.StreamId) {
+                handler.Invoke((RecordedEvent)item);
             }
-        }
-        catch (StreamDoesNotExistException) {
-            // squelch.  We can listen for this stream in the event that it does become a thing.
-        }
-
-        bag.Add(handler);
-
-        return new StreamDisposer(() => {
-            Interlocked.Exchange(
-                ref bag,
-                new ConcurrentBag<Action<RecordedEvent>>(bag.Except(new[] { handler }))
-            );
-            _streamIdSubscriptions[streamId] = bag;
-        });
+        }));
     }
 
 
@@ -117,30 +88,5 @@ public class InProcessEventStreamClient : IEventStreamClient {
         _cts.Dispose();
 
         _disposed = true;
-    }
-
-    private async void MessagePump() {
-        while (!_cts.IsCancellationRequested) {
-            await foreach (var e in _eventStream.ListenForChangesAsync(_cts.Token).OfType<RecordedEvent>()) {
-                if (_cts.IsCancellationRequested) { return; }
-                foreach (var allAction in _subscriptions) {
-                    allAction.Invoke(e);
-                }
-
-                var keys = (StreamKey)e.StreamId;
-
-                foreach (var key in keys) {
-                    if (!_streamKeySubscriptions.TryGetValue(key, out var keyBag)) continue;
-                    foreach (var act in keyBag) {
-                        act.Invoke(e);
-                    }
-                }
-
-                if (!_streamIdSubscriptions.TryGetValue(e.StreamId, out var idBag)) continue;
-                foreach (var id in idBag) {
-                    id.Invoke(e);
-                }
-            }
-        }
     }
 }

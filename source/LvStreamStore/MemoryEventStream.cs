@@ -10,12 +10,16 @@ using Microsoft.Extensions.Options;
 public class MemoryEventStream : EventStream {
     private readonly MemoryStream _stream = new();
     private readonly MemoryEventStreamOptions _options;
+    private readonly EventStreamObserver _observer;
+
+    protected override EventStreamObserver StreamObserver => _observer;
 
     public MemoryEventStream(IOptions<IEventStreamOptions> options) : base(options) {
         _options = options.Value as MemoryEventStreamOptions ?? new MemoryEventStreamOptions();
+        _observer = new MemoryEventStreamObserver(_stream, this, options);
     }
 
-    protected override async Task Persist(byte[] data) {
+    protected override async Task WriteAsync(byte[] data) {
         var endOfData = data.Length;
 
         for (var i = 0; i < data.Length; i++) {
@@ -25,15 +29,13 @@ public class MemoryEventStream : EventStream {
             }
         }
 
-        var cPos = _stream.Position;
         _stream.Seek(Checkpoint, SeekOrigin.Begin);
         await _stream.WriteAsync(data, 0, data.Length);
-        _stream.Seek(cPos, SeekOrigin.Begin);
 
         Checkpoint += endOfData;
     }
 
-    protected override async IAsyncEnumerable<StreamItem> ReadLogAsync() {
+    protected override async IAsyncEnumerable<StreamItem> ReadAsync() {
         var buffer = new byte[4096];
         var ms = new MemoryStream();
 
@@ -64,5 +66,15 @@ public class MemoryEventStream : EventStream {
         if (ms.Length > 0) {
             yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
         }
+    }
+
+    private bool _disposed = false;
+    protected override void Dispose(bool disposing) {
+        base.Dispose(disposing);
+        if (!disposing || _disposed) return;
+
+        _observer?.Dispose();
+
+        _disposed = true;
     }
 }

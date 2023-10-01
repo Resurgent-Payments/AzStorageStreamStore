@@ -1,5 +1,8 @@
 namespace LvStreamStore;
 
+using System;
+using System.IO;
+using System.Reactive;
 using System.Text.Json;
 using System.Threading.Channels;
 
@@ -12,22 +15,17 @@ public abstract class EventStream : IDisposable {
     }
 
     private readonly IEventStreamOptions _options;
-    private readonly Channel<StreamItem> _stream;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed = false;
 
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
-    
+    protected abstract IObservable<StreamItem> StreamObserver { get; }
+
     public int Checkpoint { get; protected set; }
 
     public EventStream(IOptions<IEventStreamOptions> options) {
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
-        _stream = Channel.CreateUnbounded<StreamItem>(new UnboundedChannelOptions {
-            SingleReader = true,
-            SingleWriter = true,
-            AllowSynchronousContinuations = false
-        });
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false,
@@ -37,36 +35,80 @@ public abstract class EventStream : IDisposable {
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
     }
 
-    public IAsyncEnumerable<StreamItem> ListenForChangesAsync(CancellationToken token = default) => _stream.Reader.ReadAllAsync(token);
+    public IDisposable SubscribeToAll(IObserver<StreamItem> observer) => StreamObserver.Subscribe(observer);
 
-    public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamId streamId)
-        => ReadStreamFromAsync(streamId, 0);
+    public IDisposable SubscribeToStream(StreamId streamId, IObserver<StreamItem> observer) {
+        return StreamObserver.Subscribe((item) => {
+            if (item.StreamId == streamId) {
+                observer.OnNext(item);
+            }
+        });
+    }
 
-    public IAsyncEnumerable<StreamItem> ReadStreamAsync(StreamKey streamKey)
-        => ReadStreamFromAsync(streamKey, 0);
+    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, int revision, IObserver<StreamItem> observer) {
+        var numberOfItemsRead = 1;
+        return StreamObserver.Subscribe((item) => {
+            if (item.StreamId == streamId) {
+                if (numberOfItemsRead < revision && revision != int.MaxValue) {
+                    numberOfItemsRead++;
+                    return;
+                }
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamId streamId, int revision) {
+                observer.OnNext(item);
+            }
+        });
+    }
+
+    public IDisposable SubscribeToStream(StreamKey streamKey, IObserver<StreamItem> observer) {
+        return StreamObserver.Subscribe((item) => {
+            if (streamKey == item.StreamId) {
+                observer.OnNext(item);
+            }
+        });
+    }
+
+    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamKey streamKey, int revision, IObserver<StreamItem> observer) {
+        var numberOfItemsRead = 1;
+        return StreamObserver.Subscribe((item) => {
+            if (item.StreamId == streamKey) {
+                if (numberOfItemsRead < revision) {
+                    numberOfItemsRead++;
+                    return;
+                }
+
+                observer.OnNext(item);
+            }
+        });
+    }
+
+    public IAsyncEnumerable<StreamItem> ReadAsync(StreamId streamId)
+        => ReadFromAsync(streamId, 0);
+
+    public IAsyncEnumerable<StreamItem> ReadAsync(StreamKey streamKey)
+        => ReadFromAsync(streamKey, 0);
+
+    public async IAsyncEnumerable<StreamItem> ReadFromAsync(StreamId streamId, int revision) {
         // full scan.
-        if (await ReadLogAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) throw new StreamDoesNotExistException();
+        if (await ReadAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) throw new StreamDoesNotExistException();
 
         if (revision == int.MaxValue) yield break;
 
         // second full scan
-        await foreach (var e in ReadLogAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamId).Skip(revision)) {
+        await foreach (var e in ReadAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamId).Skip(revision)) {
             yield return e;
         }
     }
 
-    public async IAsyncEnumerable<StreamItem> ReadStreamFromAsync(StreamKey streamKey, int revision) {
+    public async IAsyncEnumerable<StreamItem> ReadFromAsync(StreamKey streamKey, int revision) {
         if (revision == int.MaxValue) yield break;
 
         // full scan
-        await foreach (var e in ReadLogAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamKey).Skip(revision)) {
+        await foreach (var e in ReadAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamKey).Skip(revision)) {
             yield return e;
         }
     }
 
-    public async ValueTask<WriteResult> AppendToStreamAsync(StreamId streamId, ExpectedVersion version, IEnumerable<EventData> events) {
+    public async ValueTask<WriteResult> AppendAsync(StreamId streamId, ExpectedVersion version, IEnumerable<EventData> events) {
         var tcs = new TaskCompletionSource<WriteResult>();
         await _streamWriter.Writer.WriteAsync(new WriteToStreamArgs(tcs, streamId, version, events));
         return await tcs.Task;
@@ -91,25 +133,25 @@ public abstract class EventStream : IDisposable {
             var events = posssibleWalEntry.Events;
 
             try {
-                if (!await PassesStreamValidationAsync(onceCompleted, streamId, expected, events)) continue;
+                if (!await PassesValidationAsync(onceCompleted, streamId, expected, events)) continue;
 
 
                 // refactor to create one memorystream to be appended to a WAL.
 
                 // first full scan
                 // if we don't have a StreamCreated event, we need to append one now.
-                if (await ReadLogAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
+                if (await ReadAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
                     // write the stream created event.
                     var ms = new MemoryStream();
                     var created = new StreamCreated(streamId);
 
                     JsonSerializer.Serialize(ms, created, _options.JsonOptions);
                     ms.WriteByte(Constants.EndOfRecord);
-                    await Persist(ms.ToArray());
+                    await WriteAsync(ms.ToArray());
                 }
 
                 // second full scan
-                var revision = (await ReadLogAsync()
+                var revision = (await ReadAsync()
                     .OfType<RecordedEvent>()
                     .Where(e => e.StreamId == streamId)
                     .LastOrDefaultAsync())?.Revision ?? -1L;
@@ -126,12 +168,9 @@ public abstract class EventStream : IDisposable {
                     var startIdx = Checkpoint;
                     JsonSerializer.Serialize(ms, recorded, _options.JsonOptions);
                     ms.WriteByte(Constants.EndOfRecord);
-                    await Persist(ms.ToArray());
+                    await WriteAsync(ms.ToArray());
                     var eventOffset = Checkpoint - startIdx;
                     // todo: write startIdx and eventOffset to 'index'
-
-                    // publish the recorded event.
-                    await _stream.Writer.WriteAsync(recorded);
                 }
 
                 // capture the offset here.
@@ -153,12 +192,12 @@ public abstract class EventStream : IDisposable {
         }
     }
 
-    protected virtual async ValueTask<bool> PassesStreamValidationAsync(TaskCompletionSource<WriteResult> onceCompleted, StreamId streamId, ExpectedVersion expected, IEnumerable<EventData> events) {
+    protected virtual async ValueTask<bool> PassesValidationAsync(TaskCompletionSource<WriteResult> onceCompleted, StreamId streamId, ExpectedVersion expected, IEnumerable<EventData> events) {
 
         try {
             switch (expected) {
                 case -3: // no stream
-                    if (!await ReadStreamAsync(StreamKey.All).AllAsync(e => e.StreamId != streamId)) {
+                    if (!await ReadAsync(StreamKey.All).AllAsync(e => e.StreamId != streamId)) {
                         onceCompleted.SetResult(WriteResult.Failed(-1, new StreamExistsException()));
                         return false;
                     }
@@ -166,13 +205,13 @@ public abstract class EventStream : IDisposable {
                 case -2: // any stream
                     break;
                 case -1: // empty stream
-                    if (await ReadStreamAsync(StreamKey.All).AllAsync(s => s.StreamId != streamId)) {
-                        var revision = ReadStreamAsync(StreamKey.All).OfType<RecordedEvent>().MaxAsync(e => e.Revision);
+                    if (await ReadAsync(StreamKey.All).AllAsync(s => s.StreamId != streamId)) {
+                        var revision = ReadAsync(StreamKey.All).OfType<RecordedEvent>().MaxAsync(e => e.Revision);
                         onceCompleted.SetResult(WriteResult.Failed(-1, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, -1)));
                         return false;
                     } else {
                         // check for duplicates here.
-                        var nonEmptyStreamEvents = await ReadStreamAsync(StreamKey.All).OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
+                        var nonEmptyStreamEvents = await ReadAsync(StreamKey.All).OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
 
                         if (nonEmptyStreamEvents.Any()) {
                             // if all events are appended, considered as a double request and post-back ok.
@@ -184,7 +223,7 @@ public abstract class EventStream : IDisposable {
                     }
                     break;
                 default:
-                    var filtered = await ReadStreamAsync(StreamKey.All).OfType<RecordedEvent>().Where(e => e.StreamId == streamId).ToListAsync();
+                    var filtered = await ReadAsync(StreamKey.All).OfType<RecordedEvent>().Where(e => e.StreamId == streamId).ToListAsync();
 
                     if (!filtered.Any()) {
                         onceCompleted.SetResult(WriteResult.Failed(-1, new WrongExpectedVersionException(expected, ExpectedVersion.NoStream)));
@@ -218,7 +257,7 @@ public abstract class EventStream : IDisposable {
         return true;
     }
 
-    protected abstract IAsyncEnumerable<StreamItem> ReadLogAsync();
+    protected abstract IAsyncEnumerable<StreamItem> ReadAsync();
 
-    protected abstract Task Persist(byte[] data);
+    protected abstract Task WriteAsync(byte[] data);
 }
