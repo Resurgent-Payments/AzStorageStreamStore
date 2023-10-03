@@ -1,4 +1,4 @@
-using LvStreamStore;
+namespace LvStreamStore;
 
 /// <summary>
 /// the "id" of an actual stream.

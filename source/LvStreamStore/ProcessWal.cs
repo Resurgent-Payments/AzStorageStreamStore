@@ -1,3 +1,3 @@
-namespace LvStreamStore;
-
-public record ProcessWal(string Filename);
+// namespace LvStreamStore;
+//
+// public record ProcessWal(string Filename);

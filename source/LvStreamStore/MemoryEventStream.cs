@@ -10,13 +10,9 @@ using Microsoft.Extensions.Options;
 public class MemoryEventStream : EventStream {
     private readonly MemoryStream _stream = new();
     private readonly MemoryEventStreamOptions _options;
-    private readonly EventStreamObserver _observer;
-
-    protected override EventStreamObserver StreamObserver => _observer;
 
     public MemoryEventStream(IOptions<IEventStreamOptions> options) : base(options) {
         _options = options.Value as MemoryEventStreamOptions ?? new MemoryEventStreamOptions();
-        _observer = new MemoryEventStreamObserver(_stream, this, options);
     }
 
     protected override async Task WriteAsync(byte[] data) {
@@ -72,8 +68,6 @@ public class MemoryEventStream : EventStream {
     protected override void Dispose(bool disposing) {
         base.Dispose(disposing);
         if (!disposing || _disposed) return;
-
-        _observer?.Dispose();
 
         _disposed = true;
     }

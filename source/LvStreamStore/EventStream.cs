@@ -8,7 +8,7 @@ using System.Threading.Channels;
 
 using Microsoft.Extensions.Options;
 
-public abstract class EventStream : IDisposable {
+public abstract class EventStream : IObservable<StreamItem>, IDisposable {
     protected static class Constants {
         public static byte NULL = 0x00;
         public static byte EndOfRecord = 0x1E;
@@ -17,10 +17,10 @@ public abstract class EventStream : IDisposable {
     private readonly IEventStreamOptions _options;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
+    private readonly List<IObserver<StreamItem>> _observers = new();
     private bool _disposed = false;
 
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
-    protected abstract IObservable<StreamItem> StreamObserver { get; }
 
     public int Checkpoint { get; protected set; }
 
@@ -35,19 +35,35 @@ public abstract class EventStream : IDisposable {
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
     }
 
-    public IDisposable SubscribeToAll(IObserver<StreamItem> observer) => StreamObserver.Subscribe(observer);
+    /// <summary>
+    /// Equivalent to a SubscribeToAll call.
+    /// </summary>
+    /// <param name="observer"></param>
+    /// <returns></returns>
+    /// <exception cref="NotImplementedException"></exception>
+    public IDisposable Subscribe(IObserver<StreamItem> observer) {
+        _observers.Add(observer);
+        return new StreamDisposer(() => _observers.Remove(observer));
+    }
 
     public IDisposable SubscribeToStream(StreamId streamId, IObserver<StreamItem> observer) {
-        return StreamObserver.Subscribe((item) => {
+        return Subscribe(Observer.Create((StreamItem item) => {
             if (item.StreamId == streamId) {
                 observer.OnNext(item);
             }
-        });
+        }));
     }
 
     public async Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, int revision, IObserver<StreamItem> observer) {
         var numberOfItemsRead = 1;
-        return StreamObserver.Subscribe((item) => {
+
+        // need to read to (hopefully) current.
+        await foreach (var item in ReadFromAsync(streamId, revision)) {
+            observer.OnNext(item);
+            numberOfItemsRead += 1;
+        }
+
+        return Subscribe(Observer.Create((StreamItem item) => {
             if (item.StreamId == streamId) {
                 if (numberOfItemsRead < revision && revision != int.MaxValue) {
                     numberOfItemsRead++;
@@ -56,29 +72,30 @@ public abstract class EventStream : IDisposable {
 
                 observer.OnNext(item);
             }
-        });
+        }));
     }
 
     public IDisposable SubscribeToStream(StreamKey streamKey, IObserver<StreamItem> observer) {
-        return StreamObserver.Subscribe((item) => {
+        return Subscribe(Observer.Create((StreamItem item) => {
             if (streamKey == item.StreamId) {
                 observer.OnNext(item);
             }
-        });
+        }));
     }
 
     public async Task<IDisposable> SubscribeToStreamFromAsync(StreamKey streamKey, int revision, IObserver<StreamItem> observer) {
         var numberOfItemsRead = 1;
-        return StreamObserver.Subscribe((item) => {
-            if (item.StreamId == streamKey) {
-                if (numberOfItemsRead < revision) {
+
+        return Subscribe(Observer.Create((StreamItem item) => {
+            if (streamKey == item.StreamId) {
+                if (numberOfItemsRead <= revision) {
                     numberOfItemsRead++;
                     return;
                 }
 
                 observer.OnNext(item);
             }
-        });
+        }));
     }
 
     public IAsyncEnumerable<StreamItem> ReadAsync(StreamId streamId)
@@ -171,6 +188,10 @@ public abstract class EventStream : IDisposable {
                     await WriteAsync(ms.ToArray());
                     var eventOffset = Checkpoint - startIdx;
                     // todo: write startIdx and eventOffset to 'index'
+
+                    foreach (var oberver in this._observers) {
+                        oberver.OnNext(recorded);
+                    }
                 }
 
                 // capture the offset here.
@@ -193,7 +214,6 @@ public abstract class EventStream : IDisposable {
     }
 
     protected virtual async ValueTask<bool> PassesValidationAsync(TaskCompletionSource<WriteResult> onceCompleted, StreamId streamId, ExpectedVersion expected, IEnumerable<EventData> events) {
-
         try {
             switch (expected) {
                 case -3: // no stream
@@ -201,6 +221,7 @@ public abstract class EventStream : IDisposable {
                         onceCompleted.SetResult(WriteResult.Failed(-1, new StreamExistsException()));
                         return false;
                     }
+
                     break;
                 case -2: // any stream
                     break;
@@ -221,6 +242,7 @@ public abstract class EventStream : IDisposable {
                             }
                         }
                     }
+
                     break;
                 default:
                     var filtered = await ReadAsync(StreamKey.All).OfType<RecordedEvent>().Where(e => e.StreamId == streamId).ToListAsync();
@@ -233,7 +255,6 @@ public abstract class EventStream : IDisposable {
                     if (filtered.Count() != expected) {
                         // if all events are appended, considered as a double request and post-back ok.
                         if (events.All(e => filtered.All(i => i.EventId != e.EventId))) {
-
                             onceCompleted.SetResult(WriteResult.Ok(filtered.Max(x => x.Revision)));
                             return false;
                         }
@@ -247,6 +268,7 @@ public abstract class EventStream : IDisposable {
                             return false;
                         }
                     }
+
                     break;
             }
         }

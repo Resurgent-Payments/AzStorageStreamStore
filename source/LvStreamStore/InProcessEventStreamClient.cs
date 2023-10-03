@@ -30,7 +30,7 @@ public class InProcessEventStreamClient : IEventStreamClient {
 
     /// <inheritdoc />
     public IDisposable SubscribeToAll(Action<RecordedEvent> handler) {
-        return _eventStream.SubscribeToAll(Observer.Create((StreamItem item) => {
+        return _eventStream.Subscribe(Observer.Create((StreamItem item) => {
             if (item is RecordedEvent) {
                 handler.Invoke((RecordedEvent)item);
             }

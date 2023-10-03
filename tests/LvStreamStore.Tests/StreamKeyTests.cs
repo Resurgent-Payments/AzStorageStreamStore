@@ -34,4 +34,59 @@ public class KeyTests {
 
         Assert.NotEqual(objectId, category);
     }
+
+    [Fact]
+    public void Stream_keys_can_have_its_hierarchy_iterated_upon() {
+        var key = new StreamKey(new[] { "first", "second", "third" });
+        foreach (var itr in key) {
+            Assert.Equal(itr, key);
+        }
+    }
+
+    [Fact]
+    public void A_known_stream_key_should_not_be_equivalent_to_null() {
+        Assert.False((new StreamKey(new[] { "first", "second", "third" })).Equals(null));
+    }
+
+    [Fact]
+    public void StreamId_and_StreamKey_can_be_equivalent_with_same_values() {
+        var streamId = new StreamId("tenant", new[] { "hello", "world" }, "id");
+        var streamKey = new StreamKey(new[] { "tenant", "hello", "world", "id" });
+        Assert.True(streamKey == streamId);
+    }
+
+    [Fact]
+    public void StreamId_and_StreamKey_cannot_be_equivalent_with_different_values() {
+        var streamId = new StreamId("tenant", new[] { "hello", "world" }, "id");
+        var streamKey = new StreamKey(new[] { "tenant", "hello", "john", "id" });
+        Assert.True(streamKey != streamId);
+    }
+
+    [Fact]
+    public void Two_StreamKey_instances_should_have_equivalent_hash_codes() {
+        var streamKey1 = new StreamKey(new[] { "tenant", "hello", "world", "id" });
+        var streamKey2 = new StreamKey(new[] { "tenant", "hello", "world", "id" });
+        Assert.Equal(streamKey1.GetHashCode(), streamKey2.GetHashCode());
+    }
+
+    [Fact]
+    public void Stream_keys_can_be_enumerated_to_see_hierarchy() {
+        var streamKey = new StreamKey(new[] { "tenant", "hello", "world", "id" });
+        Assert.Equal(4, streamKey.Count());
+    }
+
+    [Theory]
+    [InlineData(3, new[] { "tenant", "hello", "world", "id" })]
+    [InlineData(2, new[] { "tenant", "hello", "world" })]
+    [InlineData(1, new[] { "tenant", "hello" })]
+    [InlineData(0, new[] { "tenant" })]
+    public void Stream_key_enumerator_can_step_through(int idx, string[] hello) {
+        var streamKey = new StreamKey(new[] { "tenant", "hello", "world", "id" });
+        var itr = streamKey.GetEnumerator();
+        for (var i = 0; i <= idx; i++) {
+            itr.MoveNext();
+        }
+
+        Assert.True(itr.Current.Equals(new StreamKey(hello)));
+    }
 }

@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 public class MemoryEventStreamOptions : IEventStreamOptions {
-    public JsonSerializerOptions JsonOptions { get; private set; }
+    public JsonSerializerOptions JsonOptions { get; }
     public IList<JsonConverter> JsonConverters { get; set; } = new List<JsonConverter>();
 
     public MemoryEventStreamOptions() {

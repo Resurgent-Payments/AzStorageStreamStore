@@ -10,7 +10,6 @@ using Microsoft.Extensions.Options;
 public class LocalStorageEventStream : EventStream {
     private readonly LocalStorageEventStreamOptions _options;
     private readonly string _dataFile;
-    private readonly IObservable<StreamItem> _watcher;
 
     public LocalStorageEventStream(IOptions<IEventStreamOptions> options) : base(options) {
         _options = options.Value as LocalStorageEventStreamOptions ?? new LocalStorageEventStreamOptions();
@@ -23,11 +22,7 @@ public class LocalStorageEventStream : EventStream {
         if (!File.Exists(_dataFile)) {
             File.Create(_dataFile).Dispose();
         }
-
-        _watcher = new LocalStorageEventStreamObserver(options, this);
     }
-
-    protected override IObservable<StreamItem> StreamObserver => _watcher;
 
     protected override async IAsyncEnumerable<StreamItem> ReadAsync() {
         var buffer = new byte[4096];

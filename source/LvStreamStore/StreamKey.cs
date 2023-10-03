@@ -17,6 +17,7 @@ public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
         foreach (var cat in Categories) {
             hash.Add(cat.GetHashCode());
         }
+
         return hash.ToHashCode();
     }
 
@@ -24,6 +25,7 @@ public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
         if (other is null)
             return false;
 
+        if (Categories.Length == 0) return false;
         if (Categories.Length > other.Categories.Length) return false;
 
         for (var i = 0; i < Categories.Length; i++) {
@@ -53,9 +55,10 @@ public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
         object IEnumerator.Current => Current;
 
         public bool MoveNext() {
+            _index += 1;
+            
             if (_index > _allKeys.Length) return false;
 
-            _index += 1;
             Current = new StreamKey(_allKeys.Take(_index).ToArray());
             return true;
         }
