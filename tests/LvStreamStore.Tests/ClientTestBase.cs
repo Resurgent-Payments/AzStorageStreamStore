@@ -221,16 +221,16 @@ public abstract class ClientTestBase : IDisposable {
 
         await Task.Delay(TimeSpan.FromMilliseconds(500));
 
-        Assert.Equal(1, events.Count);
+        Assert.Single(events);
     }
 
     [Fact]
     public async Task Can_subscribe_to_a_streamkey_stream() {
-        var id1 = new StreamId("Tenant", Array.Empty<string>(), "stream");
-        var e1 = new EventData(id1 with { Id = "stream-1" }, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e2 = new EventData(id1 with { Id = "stream-2" }, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e3 = new EventData(id1 with { Id = "stream-3" }, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e4 = new EventData(id1 with { Id = "stream-4" }, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var id1 = new StreamId("tenant", Array.Empty<string>(), "object-id");
+        var e1 = new EventData(new StreamId("Tenant-1", Array.Empty<string>(), "stream"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(new StreamId("Tenant-2", Array.Empty<string>(), "stream"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(new StreamId("Tenant-3", Array.Empty<string>(), "stream"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e4 = new EventData(new StreamId("Tenant-4", Array.Empty<string>(), "stream"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var key = new StreamKey(new[] { "Tenant" });
 
         var events = new List<RecordedEvent>();
@@ -244,7 +244,7 @@ public abstract class ClientTestBase : IDisposable {
 
         await Task.Delay(TimeSpan.FromMilliseconds(500));
 
-        Assert.Equal(1, events.Count);
+        Assert.Single(events);
     }
 
     [Fact]

@@ -37,9 +37,10 @@ public class KeyTests {
 
     [Fact]
     public void Stream_keys_can_have_its_hierarchy_iterated_upon() {
-        var key = new StreamKey(new[] { "first", "second", "third" });
-        foreach (var itr in key) {
-            Assert.Equal(itr, key);
+        var baseKey = new StreamKey(new[] { "first", "second", "third" });
+        var ancestors = baseKey.GetAncestors();
+        foreach (var ancestor in ancestors) {
+            Assert.Equal(ancestor, baseKey);
         }
     }
 
@@ -72,21 +73,17 @@ public class KeyTests {
     [Fact]
     public void Stream_keys_can_be_enumerated_to_see_hierarchy() {
         var streamKey = new StreamKey(new[] { "tenant", "hello", "world", "id" });
-        Assert.Equal(4, streamKey.Count());
+        Assert.Equal(3, streamKey.GetAncestors().Count());
     }
 
     [Theory]
-    [InlineData(3, new[] { "tenant", "hello", "world", "id" })]
     [InlineData(2, new[] { "tenant", "hello", "world" })]
     [InlineData(1, new[] { "tenant", "hello" })]
     [InlineData(0, new[] { "tenant" })]
     public void Stream_key_enumerator_can_step_through(int idx, string[] hello) {
         var streamKey = new StreamKey(new[] { "tenant", "hello", "world", "id" });
-        var itr = streamKey.GetEnumerator();
-        for (var i = 0; i <= idx; i++) {
-            itr.MoveNext();
-        }
-
-        Assert.True(itr.Current.Equals(new StreamKey(hello)));
+        var ancestors = streamKey.GetAncestors().ToArray();
+        var ancestor = ancestors.Skip(idx).First();
+        Assert.True(ancestor.Equals(new StreamKey(hello)));
     }
 }

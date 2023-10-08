@@ -1,75 +1,60 @@
 namespace LvStreamStore;
 
-using System.Collections;
+public class StreamKey {
+    public static StreamKey All = new StreamKey("*");
+    public static StreamKey NULL = new StreamKey();
 
-/// <summary>
-/// Akin to a $ce- in event store, this can express the physical stream through all categories that may exist through a classification hierarchy.
-/// </summary>
-/// <param name="Categories"></param>
-public record StreamKey(string[] Categories) : IEnumerable<StreamKey> {
-    public static StreamKey All = new StreamKey(new[] { "*" });
-    public static implicit operator StreamId(StreamKey key) => new(key.Categories.First(), key.Categories.Skip(1).Take(key.Categories.Length - 2).ToArray(), key.Categories.Last());
-    public static bool operator ==(StreamKey key, StreamId id) => id == key;
-    public static bool operator !=(StreamKey key, StreamId id) => !(key == id);
+    private readonly string[] _categories;
+
+    public StreamKey(params string[] categories) {
+        _categories = categories;
+    }
+
+    public static bool operator ==(StreamKey key, StreamId id) => key == (StreamKey)id;
+    public static bool operator !=(StreamKey key, StreamId id) => !(key == (StreamKey)id);
+    public static bool operator ==(StreamKey key1, StreamKey key2) => key1?.Equals(key2) ?? false;
+    public static bool operator !=(StreamKey key1, StreamKey key2) => !(key1?.Equals(key2)) ?? true;
+
+
+    /// <summary>
+    /// Gets all parents of this key, starting with the top entry
+    /// </summary>
+    /// <returns></returns>
+    public IEnumerable<StreamKey> GetAncestors() {
+        for (var i = 1; i < _categories.Length; i++) {
+            yield return new StreamKey(_categories.Take(i).ToArray());
+        }
+    }
+
 
     public override int GetHashCode() {
         var hash = new HashCode();
-        foreach (var cat in Categories) {
+        foreach (var cat in _categories) {
             hash.Add(cat.GetHashCode());
         }
 
         return hash.ToHashCode();
     }
 
-    public virtual bool Equals(StreamKey? other) {
-        if (other is null)
-            return false;
+    public override bool Equals(object? obj) {
+        if (obj is null) return false;
+        if (ReferenceEquals(this, obj)) return true;
 
-        if (Categories.Length == 0) return false;
-        if (Categories.Length > other.Categories.Length) return false;
+        if (obj is StreamKey other) {
+            if (_categories.Length == 0) return false;
+            if (_categories.Length > other!._categories.Length) return false;
 
-        for (var i = 0; i < Categories.Length; i++) {
-            if (Categories[i] == "*") continue;
-            if (!Categories[i].Equals(other.Categories[i]))
-                return false;
-        }
+            for (var i = 0; i < _categories.Length; i++) {
+                if (_categories[i] == "*") continue;
+                if (!_categories[i].Equals(other._categories[i]))
+                    return false;
+            }
 
-        return true;
-    }
-
-    public IEnumerator<StreamKey> GetEnumerator() => new Enumerator(Categories);
-
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-    private class Enumerator : IEnumerator<StreamKey> {
-        private int _index = 0;
-        private readonly string[] _allKeys;
-
-        public Enumerator(IEnumerable<string> allKeys) {
-            if (!allKeys.Any()) throw new ArgumentException("Cannot enumerate.  Need at least one key.");
-            _allKeys = allKeys.ToArray();
-        }
-
-        public StreamKey Current { get; private set; }
-
-        object IEnumerator.Current => Current;
-
-        public bool MoveNext() {
-            _index += 1;
-            
-            if (_index > _allKeys.Length) return false;
-
-            Current = new StreamKey(_allKeys.Take(_index).ToArray());
             return true;
+        } else if (obj is StreamId otherId) {
+            return Equals((StreamKey)otherId);
         }
 
-        public void Reset() {
-            Current = null;
-            _index = 0;
-        }
-
-        public void Dispose() {
-            // no-op
-        }
+        return false;
     }
 }
