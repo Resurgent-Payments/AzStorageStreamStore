@@ -2,8 +2,10 @@ namespace LvStreamStore;
 
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
+
+using LvStreamStore.LocalStorage;
 
 using Microsoft.Extensions.Options;
 
@@ -21,40 +23,6 @@ public class LocalStorageEventStream : EventStream {
 
         if (!File.Exists(_dataFile)) {
             File.Create(_dataFile).Dispose();
-        }
-    }
-
-    protected override async IAsyncEnumerable<StreamItem> ReadAsync() {
-        var buffer = new byte[4096];
-        var ms = new MemoryStream();
-
-        using (var fStream = new FileStream(_dataFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
-            int offset;
-            do {
-                Array.Clear(buffer);
-                offset = await fStream.ReadAsync(buffer, 0, buffer.Length);
-
-                for (var idx = 0; idx < offset; idx++) {
-                    if (buffer[idx] == Constants.NULL) break; // if null, then no further data exists.
-
-                    if (buffer[idx] == Constants.EndOfRecord) { // found a point whereas we need to deserialize what we have in the buffer, yield it back to the caller, then advance the index by 1.
-                        ms.Seek(0, SeekOrigin.Begin);
-
-                        yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
-
-                        ms?.Dispose();
-                        ms = new MemoryStream();
-
-                        continue;
-                    }
-
-                    ms.WriteByte(buffer[idx]);
-                }
-            } while (offset != 0);
-        }
-
-        if (ms.Length > 0) {
-            yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
         }
     }
 
@@ -84,4 +52,6 @@ public class LocalStorageEventStream : EventStream {
 
         _disposed = true;
     }
+
+    public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default) => new LocalStorageEventStreamReader(_dataFile, _options, token);
 }

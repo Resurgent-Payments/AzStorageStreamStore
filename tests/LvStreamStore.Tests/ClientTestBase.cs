@@ -174,8 +174,6 @@ public abstract class ClientTestBase : IDisposable {
         await Client.AppendToStreamAsync(id2, ExpectedVersion.Any, new[] { e2 });
         await Client.AppendToStreamAsync(id3, ExpectedVersion.Any, new[] { e3 });
 
-        await Task.Delay(1000);
-
         var stream = await Client.ReadStreamAsync(key).ToListAsync();
 
         Assert.Equal(3, stream.Count);
@@ -219,8 +217,6 @@ public abstract class ClientTestBase : IDisposable {
 
         await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
-
         Assert.Single(events);
     }
 
@@ -242,8 +238,6 @@ public abstract class ClientTestBase : IDisposable {
 
         await Client.AppendToStreamAsync(e4.Key, ExpectedVersion.Any, new[] { e4 });
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
-
         Assert.Single(events);
     }
 
@@ -263,8 +257,6 @@ public abstract class ClientTestBase : IDisposable {
         var subscription = await Client.SubscribeToStreamFromAsync(id1, 2, e => { events.Add(e); });
 
         await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
-
-        await Task.Delay(TimeSpan.FromSeconds(5));
 
         Assert.Equal(2, events.Count);
     }
@@ -315,8 +307,6 @@ public abstract class ClientTestBase : IDisposable {
 
         var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
         Assert.True(writeResult.Successful);
-
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
 
         Assert.Equal(2, events.Count);
         Assert.Equal(e3.EventId, events[0].EventId);
