@@ -1,3 +1,7 @@
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("LvStreamStore.LocalStorage")]
+
 namespace LvStreamStore;
 
 using System;
@@ -8,12 +12,7 @@ using System.Threading.Channels;
 
 using Microsoft.Extensions.Options;
 
-public abstract class EventStream : IObservable<StreamItem>, IDisposable {
-    protected static class Constants {
-        public static byte NULL = 0x00;
-        public static byte EndOfRecord = 0x1E;
-    }
-
+public abstract class EventStream : IObservable<StreamItem>, IAsyncEnumerable<StreamItem>, IDisposable {
     private readonly EventStreamOptions _options;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
@@ -106,12 +105,13 @@ public abstract class EventStream : IObservable<StreamItem>, IDisposable {
 
     public async IAsyncEnumerable<StreamItem> ReadFromAsync(StreamId streamId, int revision) {
         // full scan.
-        if (await ReadAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) throw new StreamDoesNotExistException();
+        var events = await this.OfType<StreamCreated>().ToListAsync();
+        if (events.All(sc => sc.StreamId != streamId)) throw new StreamDoesNotExistException();
 
         if (revision == int.MaxValue) yield break;
 
         // second full scan
-        await foreach (var e in ReadAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamId).Skip(revision)) {
+        await foreach (var e in this.OfType<RecordedEvent>().Where(s => s.StreamId == streamId).Skip(revision)) {
             yield return e;
         }
     }
@@ -120,10 +120,12 @@ public abstract class EventStream : IObservable<StreamItem>, IDisposable {
         if (revision == int.MaxValue) yield break;
 
         // full scan
-        await foreach (var e in ReadAsync().OfType<RecordedEvent>().Where(s => streamKey == s.StreamId).Skip(revision)) {
+        await foreach (var e in this.OfType<RecordedEvent>().Where(s => streamKey == s.StreamId).Skip(revision)) {
             yield return e;
         }
     }
+
+    public abstract IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default);
 
     public async ValueTask<WriteResult> AppendAsync(StreamId streamId, ExpectedVersion version, IEnumerable<EventData> events) {
         var tcs = new TaskCompletionSource<WriteResult>();
@@ -157,19 +159,18 @@ public abstract class EventStream : IObservable<StreamItem>, IDisposable {
 
                 // first full scan
                 // if we don't have a StreamCreated event, we need to append one now.
-                if (await ReadAsync().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
+                if (await this.OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
                     // write the stream created event.
                     var ms = new MemoryStream();
                     var created = new StreamCreated(streamId);
 
                     JsonSerializer.Serialize(ms, created, _options.JsonOptions);
-                    ms.WriteByte(Constants.EndOfRecord);
+                    ms.WriteByte(StreamConstants.EndOfRecord);
                     await WriteAsync(ms.ToArray());
                 }
 
                 // second full scan
-                var revision = (await ReadAsync()
-                    .OfType<RecordedEvent>()
+                var revision = (await this.OfType<RecordedEvent>()
                     .Where(e => e.StreamId == streamId)
                     .LastOrDefaultAsync())?.Revision ?? -1L;
 
@@ -184,7 +185,7 @@ public abstract class EventStream : IObservable<StreamItem>, IDisposable {
 
                     var startIdx = Checkpoint;
                     JsonSerializer.Serialize(ms, recorded, _options.JsonOptions);
-                    ms.WriteByte(Constants.EndOfRecord);
+                    ms.WriteByte(StreamConstants.EndOfRecord);
                     await WriteAsync(ms.ToArray());
                     var eventOffset = Checkpoint - startIdx;
                     // todo: write startIdx and eventOffset to 'index'
@@ -278,8 +279,6 @@ public abstract class EventStream : IObservable<StreamItem>, IDisposable {
 
         return true;
     }
-
-    protected abstract IAsyncEnumerable<StreamItem> ReadAsync();
 
     protected abstract Task WriteAsync(byte[] data);
 }

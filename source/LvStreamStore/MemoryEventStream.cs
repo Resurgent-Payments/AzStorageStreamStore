@@ -2,12 +2,12 @@ namespace LvStreamStore;
 
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Options;
 
-public class MemoryEventStream : EventStream {
+public class MemoryEventStream : EventStream, IAsyncEnumerable<StreamItem> {
     private readonly MemoryStream _stream = new();
     private readonly MemoryEventStreamOptions _options;
 
@@ -31,40 +31,6 @@ public class MemoryEventStream : EventStream {
         Checkpoint += endOfData;
     }
 
-    protected override async IAsyncEnumerable<StreamItem> ReadAsync() {
-        var buffer = new byte[4096];
-        var ms = new MemoryStream();
-
-        _stream.Seek(0, 0);
-        int offset;
-        do {
-            Array.Clear(buffer);
-            offset = await _stream.ReadAsync(buffer, 0, buffer.Length);
-
-            for (var idx = 0; idx < offset; idx++) {
-                if (buffer[idx] == Constants.NULL) break; // if null, then no further data exists.
-
-                if (buffer[idx] == Constants.EndOfRecord) { // found a point whereas we need to deserialize what we have in the buffer, yield it back to the caller, then advance the index by 1.
-                    ms.Seek(0, SeekOrigin.Begin);
-
-                    var deser = JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
-                    yield return deser;
-
-                    ms?.Dispose();
-                    ms = new MemoryStream();
-
-                    continue;
-                }
-
-                ms.WriteByte(buffer[idx]);
-            }
-        } while (offset != 0);
-
-        if (ms.Length > 0) {
-            yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
-        }
-    }
-
     private bool _disposed = false;
     protected override void Dispose(bool disposing) {
         base.Dispose(disposing);
@@ -72,4 +38,6 @@ public class MemoryEventStream : EventStream {
 
         _disposed = true;
     }
+
+    public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default) => new MemoryEventStreamReader(_stream, _options, token);
 }
