@@ -227,18 +227,18 @@ public abstract class ClientTestBase : IDisposable {
     [Fact]
     public async Task Can_subscribe_to_a_streamkey_stream() {
         var id1 = new StreamId("tenant", Array.Empty<string>(), "object-id");
-        var e1 = new EventData(new StreamId("Tenant-1", Array.Empty<string>(), "stream"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e2 = new EventData(new StreamId("Tenant-2", Array.Empty<string>(), "stream"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e3 = new EventData(new StreamId("Tenant-3", Array.Empty<string>(), "stream"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e4 = new EventData(new StreamId("Tenant-4", Array.Empty<string>(), "stream"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var key = new StreamKey(new[] { "Tenant" });
+        var e1 = new EventData(new StreamId("tenant", Array.Empty<string>(), "object-1"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(new StreamId("tenant", Array.Empty<string>(), "object-2"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(new StreamId("tenant", Array.Empty<string>(), "object-3"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e4 = new EventData(new StreamId("tenant", Array.Empty<string>(), "object-4"), Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var key = new StreamKey(new[] { "tenant" });
 
         var events = new List<RecordedEvent>();
 
         var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
-        var subscription = Client.SubscribeToStream(key, e => { events.Add(e); });
+        _ = Client.SubscribeToStream(key, events.Add);
 
         await Client.AppendToStreamAsync(e4.Key, ExpectedVersion.Any, new[] { e4 });
 

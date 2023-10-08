@@ -1,5 +1,8 @@
 namespace LvStreamStore;
 
+using System.Diagnostics;
+
+[DebuggerDisplay("{ToString()}")]
 public class StreamId {
     public static StreamId NULL = new StreamId(string.Empty, Array.Empty<string>(), string.Empty);
 
@@ -22,8 +25,8 @@ public class StreamId {
         return new(list.ToArray());
     }
 
-    public static bool operator ==(StreamId streamId, StreamKey streamKey) => streamId?.Equals(streamKey) ?? false;
-    public static bool operator !=(StreamId streamId, StreamKey streamKey) => !streamId?.Equals(streamKey) ?? true;
+    public static bool operator ==(StreamId streamId, StreamKey streamKey) => streamId?.Equals(streamKey) ?? (streamId is null && streamKey is null) ? true : false;
+    public static bool operator !=(StreamId streamId, StreamKey streamKey) => !streamId?.Equals(streamKey) ?? (streamId is null && streamKey is null) ? false : true;
     public static bool operator ==(StreamId streamId1, StreamId streamId2) => streamId1?.Equals(streamId2) ?? false;
     public static bool operator !=(StreamId streamId1, StreamId streamId2) => !streamId1?.Equals(streamId2) ?? true;
 
@@ -34,10 +37,9 @@ public class StreamId {
         if (!TenantId.Equals(other.TenantId)) return false;
         if (!ObjectId.Equals(other.ObjectId)) return false;
 
-        if (Hierarchy.Length == 0) return false;
-        if (Hierarchy.Length > other!.Hierarchy.Length) return false;
+        if (Hierarchy?.Length > other!.Hierarchy.Length) return false;
 
-        for (var i = 0; i < Hierarchy.Length; i++) {
+        for (var i = 0; i < Hierarchy?.Length; i++) {
             if (Hierarchy[i] == "*") continue;
             if (!Hierarchy[i].Equals(other.Hierarchy[i]))
                 return false;
@@ -54,5 +56,13 @@ public class StreamId {
         }
         hash.Add(ObjectId);
         return hash.ToHashCode();
+    }
+
+    public override string ToString() {
+        var list = Hierarchy.Any()
+            ? Hierarchy.Aggregate((s1, s2) => $"{s1},{s2}")
+            : string.Empty;
+
+        return $"{TenantId}|{list}|{ObjectId}";
     }
 }

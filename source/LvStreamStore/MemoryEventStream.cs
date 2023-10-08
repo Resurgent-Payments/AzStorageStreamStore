@@ -11,7 +11,7 @@ public class MemoryEventStream : EventStream {
     private readonly MemoryStream _stream = new();
     private readonly MemoryEventStreamOptions _options;
 
-    public MemoryEventStream(IOptions<IEventStreamOptions> options) : base(options) {
+    public MemoryEventStream(IOptions<EventStreamOptions> options) : base(options) {
         _options = options.Value as MemoryEventStreamOptions ?? new MemoryEventStreamOptions();
     }
 
@@ -47,7 +47,8 @@ public class MemoryEventStream : EventStream {
                 if (buffer[idx] == Constants.EndOfRecord) { // found a point whereas we need to deserialize what we have in the buffer, yield it back to the caller, then advance the index by 1.
                     ms.Seek(0, SeekOrigin.Begin);
 
-                    yield return JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
+                    var deser = JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
+                    yield return deser;
 
                     ms?.Dispose();
                     ms = new MemoryStream();

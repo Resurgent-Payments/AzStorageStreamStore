@@ -15,7 +15,7 @@ public class LocalStorageEventStreamTests : ClientTestBase {
                     BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
                     FileReadBlockSize = 4096 // 4k block size.
                 };
-                var diskOptionsAccessor = A.Fake<IOptions<IEventStreamOptions>>();
+                var diskOptionsAccessor = A.Fake<IOptions<EventStreamOptions>>();
                 A.CallTo(() => diskOptionsAccessor.Value)
                     .Returns(diskOptions);
 

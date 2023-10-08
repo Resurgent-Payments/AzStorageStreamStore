@@ -11,7 +11,7 @@ public class LocalStorageEventStream : EventStream {
     private readonly LocalStorageEventStreamOptions _options;
     private readonly string _dataFile;
 
-    public LocalStorageEventStream(IOptions<IEventStreamOptions> options) : base(options) {
+    public LocalStorageEventStream(IOptions<EventStreamOptions> options) : base(options) {
         _options = options.Value as LocalStorageEventStreamOptions ?? new LocalStorageEventStreamOptions();
         _dataFile = Path.Combine(_options.BaseDataPath, "chunk.dat");
 

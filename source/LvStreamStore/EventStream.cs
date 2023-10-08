@@ -14,7 +14,7 @@ public abstract class EventStream : IObservable<StreamItem>, IDisposable {
         public static byte EndOfRecord = 0x1E;
     }
 
-    private readonly IEventStreamOptions _options;
+    private readonly EventStreamOptions _options;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
     private readonly List<IObserver<StreamItem>> _observers = new();
@@ -24,7 +24,7 @@ public abstract class EventStream : IObservable<StreamItem>, IDisposable {
 
     public int Checkpoint { get; protected set; }
 
-    public EventStream(IOptions<IEventStreamOptions> options) {
+    public EventStream(IOptions<EventStreamOptions> options) {
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
             SingleReader = true,
@@ -120,7 +120,7 @@ public abstract class EventStream : IObservable<StreamItem>, IDisposable {
         if (revision == int.MaxValue) yield break;
 
         // full scan
-        await foreach (var e in ReadAsync().OfType<RecordedEvent>().Where(s => s.StreamId == streamKey).Skip(revision)) {
+        await foreach (var e in ReadAsync().OfType<RecordedEvent>().Where(s => streamKey == s.StreamId).Skip(revision)) {
             yield return e;
         }
     }
@@ -189,7 +189,7 @@ public abstract class EventStream : IObservable<StreamItem>, IDisposable {
                     var eventOffset = Checkpoint - startIdx;
                     // todo: write startIdx and eventOffset to 'index'
 
-                    foreach (var oberver in this._observers) {
+                    foreach (var oberver in _observers) {
                         oberver.OnNext(recorded);
                     }
                 }

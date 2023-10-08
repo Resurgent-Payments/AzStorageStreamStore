@@ -11,7 +11,7 @@ public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
         get {
             if (_stream == null) {
                 var value = new MemoryEventStreamOptions();
-                var options = A.Fake<IOptions<IEventStreamOptions>>();
+                var options = A.Fake<IOptions<EventStreamOptions>>();
                 A.CallTo(() => options.Value)
                     .Returns(value);
 

@@ -40,7 +40,7 @@ public class InProcessEventStreamClient : IEventStreamClient {
     /// <inheritdoc />
     public IDisposable SubscribeToStream(StreamKey key, Action<RecordedEvent> handler) {
         return _eventStream.SubscribeToStream(key, Observer.Create((StreamItem item) => {
-            if (item is RecordedEvent && item.StreamId == key) {
+            if (item is RecordedEvent && key == item.StreamId) {
                 handler.Invoke((RecordedEvent)item);
             }
         }));
@@ -49,7 +49,7 @@ public class InProcessEventStreamClient : IEventStreamClient {
     /// <inheritdoc />
     public async Task<IDisposable> SubscribeToStreamFromAsync(StreamKey key, int revision, Action<RecordedEvent> handler) {
         return await _eventStream.SubscribeToStreamFromAsync(key, revision, Observer.Create((StreamItem item) => {
-            if (item is RecordedEvent && item.StreamId == key) {
+            if (item is RecordedEvent && key == item.StreamId) {
                 handler.Invoke((RecordedEvent)item);
             }
         }));
