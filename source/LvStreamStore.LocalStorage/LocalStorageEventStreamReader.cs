@@ -8,7 +8,6 @@ namespace LvStreamStore.LocalStorage {
         private readonly string _dataFile;
         private readonly CancellationToken _token;
         private byte[] _buffer = new byte[4096];
-        private int _position = 0;
 
         public LocalStorageEventStreamReader(string dataFileName, LocalStorageEventStreamOptions options, CancellationToken token = default) {
             _dataFile = dataFileName;
@@ -17,19 +16,27 @@ namespace LvStreamStore.LocalStorage {
 
         public StreamItem Current { get; private set; }
 
+        public int Position { get; private set; }
+
+        public int Offset { get; private set; }
+
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
         public async ValueTask<bool> MoveNextAsync() {
+            Position += Offset;
+            Offset = 0;
+            Current = default;
+
             var ms = new MemoryStream();
+            int readOffset;
 
             using (var fStream = new FileStream(_dataFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
-                fStream.Seek(_position, SeekOrigin.Begin);
-                int offset;
+                fStream.Seek(Position, SeekOrigin.Begin);
                 do {
                     Array.Clear(_buffer);
-                    offset = await fStream.ReadAsync(_buffer, 0, _buffer.Length, _token);
+                    readOffset = await fStream.ReadAsync(_buffer, 0, _buffer.Length, _token);
 
-                    for (var idx = 0; idx < offset; idx++) {
+                    for (var idx = 0; idx < readOffset; idx++) {
                         if (_buffer[idx] == StreamConstants.NULL) break; // if null, then no further data exists.
 
                         if (_buffer[idx] == StreamConstants.EndOfRecord) { // found a point whereas we need to deserialize what we have in the buffer, yield it back to the caller, then advance the index by 1.
@@ -37,8 +44,8 @@ namespace LvStreamStore.LocalStorage {
 
                             Current = JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
 
-                            idx += 1;
-                            _position += idx;
+                            Position += Offset + 1;
+                            Offset += Convert.ToInt32(ms.Length);
                             ms?.Dispose();
 
                             return true;
@@ -46,8 +53,9 @@ namespace LvStreamStore.LocalStorage {
 
                         ms.WriteByte(_buffer[idx]);
                     }
-                    _position += offset;
-                } while (offset != 0);
+
+                    Offset += _buffer.Length;
+                } while (readOffset != 0);
             }
 
             return false;

@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 public abstract class EventStreamOptions {
     public JsonSerializerOptions JsonOptions { get; }
     public IList<JsonConverter> JsonConverters { get; }
+    public IStreamIndexer Indexer { get; set; }
 
     public EventStreamOptions() {
         JsonConverters = new List<JsonConverter>();
@@ -22,8 +23,11 @@ public abstract class EventStreamOptions {
                 new StreamItemJsonConverter()
             }
         };
+
         foreach (var converter in JsonConverters) {
             JsonOptions.Converters.Add(converter);
         }
+
+        Indexer = Indexer ?? new MemoryStreamIndexer();
     }
 }
