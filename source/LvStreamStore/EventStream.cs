@@ -1,7 +1,3 @@
-using System.Runtime.CompilerServices;
-
-[assembly: InternalsVisibleTo("LvStreamStore.LocalStorage")]
-
 namespace LvStreamStore;
 
 using System;
@@ -26,7 +22,7 @@ public abstract class EventStream : IDisposable {
 
     public int Checkpoint { get; protected set; }
 
-    public EventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) {
+    public EventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options, InMemoryBus? bus = null) {
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
             SingleReader = true,
@@ -37,7 +33,7 @@ public abstract class EventStream : IDisposable {
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
 
 
-        _inboundEventBus = new InMemoryBus();
+        _inboundEventBus = bus ?? new InMemoryBus();
     }
 
     public IDisposable SubscribeToStream(Func<RecordedEvent, Task> onAppeared) {
@@ -158,6 +154,9 @@ public abstract class EventStream : IDisposable {
 
                     await _inboundEventBus.PublishAsync(new EventRecorded(recorded)); //note: this is going to be really f** slow.
                 }
+
+                // issue a message to have all subscriptions "catch-up" to the end of the log?
+                await _inboundEventBus.PublishAsync(new UpdateSubscription());
 
                 // capture the offset here.
 

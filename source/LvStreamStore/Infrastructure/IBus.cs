@@ -2,7 +2,7 @@ namespace LvStreamStore {
     using System;
     using System.Threading.Channels;
 
-    internal class InMemoryBus : IDisposable {
+    public class InMemoryBus : IDisposable {
         private readonly Channel<BusMessage> _internalBus;
         private readonly List<IHandle<IMessage>> _handlers = new();
         private readonly CancellationTokenSource _cts = new();

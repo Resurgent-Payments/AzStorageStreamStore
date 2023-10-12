@@ -71,7 +71,7 @@ public class MemoryEventStreamReader : EventStreamReader {
                     }
 
 
-                    Offset += _buffer.Length; // need to do this in the event that we need to read 2x4k chunks, that we hold the position between the chunks.
+                    Offset += readOffset; // need to do this in the event that we need to read 2x4k chunks, that we hold the position between the chunks.
                 } while (readOffset != 0);
 
                 return ValueTask.FromResult(false);

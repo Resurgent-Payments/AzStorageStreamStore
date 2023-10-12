@@ -69,7 +69,7 @@ namespace LvStreamStore.LocalStorage {
                             ms.WriteByte(_buffer[idx]);
                         }
 
-                        Offset += _buffer.Length;
+                        Offset += readOffset;
                     } while (readOffset != 0);
                 }
 
