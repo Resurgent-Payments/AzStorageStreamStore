@@ -11,10 +11,6 @@ public class ExpectedVersion {
     /// </summary>
     public static readonly ExpectedVersion NoStream = new(-1);
     /// <summary>
-    /// The stream should exist and should be empty. If it does not exist or is not empty treat that as a concurrency problem.
-    /// </summary>
-    public static readonly ExpectedVersion EmptyStream = new(-1);
-    /// <summary>
     /// The stream should exist. If it or a metadata stream does not exist treat that as a concurrency problem.
     /// </summary>
     public static readonly ExpectedVersion StreamExists = new(-4);

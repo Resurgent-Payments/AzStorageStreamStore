@@ -180,32 +180,34 @@ public abstract class EventStream : IDisposable {
     protected virtual async ValueTask<bool> PassesValidationAsync(TaskCompletionSource<WriteResult> onceCompleted, StreamId streamId, ExpectedVersion expected, IEnumerable<EventData> events) {
         try {
             switch (expected) {
-                case -3: // no stream
+                case -4: // stream exists
                     if (!await ReadAsync(StreamKey.All).AllAsync(e => e.StreamId != streamId)) {
-                        onceCompleted.SetResult(WriteResult.Failed(-1, new StreamExistsException()));
+                        onceCompleted.SetResult(WriteResult.Failed(-1, new StreamDoesNotExistException()));
                         return false;
                     }
 
                     break;
                 case -2: // any stream
                     break;
-                case -1: // empty stream
-                    if (await ReadAsync(StreamKey.All).AllAsync(s => s.StreamId != streamId)) {
+                case -1: // no stream
+                    if (!await ReadAsync(StreamKey.All).AllAsync(s => s.StreamId != streamId)) {
                         var revision = ReadAsync(StreamKey.All).OfType<RecordedEvent>().MaxAsync(e => e.Revision);
-                        onceCompleted.SetResult(WriteResult.Failed(-1, new WrongExpectedVersionException(ExpectedVersion.EmptyStream, -1)));
+                        onceCompleted.SetResult(WriteResult.Failed(-1, new WrongExpectedVersionException(ExpectedVersion.NoStream, ExpectedVersion.StreamExists)));
                         return false;
-                    } else {
-                        // check for duplicates here.
-                        var nonEmptyStreamEvents = await ReadAsync(StreamKey.All).OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
-
-                        if (nonEmptyStreamEvents.Any()) {
-                            // if all events are appended, considered as a double request and post-back ok.
-                            if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                                onceCompleted.SetResult(WriteResult.Ok(nonEmptyStreamEvents.Max(x => x.Revision)));
-                                return false;
-                            }
-                        }
                     }
+                    
+                    //else {
+                    //    // check for duplicates here.
+                    //    var nonEmptyStreamEvents = await ReadAsync(StreamKey.All).OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
+
+                    //    if (nonEmptyStreamEvents.Any()) {
+                    //        // if all events are appended, considered as a double request and post-back ok.
+                    //        if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
+                    //            onceCompleted.SetResult(WriteResult.Ok(nonEmptyStreamEvents.Max(x => x.Revision)));
+                    //            return false;
+                    //        }
+                    //    }
+                    //}
 
                     break;
                 default:

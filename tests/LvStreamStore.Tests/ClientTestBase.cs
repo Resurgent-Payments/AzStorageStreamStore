@@ -28,7 +28,7 @@ public abstract class ClientTestBase : IDisposable {
     }
 
     [Theory]
-    [InlineData(-3L)] // no stream
+    [InlineData(-1L)] // no stream
     [InlineData(-2L)] // any stream
     public async Task Can_append_a_single_event(long version) {
         var tenantId = Guid.NewGuid().ToString("N");
@@ -78,7 +78,7 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.NoStream, new[] { e });
 
         Assert.False(writeResult.Successful);
-        Assert.IsType<StreamExistsException>(writeResult.Exception);
+        Assert.IsType<WrongExpectedVersionException>(writeResult.Exception);
     }
 
     [Fact]
@@ -339,22 +339,13 @@ public abstract class ClientTestBase : IDisposable {
     }
 
     [Fact]
-    public async Task Cannot_append_when_no_stream_exists_while_expecting_empty() {
-        var id = new StreamId("some", Array.Empty<string>(), "stream");
-        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-
-        var result = await Client.AppendToStreamAsync(id, ExpectedVersion.EmptyStream, new[] { e1 });
-        Assert.IsType<WrongExpectedVersionException>(result.Exception);
-    }
-
-    [Fact]
     public async Task Can_append_events_when_an_empty_stream_has_been_established() {
         var id = new StreamId("some", Array.Empty<string>(), "stream");
         var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, Array.Empty<EventData>());
         Assert.True(writeResult.Successful);
-        await Client.AppendToStreamAsync(id, ExpectedVersion.EmptyStream, new[] { e1 });
+        await Client.AppendToStreamAsync(id, ExpectedVersion.StreamExists, new[] { e1 });
     }
 
     [Theory]

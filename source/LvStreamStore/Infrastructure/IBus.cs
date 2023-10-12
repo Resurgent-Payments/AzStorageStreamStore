@@ -33,7 +33,10 @@ namespace LvStreamStore {
         }
 
         public IDisposable Subscribe<T>(IHandle<T> handler) where T : IMessage {
-            var ahHandler = new AdHocHandler<IMessage>((msg) => handler.Handle((T)msg));
+            var ahHandler = new AdHocHandler<IMessage>((msg) => {
+                if (!msg.GetType().IsAssignableTo(typeof(T))) { return; }
+                handler.Handle((T)msg);
+            });
             _handlers.Add(ahHandler);
             return new Disposer(() => {
                 _handlers.Remove(ahHandler);
