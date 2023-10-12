@@ -1,17 +1,16 @@
 namespace LvStreamStore;
 
-using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-public class MemoryEventStream : EventStream, IAsyncEnumerable<StreamItem> {
+public class MemoryEventStream : EventStream {
     private readonly MemoryStream _stream = new();
     private readonly MemoryEventStreamOptions _options;
 
-    public MemoryEventStream(IOptions<EventStreamOptions> options) : base(options) {
+    public MemoryEventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) : base(loggerFactory, options) {
         _options = options.Value as MemoryEventStreamOptions ?? new MemoryEventStreamOptions();
     }
 
@@ -39,5 +38,5 @@ public class MemoryEventStream : EventStream, IAsyncEnumerable<StreamItem> {
         _disposed = true;
     }
 
-    public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default) => new MemoryEventStreamReader(_stream, _options, token);
+    protected override EventStreamReader GetReader() => new MemoryEventStreamReader(_stream, _options);
 }

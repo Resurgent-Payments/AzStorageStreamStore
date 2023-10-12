@@ -4,6 +4,7 @@ using FakeItEasy;
 
 using LvStreamStore.Tests;
 
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 public class LocalStorageEventStreamTests : ClientTestBase {
@@ -19,7 +20,7 @@ public class LocalStorageEventStreamTests : ClientTestBase {
                 A.CallTo(() => diskOptionsAccessor.Value)
                     .Returns(diskOptions);
 
-                _stream = new LocalStorageEventStream(diskOptionsAccessor);
+                _stream = new LocalStorageEventStream(NullLoggerFactory.Instance, diskOptionsAccessor);
             }
             return _stream;
         }

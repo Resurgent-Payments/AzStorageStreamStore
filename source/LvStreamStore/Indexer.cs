@@ -48,8 +48,8 @@ public class MemoryStreamIndexer : IStreamIndexer {
     }
 
     public async ValueTask InitializeAsync(EventStreamReader reader) {
-        while (await reader.MoveNextAsync()) {
-            Index(reader.Current, reader.Position, reader.Offset);
+        await foreach (var item in reader) {
+            //Index(item.Current, item.Position, item.Offset);
         }
     }
 

@@ -2,6 +2,7 @@ namespace LvStreamStore.Tests;
 
 using FakeItEasy;
 
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
@@ -15,7 +16,7 @@ public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
                 A.CallTo(() => options.Value)
                     .Returns(value);
 
-                _stream = new MemoryEventStream(options);
+                _stream = new MemoryEventStream(NullLoggerFactory.Instance, options);
             }
             return _stream;
         }

@@ -19,7 +19,7 @@ public abstract class ClientTestBase : IDisposable {
     public ClientTestBase() {
         Client = new InProcessEventStreamClient(Stream);
 
-        AsyncHelper.RunSync(async () => await Client.InitializeAsync());
+        AsyncHelper.RunSync(Client.InitializeAsync);
         var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>()) }));
         Assert.True(result.Successful);
 
@@ -202,20 +202,20 @@ public abstract class ClientTestBase : IDisposable {
 
     [Fact]
     public async Task Can_subscribe_to_a_streamid_stream() {
-        var id1 = new StreamId("Tenant", Array.Empty<string>(), "stream");
-        var e1 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e2 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e3 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e4 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var streamId = new StreamId("Tenant", Array.Empty<string>(), "stream");
+        var e1 = new EventData(streamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(streamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(streamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e4 = new EventData(streamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var events = new List<RecordedEvent>();
 
-        var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
+        var writeResult = await Client.AppendToStreamAsync(streamId, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
-        var subscription = Client.SubscribeToStream(id1, e => { events.Add(e); });
+        var sub = Client.SubscribeToStream(streamId, (item) => { events.Add(item); return Task.CompletedTask; });
 
-        await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
+        await Client.AppendToStreamAsync(streamId, ExpectedVersion.Any, new[] { e4 });
 
         Assert.Single(events);
     }
@@ -234,111 +234,106 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
-        _ = Client.SubscribeToStream(key, events.Add);
+        _ = Client.SubscribeToStream(key, (item) => { events.Add(item); return Task.CompletedTask; });
 
         await Client.AppendToStreamAsync(e4.Key, ExpectedVersion.Any, new[] { e4 });
 
         Assert.Single(events);
     }
 
-    [Fact]
-    public async Task Can_subscribe_to_a_streamid_stream_at_position() {
-        var id1 = new StreamId("Tenant", Array.Empty<string>(), "stream");
-        var e1 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e2 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e3 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e4 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //[Fact]
+    //public async Task Can_subscribe_to_a_streamid_stream_at_position() {
+    //    var id1 = new StreamId("Tenant", Array.Empty<string>(), "stream");
+    //    var e1 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var e2 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var e3 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var e4 = new EventData(id1, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
-        var events = new List<RecordedEvent>();
+    //    var events = new List<RecordedEvent>();
 
-        var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
-        Assert.True(writeResult.Successful);
+    //    var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
+    //    Assert.True(writeResult.Successful);
 
-        var subscription = await Client.SubscribeToStreamFromAsync(id1, 2, e => { events.Add(e); });
+    //    _ = Client.SubscribeToStream(id1, (item) => { events.Add(item); return Task.CompletedTask; });
 
-        await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
+    //    await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
 
-        Assert.Equal(2, events.Count);
-    }
+    //    Assert.Equal(2, events.Count);
+    //}
 
-    [Fact]
-    public async Task Can_dispose_a_subscription_from_a_given_position() {
-        var id = new StreamId("some", Array.Empty<string>(), "stream");
-        var key = new StreamKey(new[] { "some" });
-        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //[Fact]
+    //public async Task Can_dispose_a_subscription_from_a_given_position() {
+    //    var id = new StreamId("some", Array.Empty<string>(), "stream");
+    //    var key = new StreamKey(new[] { "some" });
+    //    var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
-        var events = new List<RecordedEvent>();
+    //    var events = new List<RecordedEvent>();
 
-        var mre = new ManualResetEventSlim(false);
-        var waitingToSet = 1;
-        var numberOfEvents = 0;
+    //    Client.SubscribeToStream(key, (item) => {
+    //        events.Add(item);
+    //        return Task.CompletedTask;
+    //    }, 2).Dispose();
 
-        (await Client.SubscribeToStreamFromAsync(key, 2, e => {
-            events.Add(e);
-            numberOfEvents += 1;
-            if (numberOfEvents >= waitingToSet) {
-                mre.Set();
-            }
-        })).Dispose();
+    //    var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
+    //    Assert.True(writeResult.Successful);
 
-        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
-        Assert.True(writeResult.Successful);
+    //    Assert.Empty(events);
+    //}
 
-        mre.Wait(100);
-        Assert.Empty(events);
-    }
+    //[Fact]
+    //public async Task Disposing_of_a_subscription_from_a_given_position_does_not_affect_other_instances_of_same() {
+    //    var id = new StreamId("some", Array.Empty<string>(), "stream");
+    //    var key = new StreamKey(new[] { "some" });
+    //    var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
-    [Fact]
-    public async Task Disposing_of_a_subscription_from_a_given_position_does_not_affect_other_instances_of_same() {
-        var id = new StreamId("some", Array.Empty<string>(), "stream");
-        var key = new StreamKey(new[] { "some" });
-        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+    //    var events = new List<RecordedEvent>();
 
-        var events = new List<RecordedEvent>();
 
-        (await Client.SubscribeToStreamFromAsync(key, 2, e => { events.Add(e); })).Dispose();
-        await Client.SubscribeToStreamFromAsync(key, 2, e => { events.Add(e); });
+    //    Client.SubscribeToStream(key, (item) => {
+    //        events.Add(item);
+    //        return Task.CompletedTask;
+    //    }, 2).Dispose();
+    //    Client.SubscribeToStream(key, (item) => {
+    //        events.Add(item);
+    //        return Task.CompletedTask;
+    //    }, 2);
 
-        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
-        Assert.True(writeResult.Successful);
+    //    var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, new[] { e1, e2, e3, e4 });
+    //    Assert.True(writeResult.Successful);
 
-        Assert.Equal(2, events.Count);
-        Assert.Equal(e3.EventId, events[0].EventId);
-        Assert.Equal(e4.EventId, events[1].EventId);
-    }
+    //    Assert.Equal(2, events.Count);
+    //    Assert.Equal(e3.EventId, events[0].EventId);
+    //    Assert.Equal(e4.EventId, events[1].EventId);
+    //}
 
     [Fact]
     public async Task Records_proper_stream_revision() {
-        var id = new StreamId("some", Array.Empty<string>(), "stream");
-        var e1 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e2 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e3 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
-        var e4 = new EventData(id, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var streamId = new StreamId("some", Array.Empty<string>(), "stream");
+        var e1 = new EventData(streamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e2 = new EventData(streamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e3 = new EventData(streamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
+        var e4 = new EventData(streamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
         var events = new List<RecordedEvent>();
 
         // need to create an empty stream to make this work.
-        var mre = new ManualResetEventSlim(false);
-        var expectedEvents = 4;
-        await Client.AppendToStreamAsync(id, ExpectedVersion.NoStream, Array.Empty<EventData>());
-        Client.SubscribeToStream(id, e => {
-            events.Add(e);
-            if (events.Count >= expectedEvents) {
-                mre.Set();
-            }
+        _ = await Client.AppendToStreamAsync(streamId, ExpectedVersion.NoStream, Array.Empty<EventData>());
+        _ = Client.SubscribeToStream(streamId, (item) => {
+            events.Add(item);
+            return Task.CompletedTask;
         });
-
-        var writeResult = await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2, e3, e4 });
-
-        mre.Wait(1000);
+        var writeResult = await Client.AppendToStreamAsync(streamId, ExpectedVersion.Any, new[] { e1, e2, e3, e4 });
 
         Assert.True(writeResult.Successful);
+
+        await Task.Delay(500);
+
         Assert.Equal(4, events.Count);
         Assert.Equal(3, events.Last().Revision);
     }
@@ -362,72 +357,39 @@ public abstract class ClientTestBase : IDisposable {
         await Client.AppendToStreamAsync(id, ExpectedVersion.EmptyStream, new[] { e1 });
     }
 
-    [Fact]
-    public async Task Can_subscribe_to_all_stream() {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task Can_subscribe_to_all_stream(int numberOfSubscriptions) {
         var events = new List<RecordedEvent>();
-        var _mres = new ManualResetEventSlim(false);
 
         var key = new StreamId("test", Array.Empty<string>(), "stream");
 
-        Client.SubscribeToAll(x => {
-            if (x.StreamId != key) return;
-
-            events.Add(x);
-            _mres.Set();
-        });
+        for (var i = 0; i < numberOfSubscriptions; i++) {
+            _ = Client.SubscribeToStream((item) => {
+                if (key == item.StreamId) { events.Add(item); }
+                return Task.CompletedTask;
+            });
+        }
 
         var result = await Client.AppendToStreamAsync(
             new StreamId("test", Array.Empty<string>(), "stream"),
             ExpectedVersion.Any,
             new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>(), Array.Empty<byte>()) }
         );
+
         Assert.True(result.Successful);
 
-        _mres.Wait(1000);
-
-        Assert.Single(events);
-    }
-
-    [Fact]
-    public async Task Can_subscribe_to_all_stream_multiple_times() {
-        var events = new List<RecordedEvent>();
-
-        var _mres1 = new ManualResetEventSlim(false);
-        var _mres2 = new ManualResetEventSlim(false);
-
-        Client.SubscribeToAll(x => {
-            events.Add(x);
-            _mres1.Set();
-        });
-        Client.SubscribeToAll(x => {
-            events.Add(x);
-            _mres2.Set();
-        });
-
-        var key = new StreamId("test", Array.Empty<string>(), "stream");
-
-        var result = await Client.AppendToStreamAsync(
-            new StreamId("test", Array.Empty<string>(), "stream"),
-            ExpectedVersion.Any,
-            new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>(), Array.Empty<byte>()) }
-        );
-        Assert.True(result.Successful);
-
-
-        _mres1.Wait(1000);
-        _mres2.Wait(1000);
-
-        Assert.Equal(2, events.Count);
+        Assert.Equal(numberOfSubscriptions, events.Count);
     }
 
     [Fact]
     public async Task Can_remove_an_allstream_subscription_via_returned_idsposable() {
         var events = new List<RecordedEvent>();
-        var _mres = new ManualResetEventSlim(false);
 
-        Client.SubscribeToAll(x => {
-            events.Add(x);
-            _mres.Set();
+        Client.SubscribeToStream((item) => {
+            events.Add(item);
+            return Task.CompletedTask;
         }).Dispose();
 
         var key = new StreamId("test", Array.Empty<string>(), "stream");
@@ -437,8 +399,6 @@ public abstract class ClientTestBase : IDisposable {
             new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>(), Array.Empty<byte>()) }
         );
         Assert.True(result.Successful);
-
-        _mres.Wait(100);
 
         Assert.Empty(events);
     }
@@ -447,21 +407,16 @@ public abstract class ClientTestBase : IDisposable {
     public async Task Disposing_an_allstream_subscription_does_not_dispose_all_subscriptions() {
         var events = new List<RecordedEvent>();
 
-        var _mres1 = new ManualResetEventSlim(false);
-        var _mres2 = new ManualResetEventSlim(false);
         var key = new StreamId("test", Array.Empty<string>(), "stream");
 
-        Client.SubscribeToAll(x => {
-            if (x.StreamId != key) return;
-            events.Add(x);
-            _mres1.Set();
-        });
 
-        // create and immedialy dispose to loop the subscription/disposal pipeline.
-        Client.SubscribeToAll(x => {
-            if (x.StreamId != key) return;
-            events.Add(x);
-            _mres2.Set();
+        Client.SubscribeToStream((item) => {
+            if (item.StreamId == key) { events.Add(item); }
+            return Task.CompletedTask;
+        });
+        Client.SubscribeToStream((item) => {
+            if (item.StreamId == key) { events.Add(item); }
+            return Task.CompletedTask;
         }).Dispose();
 
         var result = await Client.AppendToStreamAsync(
@@ -469,12 +424,8 @@ public abstract class ClientTestBase : IDisposable {
             ExpectedVersion.Any,
             new[] { new EventData(key, Guid.NewGuid(), AllStreamEventType, Array.Empty<byte>(), Array.Empty<byte>()) }
         );
+
         Assert.True(result.Successful);
-
-
-        _mres1.Wait(1000);
-        _mres2.Wait(1000);
-
         Assert.Single(events);
     }
 

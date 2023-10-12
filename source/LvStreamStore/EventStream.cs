@@ -10,20 +10,23 @@ using System.Reactive;
 using System.Text.Json;
 using System.Threading.Channels;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-public abstract class EventStream : IObservable<StreamItem>, IAsyncEnumerable<StreamItem>, IDisposable {
+public abstract class EventStream : IDisposable {
     private readonly EventStreamOptions _options;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
-    private readonly List<IObserver<StreamItem>> _observers = new();
     private bool _disposed = false;
+
+    private InMemoryBus _inboundEventBus;
+    private readonly List<IDisposable> _subscriptions = new();
 
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
 
     public int Checkpoint { get; protected set; }
 
-    public EventStream(IOptions<EventStreamOptions> options) {
+    public EventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) {
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
             SingleReader = true,
@@ -32,100 +35,61 @@ public abstract class EventStream : IObservable<StreamItem>, IAsyncEnumerable<St
         });
         _cts.Token.Register(() => _streamWriter.Writer.Complete());
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
+
+
+        _inboundEventBus = new InMemoryBus();
     }
 
-    /// <summary>
-    /// Equivalent to a SubscribeToAll call.
-    /// </summary>
-    /// <param name="observer"></param>
-    /// <returns></returns>
-    /// <exception cref="NotImplementedException"></exception>
-    public IDisposable Subscribe(IObserver<StreamItem> observer) {
-        _observers.Add(observer);
-        return new StreamDisposer(() => _observers.Remove(observer));
+    public IDisposable SubscribeToStream(Func<RecordedEvent, Task> onAppeared) {
+        var subscriber = new EventStreamSubscriber(_inboundEventBus, onAppeared).Start(StreamKey.All);
+        _subscriptions.Add(subscriber);
+        return subscriber;
     }
 
-    public IDisposable SubscribeToStream(StreamId streamId, IObserver<StreamItem> observer) {
-        return Subscribe(Observer.Create((StreamItem item) => {
-            if (item.StreamId == streamId) {
-                observer.OnNext(item);
-            }
-        }));
+    public IDisposable SubscribeToStream(StreamId streamId, Func<RecordedEvent, Task> onAppeared) {
+        var subscriber = new EventStreamSubscriber(_inboundEventBus, onAppeared).Start(streamId);
+        _subscriptions.Add(subscriber);
+        return subscriber;
     }
 
-    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamId streamId, int revision, IObserver<StreamItem> observer) {
+    public IDisposable SubscribeToStream(StreamKey streamKey, Func<RecordedEvent, Task> onAppeared) {
+        var subscriber = new EventStreamSubscriber(_inboundEventBus, onAppeared).Start(streamKey);
+        _subscriptions.Add(subscriber);
+        return subscriber;
+    }
+
+    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId streamId, int? revision = null) {
+        // need to find out if the stream exists.
+        if (await GetReader().AllAsync(item => streamId != item.StreamId)) { throw new StreamDoesNotExistException(); }
+
         var numberOfItemsRead = 1;
 
-        // need to read to (hopefully) current.
-        await foreach (var item in ReadFromAsync(streamId, revision)) {
-            observer.OnNext(item);
-            numberOfItemsRead += 1;
-        }
-
-        return Subscribe(Observer.Create((StreamItem item) => {
-            if (item.StreamId == streamId) {
-                if (numberOfItemsRead < revision && revision != int.MaxValue) {
+        await foreach (var item in GetReader()) {
+            if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamId == item.StreamId) {
+                if (numberOfItemsRead <= revision && revision.HasValue) {
                     numberOfItemsRead++;
-                    return;
+                    continue;
                 }
 
-                observer.OnNext(item);
+                yield return (RecordedEvent)item!;
             }
-        }));
+        }
     }
 
-    public IDisposable SubscribeToStream(StreamKey streamKey, IObserver<StreamItem> observer) {
-        return Subscribe(Observer.Create((StreamItem item) => {
-            if (streamKey == item.StreamId) {
-                observer.OnNext(item);
-            }
-        }));
-    }
-
-    public async Task<IDisposable> SubscribeToStreamFromAsync(StreamKey streamKey, int revision, IObserver<StreamItem> observer) {
+    public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey streamKey, int? revision = null) {
         var numberOfItemsRead = 1;
 
-        return Subscribe(Observer.Create((StreamItem item) => {
-            if (streamKey == item.StreamId) {
-                if (numberOfItemsRead <= revision) {
+        await foreach (var item in GetReader()) {
+            if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamKey == item.StreamId) {
+                if (numberOfItemsRead <= revision && revision.HasValue) {
                     numberOfItemsRead++;
-                    return;
+                    continue;
                 }
 
-                observer.OnNext(item);
+                yield return (RecordedEvent)item!;
             }
-        }));
-    }
-
-    public IAsyncEnumerable<StreamItem> ReadAsync(StreamId streamId)
-        => ReadFromAsync(streamId, 0);
-
-    public IAsyncEnumerable<StreamItem> ReadAsync(StreamKey streamKey)
-        => ReadFromAsync(streamKey, 0);
-
-    public async IAsyncEnumerable<StreamItem> ReadFromAsync(StreamId streamId, int revision) {
-        // full scan.
-        var events = await this.OfType<StreamCreated>().ToListAsync();
-        if (events.All(sc => sc.StreamId != streamId)) throw new StreamDoesNotExistException();
-
-        if (revision == int.MaxValue) yield break;
-
-        // second full scan
-        await foreach (var e in this.OfType<RecordedEvent>().Where(s => s.StreamId == streamId).Skip(revision)) {
-            yield return e;
         }
     }
-
-    public async IAsyncEnumerable<StreamItem> ReadFromAsync(StreamKey streamKey, int revision) {
-        if (revision == int.MaxValue) yield break;
-
-        // full scan
-        await foreach (var e in this.OfType<RecordedEvent>().Where(s => streamKey == s.StreamId).Skip(revision)) {
-            yield return e;
-        }
-    }
-
-    public abstract IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default);
 
     public async ValueTask<WriteResult> AppendAsync(StreamId streamId, ExpectedVersion version, IEnumerable<EventData> events) {
         var tcs = new TaskCompletionSource<WriteResult>();
@@ -144,6 +108,8 @@ public abstract class EventStream : IObservable<StreamItem>, IAsyncEnumerable<St
         _disposed = true;
     }
 
+    protected abstract EventStreamReader GetReader();
+
     protected async Task StreamWriterImpl() {
         await foreach (var posssibleWalEntry in StreamWriter.ReadAllAsync()) {
             var onceCompleted = posssibleWalEntry.OnceCompleted;
@@ -159,7 +125,7 @@ public abstract class EventStream : IObservable<StreamItem>, IAsyncEnumerable<St
 
                 // first full scan
                 // if we don't have a StreamCreated event, we need to append one now.
-                if (await this.OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
+                if (await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
                     // write the stream created event.
                     var ms = new MemoryStream();
                     var created = new StreamCreated(streamId);
@@ -170,7 +136,7 @@ public abstract class EventStream : IObservable<StreamItem>, IAsyncEnumerable<St
                 }
 
                 // second full scan
-                var revision = (await this.OfType<RecordedEvent>()
+                var revision = (await GetReader().OfType<RecordedEvent>()
                     .Where(e => e.StreamId == streamId)
                     .LastOrDefaultAsync())?.Revision ?? -1L;
 
@@ -190,9 +156,7 @@ public abstract class EventStream : IObservable<StreamItem>, IAsyncEnumerable<St
                     var eventOffset = Checkpoint - startIdx;
                     // todo: write startIdx and eventOffset to 'index'
 
-                    foreach (var oberver in _observers) {
-                        oberver.OnNext(recorded);
-                    }
+                    await _inboundEventBus.PublishAsync(new EventRecorded(recorded)); //note: this is going to be really f** slow.
                 }
 
                 // capture the offset here.

@@ -1,19 +1,18 @@
 namespace LvStreamStore;
 
-using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 
 using LvStreamStore.LocalStorage;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 public class LocalStorageEventStream : EventStream {
     private readonly LocalStorageEventStreamOptions _options;
     private readonly string _dataFile;
 
-    public LocalStorageEventStream(IOptions<EventStreamOptions> options) : base(options) {
+    public LocalStorageEventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) : base(loggerFactory, options) {
         _options = options.Value as LocalStorageEventStreamOptions ?? new LocalStorageEventStreamOptions();
         _dataFile = Path.Combine(_options.BaseDataPath, "chunk.dat");
 
@@ -53,5 +52,5 @@ public class LocalStorageEventStream : EventStream {
         _disposed = true;
     }
 
-    public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default) => new LocalStorageEventStreamReader(_dataFile, _options, token);
+    protected override EventStreamReader GetReader() => new LocalStorageEventStreamReader(_dataFile, _options);
 }
