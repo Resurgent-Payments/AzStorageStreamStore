@@ -2,36 +2,36 @@ namespace LvStreamStore {
     using System;
     using System.Threading.Tasks;
 
-    internal sealed class EventStreamSubscriber : IHandle<EventRecorded>, IHandle<UpdateSubscription>, IDisposable {
-        private readonly InMemoryBus _bus;
+    internal sealed class EventStreamSubscriber : IHandle<RecordedEvent>, IHandle<UpdateSubscription>, IDisposable {
+        private readonly Bus _bus;
         private readonly Func<RecordedEvent, Task> _onAppeared;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
-        private Func<EventRecorded, bool>? _handleFilter;
+        private Func<RecordedEvent, bool>? _handleFilter;
         private IDisposable _busSubscription;
         private IDisposable _updateSubscription;
 
-        internal EventStreamSubscriber(InMemoryBus bus, Func<RecordedEvent, Task> onAppeared) {
+        internal EventStreamSubscriber(Bus bus, Func<RecordedEvent, Task> onAppeared) {
             _bus = bus;
             _onAppeared = onAppeared;
         }
 
         public IDisposable Start(StreamId streamId) {
-            _handleFilter = new Func<EventRecorded, bool>((@event) => streamId == @event.Event.StreamId);
-            _busSubscription = _bus.Subscribe<EventRecorded>(this);
+            _handleFilter = new Func<RecordedEvent, bool>((@event) => streamId == @event.StreamId);
+            _busSubscription = _bus.Subscribe<RecordedEvent>(this);
             _updateSubscription = _bus.Subscribe<UpdateSubscription>(this);
             return this;
         }
 
         public IDisposable Start(StreamKey streamKey) {
-            _handleFilter = new Func<EventRecorded, bool>((@event) => streamKey == @event.Event.StreamId);
-            _busSubscription = _bus.Subscribe<EventRecorded>(this);
+            _handleFilter = new Func<RecordedEvent, bool>((@event) => streamKey == @event.StreamId);
+            _busSubscription = _bus.Subscribe<RecordedEvent>(this);
             _updateSubscription = _bus.Subscribe<UpdateSubscription>(this);
             return this;
         }
 
-        public void Handle(EventRecorded message) {
+        public void Handle(RecordedEvent message) {
             if (_handleFilter?.Invoke(message) ?? false) {
-                _onAppeared.Invoke(message.Event);
+                _onAppeared.Invoke(message);
             }
         }
 
@@ -51,7 +51,5 @@ namespace LvStreamStore {
         }
     }
 
-    public class UpdateSubscription : IMessage {
-        public Guid MsgId { get; private set; } = Guid.NewGuid();
-    }
+    public record UpdateSubscription : Event;
 }

@@ -7,7 +7,6 @@ using Microsoft.Extensions.Options;
 
 public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
     private MemoryEventStream? _stream;
-    private InMemoryBus _bus = new();
 
     protected override EventStream Stream {
         get {
@@ -17,7 +16,7 @@ public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
                 A.CallTo(() => options.Value)
                     .Returns(value);
 
-                _stream = new MemoryEventStream(NullLoggerFactory.Instance, options, _bus);
+                _stream = new MemoryEventStream(NullLoggerFactory.Instance, options);
             }
             return _stream;
         }

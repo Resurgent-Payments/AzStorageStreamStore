@@ -217,7 +217,7 @@ public abstract class ClientTestBase : IDisposable {
 
         await Client.AppendToStreamAsync(streamId, ExpectedVersion.Any, new[] { e4 });
 
-        Assert.Single(events);
+        AssertEx.IsOrBecomesTrue(() => events.Count == 1, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -238,7 +238,7 @@ public abstract class ClientTestBase : IDisposable {
 
         await Client.AppendToStreamAsync(e4.Key, ExpectedVersion.Any, new[] { e4 });
 
-        Assert.Single(events);
+        AssertEx.IsOrBecomesTrue(() => events.Count == 1, TimeSpan.FromSeconds(1));
     }
 
     //[Fact]
@@ -358,7 +358,7 @@ public abstract class ClientTestBase : IDisposable {
 
         for (var i = 0; i < numberOfSubscriptions; i++) {
             _ = Client.SubscribeToStream((item) => {
-                if (key == item.StreamId) { events.Add(item); }
+                events.Add(item);
                 return Task.CompletedTask;
             });
         }
@@ -371,7 +371,7 @@ public abstract class ClientTestBase : IDisposable {
 
         Assert.True(result.Successful);
 
-        Assert.Equal(numberOfSubscriptions, events.Count);
+        AssertEx.IsOrBecomesTrue(() => numberOfSubscriptions == events.Count, TimeSpan.FromSeconds(2));
     }
 
     [Fact]
@@ -402,11 +402,11 @@ public abstract class ClientTestBase : IDisposable {
 
 
         Client.SubscribeToStream((item) => {
-            if (item.StreamId == key) { events.Add(item); }
+            events.Add(item);
             return Task.CompletedTask;
         });
         Client.SubscribeToStream((item) => {
-            if (item.StreamId == key) { events.Add(item); }
+            events.Add(item);
             return Task.CompletedTask;
         }).Dispose();
 
@@ -417,7 +417,7 @@ public abstract class ClientTestBase : IDisposable {
         );
 
         Assert.True(result.Successful);
-        Assert.Single(events);
+        AssertEx.IsOrBecomesTrue(() => events.Count == 1, TimeSpan.FromSeconds(1));
     }
 
     //[Fact]
