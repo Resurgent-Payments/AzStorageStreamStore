@@ -8,7 +8,6 @@ public static class ServiceCollectionExtensions {
 
         configure(configuration);
 
-        services.AddSingleton<InMemoryBus>();
         services.AddSingleton<EventStream, TImplementation>();
 
         if (configuration.RunBackgroundService) {

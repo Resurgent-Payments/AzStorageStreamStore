@@ -9,7 +9,6 @@ using Microsoft.Extensions.Options;
 
 public class LocalStorageEventStreamTests : ClientTestBase {
     private EventStream? _stream;
-    private InMemoryBus _bus = new();
 
     protected override EventStream Stream {
         get {
@@ -22,7 +21,7 @@ public class LocalStorageEventStreamTests : ClientTestBase {
                 A.CallTo(() => diskOptionsAccessor.Value)
                     .Returns(diskOptions);
 
-                _stream = new LocalStorageEventStream(NullLoggerFactory.Instance, diskOptionsAccessor, _bus);
+                _stream = new LocalStorageEventStream(NullLoggerFactory.Instance, diskOptionsAccessor);
             }
             return _stream;
         }

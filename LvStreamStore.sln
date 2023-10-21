@@ -28,6 +28,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MvcHost", "samples\MvcHost\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleHost", "samples\ConsoleHost\ConsoleHost.csproj", "{44B74CF5-55A1-4CB3-B2AA-AE11019344B9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LvStreamStore.Test", "tests\LvStreamStore.Test\LvStreamStore.Test.csproj", "{6807F7F9-42D6-406E-9750-FEB8669F25AB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -62,6 +64,10 @@ Global
 		{44B74CF5-55A1-4CB3-B2AA-AE11019344B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{44B74CF5-55A1-4CB3-B2AA-AE11019344B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{44B74CF5-55A1-4CB3-B2AA-AE11019344B9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6807F7F9-42D6-406E-9750-FEB8669F25AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6807F7F9-42D6-406E-9750-FEB8669F25AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6807F7F9-42D6-406E-9750-FEB8669F25AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6807F7F9-42D6-406E-9750-FEB8669F25AB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -74,6 +80,7 @@ Global
 		{1D94D9DA-CAC9-43F3-9E8B-4F06601E5590} = {A0D3D0E2-E9C9-4578-9E2E-DE9602EF4A44}
 		{1F83460F-0607-43AF-B896-B8336FA9B19B} = {8C830C28-6721-483E-AC09-D07D648B9583}
 		{44B74CF5-55A1-4CB3-B2AA-AE11019344B9} = {8C830C28-6721-483E-AC09-D07D648B9583}
+		{6807F7F9-42D6-406E-9750-FEB8669F25AB} = {90F6921D-000F-413A-B1BA-74BA90C49BF5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D9574B60-4360-4BA2-90F9-98C5A7E42755}

@@ -15,14 +15,14 @@ public abstract class EventStream : IDisposable {
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed = false;
 
-    private InMemoryBus _inboundEventBus;
+    private Bus _inboundEventBus;
     private readonly List<IDisposable> _subscriptions = new();
 
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
 
     public int Checkpoint { get; protected set; }
 
-    public EventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options, InMemoryBus? bus = null) {
+    public EventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) {
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
             SingleReader = true,
@@ -33,25 +33,34 @@ public abstract class EventStream : IDisposable {
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
 
 
-        _inboundEventBus = bus ?? new InMemoryBus();
+        _inboundEventBus = new();
     }
 
     public IDisposable SubscribeToStream(Func<RecordedEvent, Task> onAppeared) {
         var subscriber = new EventStreamSubscriber(_inboundEventBus, onAppeared).Start(StreamKey.All);
         _subscriptions.Add(subscriber);
-        return subscriber;
+        return new Disposer(() => {
+            subscriber.Dispose();
+            _subscriptions.Remove(subscriber);
+        });
     }
 
     public IDisposable SubscribeToStream(StreamId streamId, Func<RecordedEvent, Task> onAppeared) {
         var subscriber = new EventStreamSubscriber(_inboundEventBus, onAppeared).Start(streamId);
         _subscriptions.Add(subscriber);
-        return subscriber;
+        return new Disposer(() => {
+            subscriber.Dispose();
+            _subscriptions.Remove(subscriber);
+        });
     }
 
     public IDisposable SubscribeToStream(StreamKey streamKey, Func<RecordedEvent, Task> onAppeared) {
         var subscriber = new EventStreamSubscriber(_inboundEventBus, onAppeared).Start(streamKey);
         _subscriptions.Add(subscriber);
-        return subscriber;
+        return new Disposer(() => {
+            subscriber.Dispose();
+            _subscriptions.Remove(subscriber);
+        });
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId streamId, int? revision = null) {
@@ -152,7 +161,7 @@ public abstract class EventStream : IDisposable {
                     var eventOffset = Checkpoint - startIdx;
                     // todo: write startIdx and eventOffset to 'index'
 
-                    await _inboundEventBus.PublishAsync(new EventRecorded(recorded)); //note: this is going to be really f** slow.
+                    await _inboundEventBus.PublishAsync(recorded); //note: this is going to be really f** slow.
                 }
 
                 // issue a message to have all subscriptions "catch-up" to the end of the log?
@@ -195,7 +204,7 @@ public abstract class EventStream : IDisposable {
                         onceCompleted.SetResult(WriteResult.Failed(-1, new WrongExpectedVersionException(ExpectedVersion.NoStream, ExpectedVersion.StreamExists)));
                         return false;
                     }
-                    
+
                     //else {
                     //    // check for duplicates here.
                     //    var nonEmptyStreamEvents = await ReadAsync(StreamKey.All).OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
@@ -238,7 +247,8 @@ public abstract class EventStream : IDisposable {
                     break;
             }
         }
-        catch (Exception exc) {
+        catch (Exception) {
+            // todo: log?
             return false;
         }
 

@@ -1,8 +1,11 @@
 namespace LvStreamStore;
 
 using System;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
+using Microsoft.Extensions.Logging;
 
 public class StreamItemJsonConverter : JsonConverter<StreamItem> {
     const string EventType = nameof(EventType);
@@ -52,7 +55,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
 
                 writer.WritePropertyName(options?.PropertyNamingPolicy?.ConvertName("StreamId") ?? "StreamId");
                 JsonSerializer.Serialize(writer, created.StreamId, options);
-
+                writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(created.MsgId)) ?? nameof(created.MsgId), created.MsgId!.Value);
                 break;
             case RecordedEvent @event:
                 writer.WriteNumber(EventType, (int)StreamItemTypes.RecordedEvent);
@@ -66,6 +69,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
                 //todo: determine how to write a byte array here.  can this be a json text at the end?
                 writer.WriteBase64String(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Metadata)) ?? nameof(@event.Metadata), @event.Metadata);
                 writer.WriteBase64String(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Data)) ?? nameof(@event.Data), @event.Data);
+                writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.MsgId)) ?? nameof(@event.MsgId), @event.MsgId!.Value);
 
                 break;
             default:
@@ -77,27 +81,28 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
 
     private static StreamCreated DeserializeStreamCreated(ref Utf8JsonReader reader, JsonSerializerOptions options) {
         // find the StreamId node
-        StreamCreated? created = null;
+        StreamId StreamId = null;
+        Guid MsgId = Guid.Empty;
 
-        do {
-            reader.Read();
+        while(reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
             if (reader.TokenType != JsonTokenType.PropertyName) continue;
 
-            var nameOfProperty = reader.GetString();
-            nameOfProperty = string.IsNullOrEmpty(nameOfProperty) ? nameOfProperty : options?.PropertyNamingPolicy?.ConvertName(nameOfProperty) ?? nameOfProperty;
+            var propertyName = options?.PropertyNamingPolicy?.ConvertName(reader.GetString() ?? string.Empty) ?? reader.GetString();
+            if (string.IsNullOrEmpty(propertyName)) continue;
 
-            var expectedNameOfProperty = options?.PropertyNamingPolicy?.ConvertName("StreamId") ?? "StreamId";
+            reader.Read(); // now at the value.
 
-            if (!string.IsNullOrWhiteSpace(nameOfProperty) && nameOfProperty.Equals(expectedNameOfProperty)) {
-                reader.Read();
-                var streamId = JsonSerializer.Deserialize<StreamId>(ref reader, options);
-                if (streamId is null) throw new JsonException();
-                created = new StreamCreated(streamId);
-                reader.Read();
+            if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(StreamId)) ?? nameof(StreamId))) {
+                StreamId = JsonSerializer.Deserialize<StreamId>(ref reader, options)!;
+                if (StreamId is null) throw new JsonException();
+            } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(MsgId)) ?? nameof(MsgId))) {
+                MsgId = Guid.Parse(reader.GetString()!);
             }
-        } while (reader.TokenType != JsonTokenType.EndObject);
+        }
 
-        return created ?? throw new JsonException();
+        if (StreamId is null || MsgId == Guid.Empty) throw new JsonException();
+
+        return new StreamCreated(StreamId, MsgId);
     }
 
     private static RecordedEvent DeserializeRecordedEvent(ref Utf8JsonReader reader, JsonSerializerOptions options) {
@@ -107,6 +112,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
         var Metadata = Array.Empty<byte>();
         var Data = Array.Empty<byte>();
         var Type = string.Empty;
+        var MsgId = Guid.Empty;
 
         while (reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
             if (reader.TokenType != JsonTokenType.PropertyName) continue;
@@ -129,12 +135,14 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
                 Data = reader.GetBytesFromBase64();
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Type)) ?? nameof(Type))) {
                 Type = reader.GetString()!;
+            } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(MsgId)) ?? nameof(MsgId))) {
+                MsgId = Guid.Parse(reader.GetString()!);
             }
         }
 
         if (StreamId is null || EventId == Guid.Empty || Revision < 0) throw new JsonException();
 
-        return new RecordedEvent(StreamId, EventId, Revision, Type, Metadata, Data);
+        return new RecordedEvent(StreamId, EventId, Revision, Type, Metadata, Data, MsgId);
     }
 
     enum StreamItemTypes {

@@ -1,3 +1,3 @@
 namespace LvStreamStore;
 
-public record StreamCreated(StreamId StreamId) : StreamItem(StreamId) { }
+public record StreamCreated(StreamId StreamId, Guid? MsgId = null) : StreamItem(StreamId, MsgId) { }

@@ -10,7 +10,7 @@ public class MemoryEventStream : EventStream {
     private readonly MemoryStream _stream = new();
     private readonly MemoryEventStreamOptions _options;
 
-    public MemoryEventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options, InMemoryBus bus) : base(loggerFactory, options, bus) {
+    public MemoryEventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) : base(loggerFactory, options) {
         _options = options.Value as MemoryEventStreamOptions ?? new MemoryEventStreamOptions();
     }
 
