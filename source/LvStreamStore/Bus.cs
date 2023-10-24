@@ -5,20 +5,24 @@ namespace LvStreamStore {
     using System.Threading.Channels;
     using System.Threading.Tasks;
 
+    using Microsoft.Extensions.Logging;
+
     internal class Bus : IDisposable {
+        private readonly ILogger _logger;
         private readonly Channel<Message> _messageChannel = Channel.CreateUnbounded<Message>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });
         private readonly Dictionary<Guid, TaskCompletionSource<CommandResult>> _pending = new();
         private readonly CancellationTokenSource _cts = new();
-        private readonly List<Action<object>> _eventSubscriptions = new();
+        private readonly List<Func<object, Task>> _eventSubscriptions = new();
         private readonly Dictionary<Type, Func<object, Task<CommandResult>>> _commandSubscriptions = new();
         long _numberOfEventsPublished = 0;
         long _averageExecutionTimeTicks = 0;
 
 
-        public Bus() {
+        public Bus(ILogger logger) {
+            _logger = logger;
             var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             Task.Run(async () => { while (!_cts.IsCancellationRequested) { await timer.WaitForNextTickAsync(); PublishTelemetry(); } }, _cts.Token);
             Task.Run(Pump, _cts.Token);
@@ -37,10 +41,10 @@ namespace LvStreamStore {
             return await tcs.Task.WithTimeout(timesOutAfter);
         }
 
-        public IDisposable Subscribe<T>(IHandle<T> handler) where T : Event {
-            var action = new Action<object>((o) => handler.Handle((T)o));
-            _eventSubscriptions.Add(action);
-            return new Disposer(() => _eventSubscriptions.Remove(action));
+        public IDisposable Subscribe<T>(IHandleAsync<T> handler) where T : Event {
+            var func = new Func<object, Task>((o) => handler.HandleAsync((T)o));
+            _eventSubscriptions.Add(func);
+            return new Disposer(() => _eventSubscriptions.Remove(func));
         }
 
         public IDisposable Subscribe<T>(IHandleCommand<T> handler) where T : Command {
@@ -51,40 +55,42 @@ namespace LvStreamStore {
         }
 
         private async void Pump() {
-            Debug.WriteLine("Pump online.");
+
+            _logger.LogDebug("Pump online.");
             while (!_cts.IsCancellationRequested) {
-                Debug.WriteLine("Waiting for message...");
+                _logger.LogDebug("Waiting for message...");
                 await _messageChannel.Reader.WaitToReadAsync();
 
                 _numberOfEventsPublished++;
                 var startTime = DateTime.UnixEpoch.Ticks;
 
                 var msg = await _messageChannel.Reader.ReadAsync();
-                Debug.WriteLine("Received message.");
+                _logger.LogDebug("Received message.");
 
                 switch (msg) {
                     case Event @event:
-                        Debug.WriteLine("Received an event.");
+                        if (@event.GetType() == typeof(BusTelemetry)) { return; }
+                        _logger.LogDebug("Received an event.");
                         foreach (var evtHandler in _eventSubscriptions) {
                             try {
-                                Debug.WriteLine("Handling event.");
-                                evtHandler.Invoke(@event);
+                                _logger.LogDebug("Handling event.");
+                                await evtHandler.Invoke(@event);
                             }
                             catch (Exception exc) {
-                                Debug.WriteLine($"{exc.GetType().Name}: {exc.Message}");
+                                _logger.LogDebug($"{exc.GetType().Name}: {exc.Message}");
                             }
                         }
-                        Debug.WriteLine("Event handled.");
+                        _logger.LogDebug("Event handled.");
                         break;
                     case Command command:
-                        Debug.WriteLine("Received Command");
+                        _logger.LogDebug("Received Command");
                         if (!_commandSubscriptions.TryGetValue(command.GetType(), out var cmdHandler)) { throw new NotSupportedException(); }
                         if (!_pending.TryGetValue(command.MsgId!.Value, out var tcs)) { throw new NotSupportedException(); }
 
                         try {
                             var result = await cmdHandler.Invoke(command);
                             tcs.SetResult(result);
-                            Debug.WriteLine("Command handled");
+                            _logger.LogDebug("Command handled");
                         }
                         catch (Exception exc) {
                             tcs.SetResult(command.Fail(exc));

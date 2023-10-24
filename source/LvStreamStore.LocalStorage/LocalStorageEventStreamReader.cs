@@ -7,6 +7,8 @@ namespace LvStreamStore.LocalStorage {
     internal class LocalStorageEventStreamReader : EventStreamReader {
         private readonly string _dataFile;
         private readonly LocalStorageEventStreamOptions _options;
+        private long _lastPosition = 0;
+        private int _lastOffset = 0;
 
         public LocalStorageEventStreamReader(string dataFileName, LocalStorageEventStreamOptions options) {
             _dataFile = dataFileName;
@@ -14,28 +16,30 @@ namespace LvStreamStore.LocalStorage {
         }
 
         public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default)
-            => new Enumerator(_dataFile, _options, token);
+            => new Enumerator(_options, this, token);
 
         class Enumerator : IEnumerator {
-            private readonly string _dataFile;
             private readonly CancellationToken _token;
             private readonly LocalStorageEventStreamOptions _options;
             private byte[] _buffer = new byte[4096];
+            private readonly LocalStorageEventStreamReader _reader;
 
             public StreamItem Current { get; private set; }
 
-            public int Position { get; private set; }
+            public long Position { get; private set; }
 
             public int Offset { get; private set; }
 
-            public Enumerator(string dataFile, LocalStorageEventStreamOptions options, CancellationToken token = default) {
-                _dataFile = dataFile;
+            public Enumerator(LocalStorageEventStreamOptions options, LocalStorageEventStreamReader reader, CancellationToken token = default) {
                 _options = options;
                 _token = token;
+                _reader = reader;
+
+                Position = _reader._lastPosition;
+                Offset = _reader._lastOffset;
             }
 
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-
 
             public async ValueTask<bool> MoveNextAsync() {
                 Position += Offset;
@@ -45,7 +49,9 @@ namespace LvStreamStore.LocalStorage {
                 var ms = new MemoryStream();
                 int readOffset;
 
-                using (var fStream = new FileStream(_dataFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
+
+
+                using (var fStream = new FileStream(_reader._dataFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
                     fStream.Seek(Position, SeekOrigin.Begin);
                     do {
                         Array.Clear(_buffer);
@@ -60,7 +66,7 @@ namespace LvStreamStore.LocalStorage {
                                 Current = JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
 
                                 Position += Offset + 1;
-                                Offset += Convert.ToInt32(ms.Length);
+                                Offset = Convert.ToInt32(ms.Length);
                                 ms?.Dispose();
 
                                 return true;
@@ -73,6 +79,8 @@ namespace LvStreamStore.LocalStorage {
                     } while (readOffset != 0);
                 }
 
+                _reader._lastPosition = Position;
+                _reader._lastOffset = Offset;
                 return false;
             }
         }

@@ -24,7 +24,7 @@ public class StreamItemJsonConverterTests {
 
     [Fact]
     public void Stream_created_event_type_can_be_serialized() {
-        var @event = new StreamCreated(new StreamId("stream", Array.Empty<string>(), "id"));
+        var @event = new StreamCreated(new StreamId("stream", Array.Empty<string>(), "id"), 5);
         var ms = new MemoryStream();
 
         JsonSerializer.Serialize(ms, @event, _options.JsonOptions);

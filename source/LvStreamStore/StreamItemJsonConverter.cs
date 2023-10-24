@@ -1,11 +1,8 @@
 namespace LvStreamStore;
 
 using System;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
-using Microsoft.Extensions.Logging;
 
 public class StreamItemJsonConverter : JsonConverter<StreamItem> {
     const string EventType = nameof(EventType);
@@ -55,6 +52,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
 
                 writer.WritePropertyName(options?.PropertyNamingPolicy?.ConvertName("StreamId") ?? "StreamId");
                 JsonSerializer.Serialize(writer, created.StreamId, options);
+                writer.WriteNumber(options?.PropertyNamingPolicy?.ConvertName(nameof(created.Position)) ?? nameof(created.Position), created.Position);
                 writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(created.MsgId)) ?? nameof(created.MsgId), created.MsgId!.Value);
                 break;
             case RecordedEvent @event:
@@ -64,7 +62,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
                 JsonSerializer.Serialize(writer, @event.StreamId, options);
 
                 writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.EventId)) ?? nameof(@event.EventId), @event.EventId);
-                writer.WriteNumber(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Revision)) ?? nameof(@event.Revision), @event.Revision);
+                writer.WriteNumber(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Position)) ?? nameof(@event.Position), @event.Position);
                 writer.WriteString(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Type)) ?? nameof(@event.Type), @event.Type);
                 //todo: determine how to write a byte array here.  can this be a json text at the end?
                 writer.WriteBase64String(options?.PropertyNamingPolicy?.ConvertName(nameof(@event.Metadata)) ?? nameof(@event.Metadata), @event.Metadata);
@@ -82,6 +80,7 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
     private static StreamCreated DeserializeStreamCreated(ref Utf8JsonReader reader, JsonSerializerOptions options) {
         // find the StreamId node
         StreamId StreamId = null;
+        long Position = -1;
         Guid MsgId = Guid.Empty;
 
         while(reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
@@ -97,22 +96,24 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
                 if (StreamId is null) throw new JsonException();
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(MsgId)) ?? nameof(MsgId))) {
                 MsgId = Guid.Parse(reader.GetString()!);
+            } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Position)) ?? nameof(Position))) {
+                Position = reader.GetInt64();
             }
         }
 
-        if (StreamId is null || MsgId == Guid.Empty) throw new JsonException();
+        if (StreamId is null || Position < 0l|| MsgId == Guid.Empty) throw new JsonException();
 
-        return new StreamCreated(StreamId, MsgId);
+        return new StreamCreated(StreamId, Position, MsgId);
     }
 
     private static RecordedEvent DeserializeRecordedEvent(ref Utf8JsonReader reader, JsonSerializerOptions options) {
         StreamId? StreamId = null;
         var EventId = Guid.Empty;
-        long Revision = -1;
         var Metadata = Array.Empty<byte>();
         var Data = Array.Empty<byte>();
         var Type = string.Empty;
         var MsgId = Guid.Empty;
+        var Position = -1L;
 
         while (reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
             if (reader.TokenType != JsonTokenType.PropertyName) continue;
@@ -127,8 +128,6 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(EventId)) ?? nameof(EventId))) {
                 var guidString = reader.GetString();
                 Guid.TryParse(guidString, out EventId);
-            } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Revision)) ?? nameof(Revision))) {
-                Revision = reader.GetInt64();
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Metadata)) ?? nameof(Metadata))) {
                 Metadata = reader.GetBytesFromBase64();
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Data)) ?? nameof(Data))) {
@@ -137,12 +136,14 @@ public class StreamItemJsonConverter : JsonConverter<StreamItem> {
                 Type = reader.GetString()!;
             } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(MsgId)) ?? nameof(MsgId))) {
                 MsgId = Guid.Parse(reader.GetString()!);
+            } else if (propertyName.Equals(options?.PropertyNamingPolicy?.ConvertName(nameof(Position)) ?? nameof(Position))) {
+                Position = reader.GetInt64();
             }
         }
 
-        if (StreamId is null || EventId == Guid.Empty || Revision < 0) throw new JsonException();
+        if (StreamId is null || EventId == Guid.Empty || Position < 0) throw new JsonException();
 
-        return new RecordedEvent(StreamId, EventId, Revision, Type, Metadata, Data, MsgId);
+        return new RecordedEvent(StreamId, EventId, Position, Type, Metadata, Data, MsgId);
     }
 
     enum StreamItemTypes {

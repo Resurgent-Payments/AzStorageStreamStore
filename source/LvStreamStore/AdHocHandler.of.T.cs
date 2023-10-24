@@ -1,12 +1,10 @@
 namespace LvStreamStore;
-public class AdHocHandler<T> : IHandle<T> where T : Event {
-    private readonly Action<T> _handle;
+public class AdHocHandler<T> : IHandleAsync<T> where T : Event {
+    private readonly Func<T, Task> _handle;
 
-    public AdHocHandler(Action<T> handle) {
+    public AdHocHandler(Func<T, Task> handle) {
         _handle = handle;
     }
 
-    public void Handle(T msg) {
-        _handle.Invoke(msg);
-    }
+    public Task HandleAsync(T msg) => _handle.Invoke(msg);
 }

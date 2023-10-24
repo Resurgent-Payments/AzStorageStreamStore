@@ -2,11 +2,15 @@ namespace LvStreamStore.Tests;
 
 using FakeItEasy;
 
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
     private MemoryEventStream? _stream;
+    private ILoggerFactory _loggerFactory = LoggerFactory.Create((builder) => {
+        builder.AddDebug();
+        builder.SetMinimumLevel(LogLevel.Trace);
+    });
 
     protected override EventStream Stream {
         get {
@@ -16,7 +20,7 @@ public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
                 A.CallTo(() => options.Value)
                     .Returns(value);
 
-                _stream = new MemoryEventStream(NullLoggerFactory.Instance, options);
+                _stream = new MemoryEventStream(_loggerFactory, options);
             }
             return _stream;
         }

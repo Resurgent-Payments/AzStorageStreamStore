@@ -8,10 +8,9 @@ using Microsoft.Extensions.Options;
 
 public class MemoryEventStream : EventStream {
     private readonly MemoryStream _stream = new();
-    private readonly MemoryEventStreamOptions _options;
 
     public MemoryEventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) : base(loggerFactory, options) {
-        _options = options.Value as MemoryEventStreamOptions ?? new MemoryEventStreamOptions();
+        AfterConstructed();
     }
 
     protected override async Task WriteAsync(byte[] data) {
@@ -38,5 +37,5 @@ public class MemoryEventStream : EventStream {
         _disposed = true;
     }
 
-    protected override EventStreamReader GetReader() => new MemoryEventStreamReader(_stream, _options);
+    public override EventStreamReader GetReader() => new MemoryEventStreamReader(_stream, (MemoryEventStreamOptions)_options);
 }

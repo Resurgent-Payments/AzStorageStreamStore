@@ -1,3 +1,3 @@
 namespace LvStreamStore;
 
-public abstract record StreamItem(StreamId StreamId, Guid? MsgId = null) : Event(MsgId);
+public abstract record StreamItem(StreamId StreamId, long Position, Guid? MsgId = null) : Event(MsgId);
