@@ -213,7 +213,7 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(streamId, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
-        var sub = Client.SubscribeToStream(streamId, (item) => { events.Add(item); return Task.CompletedTask; });
+        var sub = Client.SubscribeToStreamAsync(streamId, (item) => { events.Add(item); return Task.CompletedTask; });
         await Client.AppendToStreamAsync(streamId, ExpectedVersion.Any, new[] { e4 });
 
         AssertEx.IsOrBecomesTrue(() => events.Count > 3, TimeSpan.FromSeconds(3));
@@ -233,7 +233,7 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
-        _ = Client.SubscribeToStream(key, (item) => { events.Add(item); return Task.CompletedTask; });
+        _ = await Client.SubscribeToStreamAsync(key, (item) => { events.Add(item); return Task.CompletedTask; });
 
         await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
 
@@ -350,7 +350,7 @@ public abstract class ClientTestBase : IDisposable {
         var key = new StreamId("test", Array.Empty<string>(), "stream");
 
         for (var i = 0; i < numberOfSubscriptions; i++) {
-            _ = Client.SubscribeToStream(key, (item) => {
+            _ = Client.SubscribeToStreamAsync(key, (item) => {
                 events.Add(item);
                 return Task.CompletedTask;
             });
@@ -371,10 +371,10 @@ public abstract class ClientTestBase : IDisposable {
     public async Task Can_remove_an_allstream_subscription_via_returned_idsposable() {
         var events = new List<RecordedEvent>();
 
-        Client.SubscribeToStream((item) => {
+        (await Client.SubscribeToStreamAsync((item) => {
             events.Add(item);
             return Task.CompletedTask;
-        }).Dispose();
+        })).Dispose();
 
         var key = new StreamId("test", Array.Empty<string>(), "stream");
         var streamId = new StreamId("test", Array.Empty<string>(), "stream");
@@ -394,14 +394,14 @@ public abstract class ClientTestBase : IDisposable {
 
         var key = new StreamId("test", Array.Empty<string>(), "stream");
 
-        Client.SubscribeToStream((item) => {
+        await Client.SubscribeToStreamAsync((item) => {
             events.Add(item);
             return Task.CompletedTask;
         });
-        Client.SubscribeToStream((item) => {
+        (await Client.SubscribeToStreamAsync((item) => {
             events.Add(item);
             return Task.CompletedTask;
-        }).Dispose();
+        })).Dispose();
 
         events.Clear();
         var result = await Client.AppendToStreamAsync(

@@ -1,7 +1,4 @@
 namespace LvStreamStore;
-
-using System.Reactive;
-
 public class InProcessEventStreamClient : IEventStreamClient {
     private readonly CancellationTokenSource _cts = new();
 
@@ -25,16 +22,16 @@ public class InProcessEventStreamClient : IEventStreamClient {
 
 
     /// <inheritdoc />
-    public IDisposable SubscribeToStream(Func<RecordedEvent, Task> handler)
-        => _eventStream.SubscribeToStream(handler);
+    public Task<IDisposable> SubscribeToStreamAsync(Func<RecordedEvent, Task> handler)
+        => _eventStream.SubscribeToStreamAsync(handler);
 
     /// <inheritdoc />
-    public IDisposable SubscribeToStream(StreamKey streamKey, Func<RecordedEvent, Task> handler)
-        => _eventStream.SubscribeToStream(streamKey, handler.Invoke);
+    public Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, Func<RecordedEvent, Task> handler)
+        => _eventStream.SubscribeToStreamAsync(streamKey, handler.Invoke);
  
     /// <inheritdoc />
-    public IDisposable SubscribeToStream(StreamId streamId, Func<RecordedEvent, Task> handler)
-        => _eventStream.SubscribeToStream(streamId, handler.Invoke);
+    public Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Func<RecordedEvent, Task> handler)
+        => _eventStream.SubscribeToStreamAsync(streamId, handler.Invoke);
 
     /// <inheritdoc />
     public ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events)

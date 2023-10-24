@@ -25,11 +25,13 @@ public abstract partial class EventStream : IDisposable {
     public EventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) {
         _loggerFactory = loggerFactory;
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
+
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false,
             AllowSynchronousContinuations = false
         });
+
         _cts.Token.Register(() => _streamWriter.Writer.Complete());
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
     }
@@ -39,23 +41,23 @@ public abstract partial class EventStream : IDisposable {
         _subscribers = new(this, _loggerFactory.CreateLogger(GetType()));
     }
 
-    public IDisposable SubscribeToStream(Func<RecordedEvent, Task> onAppeared)
-        => _subscribers.SubscribeToStreamAsync(onAppeared).GetAwaiter().GetResult();
+    public async Task<IDisposable> SubscribeToStreamAsync(Func<RecordedEvent, Task> onAppeared)
+        => await _subscribers.SubscribeToStreamAsync(onAppeared);
 
-    public IDisposable SubscribeToStream(StreamId streamId, Func<RecordedEvent, Task> onAppeared) {
-        return _subscribers.SubscribeToStreamAsync(async (recorded) => {
+    public async Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Func<RecordedEvent, Task> onAppeared) {
+        return await _subscribers.SubscribeToStreamAsync(async (recorded) => {
             if (streamId == recorded.StreamId) {
                 await onAppeared(recorded);
             }
-        }).GetAwaiter().GetResult();
+        });
     }
 
-    public IDisposable SubscribeToStream(StreamKey streamKey, Func<RecordedEvent, Task> onAppeared) {
-        return _subscribers.SubscribeToStreamAsync(async (recorded) => {
+    public async Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, Func<RecordedEvent, Task> onAppeared) {
+        return await _subscribers.SubscribeToStreamAsync(async (recorded) => {
             if (streamKey == recorded.StreamId) {
                 await onAppeared(recorded);
             }
-        }).GetAwaiter().GetResult();
+        });
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId streamId, int? revision = null) {
