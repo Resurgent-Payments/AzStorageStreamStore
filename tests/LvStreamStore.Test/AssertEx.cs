@@ -2,16 +2,15 @@ namespace LvStreamStore;
 
 public static class AssertEx {
     public static void IsOrBecomesTrue(Func<bool> test, TimeSpan timeoutAfter) {
-        CancellationTokenSource cts = new();
-        cts.CancelAfter(timeoutAfter);
-        Task.Run(async () => {
-            while (!cts.IsCancellationRequested) {
-                if (test()) {
-                    return;
-                }
-                await Task.Delay(20);
+
+        var deadline = DateTime.Now + timeoutAfter;
+        do {
+            if (SpinWait.SpinUntil(test, 50)) {
+                return;
             }
-            throw new TimeoutException();
-        }, cts.Token);
+            if (DateTime.Now > deadline) {
+                throw new TimeoutException();
+            }
+        } while (true);
     }
 }
