@@ -17,7 +17,7 @@ public abstract class ClientTestBase : IDisposable {
     public IEventStreamClient Client { get; }
 
     public ClientTestBase() {
-        Client = new InProcessEventStreamClient(Stream);
+        Client = new EmbeddedEventStreamClient(Stream);
 
         AsyncHelper.RunSync(Client.InitializeAsync);
         var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>()) }));

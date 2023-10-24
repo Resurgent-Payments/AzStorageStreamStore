@@ -1,10 +1,10 @@
 namespace LvStreamStore;
-public class InProcessEventStreamClient : IEventStreamClient {
+public class EmbeddedEventStreamClient : IEventStreamClient {
     private readonly CancellationTokenSource _cts = new();
 
     private readonly EventStream _eventStream;
 
-    public InProcessEventStreamClient(EventStream eventStream) {
+    public EmbeddedEventStreamClient(EventStream eventStream) {
         _eventStream = eventStream;
     }
 
