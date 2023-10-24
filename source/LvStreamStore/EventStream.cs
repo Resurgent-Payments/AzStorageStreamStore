@@ -164,9 +164,6 @@ public abstract class EventStream : IDisposable {
                     await _inboundEventBus.PublishAsync(recorded); //note: this is going to be really f** slow.
                 }
 
-                // issue a message to have all subscriptions "catch-up" to the end of the log?
-                await _inboundEventBus.PublishAsync(new UpdateSubscription());
-
                 // capture the offset here.
 
                 // write the index log entry.
