@@ -1,10 +1,6 @@
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddLvStreamStore()
-    .UseLocalStorage()
-    .UseJsonSerialization();
-
-builder.Services.AddLvStreamStore()
     .UseMemoryStorage()
     .UseJsonSerialization();
 
