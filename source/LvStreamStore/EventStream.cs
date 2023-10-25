@@ -17,13 +17,16 @@ public abstract partial class EventStream : IDisposable {
     private bool _disposed = false;
     private Subscribers _subscribers;
     private Bus _inboundEventBus;
+    private readonly List<IDisposable> _subscriptions = new();
 
+    protected ILogger Log { get; }
     protected IEventSerializer Serializer { get; }
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
 
     public int Checkpoint { get; protected set; }
 
     protected EventStream(ILoggerFactory loggerFactory, IEventSerializer serializer, IOptions<EventStreamOptions> options) {
+        Log = loggerFactory.CreateLogger<EventStream>();
         Serializer = serializer!;
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
 
@@ -166,6 +169,7 @@ public abstract partial class EventStream : IDisposable {
                 onceCompleted.SetResult(WriteResult.Ok(position));
             }
             catch (Exception exc) {
+                Log.LogWarning(exc, "Write process failed.");
                 onceCompleted.SetResult(WriteResult.Failed(-1, exc));
             }
         }
@@ -176,6 +180,7 @@ public abstract partial class EventStream : IDisposable {
             switch (expected) {
                 case -4: // stream exists
                     if (!await ReadAsync(StreamKey.All).AllAsync(e => e.StreamId != streamId)) {
+                        Log.LogWarning("An attempt to write events to stream {@streamId} failed.  Stream does not exist, and was expected to.", streamId);
                         onceCompleted.SetResult(WriteResult.Failed(-1, new StreamDoesNotExistException()));
                         return false;
                     }
@@ -185,7 +190,7 @@ public abstract partial class EventStream : IDisposable {
                     break;
                 case -1: // no stream
                     if (!await ReadAsync(StreamKey.All).AllAsync(s => s.StreamId != streamId)) {
-                        var revision = ReadAsync(StreamKey.All).OfType<RecordedEvent>().MaxAsync(e => e.Position);
+                        Log.LogWarning("An attempt to write events to stream {@streamId} failed.  Stream exists, and was not expected to.", streamId);
                         onceCompleted.SetResult(WriteResult.Failed(-1, new WrongExpectedVersionException(ExpectedVersion.NoStream, ExpectedVersion.StreamExists)));
                         return false;
                     }
@@ -215,6 +220,7 @@ public abstract partial class EventStream : IDisposable {
                     if (filtered.Count() != expected) {
                         // if all events are appended, considered as a double request and post-back ok.
                         if (events.All(e => filtered.All(i => i.EventId != e.EventId))) {
+                            Log.LogTrace("Attempt to write events is considered as successful.  All events have been recorded.");
                             onceCompleted.SetResult(WriteResult.Ok(filtered.Max(x => x.Position)));
                             return false;
                         }
@@ -223,6 +229,7 @@ public abstract partial class EventStream : IDisposable {
                         // -- or --
                         // only some were appended, then throw a wrong expected version.
                         if (events.Select(e => filtered.All(s => s.EventId != e.EventId)).Any()) {
+                            Log.LogTrace("Attempt to write events is considered as failed.  All or some events have previously been recorded.");
                             onceCompleted.SetResult(WriteResult.Failed(filtered.Max(x => x.Position),
                                 new WrongExpectedVersionException(expected, filtered.LastOrDefault()?.Position ?? ExpectedVersion.NoStream)));
                             return false;
@@ -232,7 +239,8 @@ public abstract partial class EventStream : IDisposable {
                     break;
             }
         }
-        catch (Exception) {
+        catch (Exception exc) {
+            Log.LogError(exc, "Stream validation failed.");
             // todo: log?
             return false;
         }
