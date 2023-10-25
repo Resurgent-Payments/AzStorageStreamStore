@@ -8,8 +8,6 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="LvStreamStore.Tests" />
-        <InternalsVisibleTo Include="LvStreamStore.LocalStorage" />
-        <InternalsVisibleTo Include="LvStreamStore.LocalStorage.Tests" />
         <InternalsVisibleTo Include="LvStreamStore.Hosting" />
         <InternalsVisibleTo Include="LvStreamStore.AspNetCore.Hosting" />
     </ItemGroup>

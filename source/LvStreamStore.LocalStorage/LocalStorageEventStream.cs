@@ -14,7 +14,7 @@ internal class LocalStorageEventStream : EventStream {
     private readonly string _dataFile;
     private LocalStorageEventStreamOptions _localStorageOptions() => (LocalStorageEventStreamOptions)_options;
 
-    public LocalStorageEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<EventStreamOptions> options) : base(loggerFactory, eventSerializer, options) {
+    internal LocalStorageEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<EventStreamOptions> options) : base(loggerFactory, eventSerializer, options) {
         _options = options.Value as LocalStorageEventStreamOptions ?? new LocalStorageEventStreamOptions();
         _dataFile = Path.Combine(_options.BaseDataPath, "chunk.dat");
 

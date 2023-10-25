@@ -6,7 +6,7 @@ namespace LvStreamStore.Serialization.Json {
 
     public class JsonEventSerializer : IEventSerializer {
         JsonSerializationOptions _options;
-        internal JsonEventSerializer(IOptions<JsonSerializationOptions> options) {
+        public JsonEventSerializer(IOptions<JsonSerializationOptions> options) {
             _options = options.Value ?? new JsonSerializationOptions();
         }
 

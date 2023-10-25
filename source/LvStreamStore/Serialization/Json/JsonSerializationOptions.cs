@@ -5,7 +5,7 @@ namespace LvStreamStore.Serialization.Json {
     public class JsonSerializationOptions {
         public JsonSerializerOptions JsonOptions { get; }
 
-        internal JsonSerializationOptions() {
+        public JsonSerializationOptions() {
             JsonOptions = new JsonSerializerOptions() {
                 IgnoreReadOnlyFields = false,
                 IgnoreReadOnlyProperties = false,

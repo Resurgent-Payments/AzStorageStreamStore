@@ -23,7 +23,7 @@ public abstract partial class EventStream : IDisposable {
 
     public int Checkpoint { get; protected set; }
 
-    internal EventStream(ILoggerFactory loggerFactory, IEventSerializer serializer, IOptions<EventStreamOptions> options) {
+    protected EventStream(ILoggerFactory loggerFactory, IEventSerializer serializer, IOptions<EventStreamOptions> options) {
         Serializer = serializer!;
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
 
