@@ -2,9 +2,11 @@ namespace LvStreamStore.LocalStorage.Tests;
 
 using FakeItEasy;
 
+using LvStreamStore.Serialization.Json;
 using LvStreamStore.Tests;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 public class LocalStorageEventStreamTests : ClientTestBase {
@@ -24,8 +26,11 @@ public class LocalStorageEventStreamTests : ClientTestBase {
                 var diskOptionsAccessor = A.Fake<IOptions<EventStreamOptions>>();
                 A.CallTo(() => diskOptionsAccessor.Value)
                     .Returns(diskOptions);
+                var serializerOptions = A.Fake<IOptions<JsonSerializationOptions>>();
+                A.CallTo(() => serializerOptions.Value)
+                    .Returns(new JsonSerializationOptions());
 
-                _stream = new LocalStorageEventStream(_loggerFactory, diskOptionsAccessor);
+                _stream = new LocalStorageEventStream(NullLoggerFactory.Instance, new JsonEventSerializer(serializerOptions), diskOptionsAccessor);
             }
             return _stream;
         }

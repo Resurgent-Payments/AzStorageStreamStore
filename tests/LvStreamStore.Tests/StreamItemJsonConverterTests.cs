@@ -4,15 +4,17 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
+using LvStreamStore.Serialization.Json;
+
 using Xunit;
 
 public class StreamItemJsonConverterTests {
     StreamItemJsonConverter _sut;
-    MemoryEventStreamOptions _options;
+    JsonSerializationOptions _options;
 
     public StreamItemJsonConverterTests() {
         _sut = new StreamItemJsonConverter();
-        _options = new();
+        _options = new ();
     }
 
     [Theory]

@@ -1,24 +1,29 @@
 namespace LvStreamStore.LocalStorage {
     using System;
     using System.Collections.Generic;
-    using System.Text.Json;
     using System.Threading.Tasks;
+
+    using LvStreamStore.Serialization;
 
     internal class LocalStorageEventStreamReader : EventStreamReader {
         private readonly string _dataFile;
+        private readonly IEventSerializer _eventSerializer;
         private readonly LocalStorageEventStreamOptions _options;
         private long _lastPosition = 0;
         private int _lastOffset = 0;
 
-        public LocalStorageEventStreamReader(string dataFileName, LocalStorageEventStreamOptions options) {
+        public LocalStorageEventStreamReader(string dataFileName, IEventSerializer eventSerializer, LocalStorageEventStreamOptions options) {
             _dataFile = dataFileName;
+            _eventSerializer = eventSerializer;
             _options = options;
         }
 
         public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default)
-            => new Enumerator(_options, this, token);
+            => new Enumerator(_dataFile, this, _eventSerializer, _options, token);
 
         class Enumerator : IEnumerator {
+            private readonly string _dataFile;
+            private readonly IEventSerializer _eventSerializer;
             private readonly CancellationToken _token;
             private readonly LocalStorageEventStreamOptions _options;
             private byte[] _buffer = new byte[4096];
@@ -30,7 +35,9 @@ namespace LvStreamStore.LocalStorage {
 
             public int Offset { get; private set; }
 
-            public Enumerator(LocalStorageEventStreamOptions options, LocalStorageEventStreamReader reader, CancellationToken token = default) {
+            public Enumerator(string dataFile, LocalStorageEventStreamReader reader, IEventSerializer eventSerializer, LocalStorageEventStreamOptions options, CancellationToken token = default) {
+                _dataFile = dataFile;
+                _eventSerializer = eventSerializer;
                 _options = options;
                 _token = token;
                 _reader = reader;
@@ -63,7 +70,7 @@ namespace LvStreamStore.LocalStorage {
                             if (_buffer[idx] == StreamConstants.EndOfRecord) { // found a point whereas we need to deserialize what we have in the buffer, yield it back to the caller, then advance the index by 1.
                                 ms.Seek(0, SeekOrigin.Begin);
 
-                                Current = JsonSerializer.Deserialize<StreamItem>(ms, _options.JsonOptions)!;
+                                Current = _eventSerializer.Deserialize<StreamItem>(ms)!;
 
                                 Position += Offset + 1;
                                 Offset = Convert.ToInt32(ms.Length);

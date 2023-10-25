@@ -1,10 +1,10 @@
 namespace LvStreamStore;
 
 using System;
-using System.IO;
 using System.Reactive;
-using System.Text.Json;
 using System.Threading.Channels;
+
+using LvStreamStore.Serialization;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,12 +18,13 @@ public abstract partial class EventStream : IDisposable {
     private Subscribers _subscribers;
     private Bus _inboundEventBus;
 
+    protected IEventSerializer Serializer { get; }
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
 
     public int Checkpoint { get; protected set; }
 
-    public EventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) {
-        _loggerFactory = loggerFactory;
+    internal EventStream(ILoggerFactory loggerFactory, IEventSerializer serializer, IOptions<EventStreamOptions> options) {
+        Serializer = serializer!;
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
 
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
@@ -132,13 +133,9 @@ public abstract partial class EventStream : IDisposable {
                 // if we don't have a StreamCreated event, we need to append one now.
                 if (await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
                     // write the stream created event.
-                    var ms = new MemoryStream();
-                    position += 1;
-                    var created = new StreamCreated(streamId, position);
-
-                    JsonSerializer.Serialize(ms, created, _options.JsonOptions);
-                    ms.WriteByte(StreamConstants.EndOfRecord);
-                    await WriteAsync(ms.ToArray());
+                    var stream = Serializer.Serialize(new StreamCreated(streamId, position));
+                    stream.WriteByte(StreamConstants.EndOfRecord);
+                    await WriteAsync(stream.ToArray());
                 }
 
                 // cache the current checkpoint.
@@ -148,14 +145,9 @@ public abstract partial class EventStream : IDisposable {
                     var recorded = new RecordedEvent(streamId, @event.EventId, position, @event.Type, @event.Metadata, @event.Data);
 
                     // write the stream created event.
-                    var ms = new MemoryStream();
-
-                    var startIdx = Checkpoint;
-                    JsonSerializer.Serialize(ms, recorded, _options.JsonOptions);
+                    var ms = Serializer.Serialize(recorded);
                     ms.WriteByte(StreamConstants.EndOfRecord);
                     await WriteAsync(ms.ToArray());
-                    var eventOffset = Checkpoint - startIdx;
-                    // todo: write startIdx and eventOffset to 'index'
 
                     await _inboundEventBus.PublishAsync(recorded); //note: this is going to be really f** slow.
                 }

@@ -2,7 +2,10 @@ namespace LvStreamStore.Tests;
 
 using FakeItEasy;
 
+using LvStreamStore.Serialization.Json;
+
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
@@ -19,8 +22,13 @@ public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
                 var options = A.Fake<IOptions<EventStreamOptions>>();
                 A.CallTo(() => options.Value)
                     .Returns(value);
+                var serializerOptions = A.Fake<IOptions<JsonSerializationOptions>>();
+                A.CallTo(() => serializerOptions.Value)
+                    .Returns(new JsonSerializationOptions());
 
-                _stream = new MemoryEventStream(_loggerFactory, options);
+
+
+                _stream = new MemoryEventStream(NullLoggerFactory.Instance, new JsonEventSerializer(serializerOptions), options);
             }
             return _stream;
         }

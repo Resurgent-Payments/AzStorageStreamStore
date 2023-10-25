@@ -3,13 +3,15 @@ namespace LvStreamStore;
 using System.IO;
 using System.Threading.Tasks;
 
+using LvStreamStore.Serialization;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-public class MemoryEventStream : EventStream {
+internal class MemoryEventStream : EventStream {
     private readonly MemoryStream _stream = new();
 
-    public MemoryEventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) : base(loggerFactory, options) {
+    internal MemoryEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<EventStreamOptions> options) : base(loggerFactory, eventSerializer, options) {
         AfterConstructed();
     }
 
@@ -37,5 +39,5 @@ public class MemoryEventStream : EventStream {
         _disposed = true;
     }
 
-    public override EventStreamReader GetReader() => new MemoryEventStreamReader(_stream, (MemoryEventStreamOptions)_options);
+    public override EventStreamReader GetReader() => new MemoryEventStreamReader(_stream, Serializer, (MemoryEventStreamOptions)_options);
 }

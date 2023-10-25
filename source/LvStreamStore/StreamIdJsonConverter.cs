@@ -4,7 +4,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public class StreamIdJsonConverter : JsonConverter<StreamId> {
+internal class StreamIdJsonConverter : JsonConverter<StreamId> {
     public override bool CanConvert(Type typeToConvert) => typeToConvert.IsAssignableFrom(typeof(StreamId));
 
     public override StreamId? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {

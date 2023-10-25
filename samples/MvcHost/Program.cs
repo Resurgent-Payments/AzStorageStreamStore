@@ -1,8 +1,12 @@
-using LvStreamStore;
-
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddLvStreamStore<MemoryEventStream>(_ => { });
+builder.Services.AddLvStreamStore()
+    .UseLocalStorage()
+    .UseJsonSerialization();
+
+builder.Services.AddLvStreamStore()
+    .UseMemoryStorage()
+    .UseJsonSerialization();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();

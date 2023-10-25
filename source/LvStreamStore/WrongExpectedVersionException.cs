@@ -4,7 +4,7 @@ public class WrongExpectedVersionException : Exception {
     public long ExpectedVersion { get; private set; }
     public long ActualVersion { get; private set; }
 
-    public WrongExpectedVersionException(long expectedVersion, long actualVersion) {
+    internal WrongExpectedVersionException(long expectedVersion, long actualVersion) : base() {
         ExpectedVersion = expectedVersion;
         ActualVersion = actualVersion;
     }

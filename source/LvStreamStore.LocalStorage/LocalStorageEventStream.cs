@@ -4,16 +4,19 @@ using System.IO;
 using System.Threading.Tasks;
 
 using LvStreamStore.LocalStorage;
+using LvStreamStore.Serialization;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-public class LocalStorageEventStream : EventStream {
+internal class LocalStorageEventStream : EventStream {
+    private readonly LocalStorageEventStreamOptions _options;
     private readonly string _dataFile;
     private LocalStorageEventStreamOptions _localStorageOptions() => (LocalStorageEventStreamOptions)_options;
 
-    public LocalStorageEventStream(ILoggerFactory loggerFactory, IOptions<EventStreamOptions> options) : base(loggerFactory, options) {
-        _dataFile = Path.Combine(_localStorageOptions().BaseDataPath, "chunk.dat");
+    public LocalStorageEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<EventStreamOptions> options) : base(loggerFactory, eventSerializer, options) {
+        _options = options.Value as LocalStorageEventStreamOptions ?? new LocalStorageEventStreamOptions();
+        _dataFile = Path.Combine(_options.BaseDataPath, "chunk.dat");
 
         if (!Directory.Exists(_localStorageOptions().BaseDataPath)) {
             Directory.CreateDirectory(_localStorageOptions().BaseDataPath);
@@ -53,5 +56,5 @@ public class LocalStorageEventStream : EventStream {
         _disposed = true;
     }
 
-    public override EventStreamReader GetReader() => new LocalStorageEventStreamReader(_dataFile, _localStorageOptions());
+    public override EventStreamReader GetReader() => new LocalStorageEventStreamReader(_dataFile, Serializer, _options);
 }

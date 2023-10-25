@@ -2,7 +2,7 @@ namespace LvStreamStore;
 using System;
 using System.Threading.Tasks;
 
-public static class TaskExtensions {
+internal static class TaskExtensions {
     public static async Task<T> WithTimeout<T>(this Task<T> task, TimeSpan? timeout) {
         timeout ??= TimeSpan.FromSeconds(1);
         return await Task.WhenAny(task, Task.Delay(timeout.Value)) == task

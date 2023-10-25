@@ -4,7 +4,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public class StreamItemJsonConverter : JsonConverter<StreamItem> {
+internal class StreamItemJsonConverter : JsonConverter<StreamItem> {
     const string EventType = nameof(EventType);
 
     public override bool CanConvert(Type typeToConvert) {

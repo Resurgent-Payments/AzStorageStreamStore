@@ -1,7 +1,7 @@
 namespace LvStreamStore;
 using System;
 
-public class Disposer : IDisposable {
+internal class Disposer : IDisposable {
     Action _onDisposal;
 
     public Disposer(Action onDisposal) {
