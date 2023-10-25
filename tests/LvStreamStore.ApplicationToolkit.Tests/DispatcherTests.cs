@@ -3,7 +3,7 @@ namespace LvStreamStore.ApplicationToolkit.Tests {
 
     using Xunit;
 
-    public class DispatcherTests : IDisposable {
+    public class DispatcherTests : IAsyncDisposable {
         private readonly IDispatcher _dispatcher;
         private readonly ILoggerFactory _loggerFactory;
         private List<IDisposable> _disposables = new();
@@ -88,7 +88,7 @@ namespace LvStreamStore.ApplicationToolkit.Tests {
             await _dispatcher.PublishAsync(new TestMessages.NotRegisteredEvent());
         }
 
-        public void Dispose() {
+        public ValueTask DisposeAsync() {
             _dispatcher?.Dispose();
             _loggerFactory?.Dispose();
 
@@ -96,6 +96,8 @@ namespace LvStreamStore.ApplicationToolkit.Tests {
                 disposable?.Dispose();
             }
             _disposables?.Clear();
+
+            return ValueTask.CompletedTask;
         }
     }
 }
