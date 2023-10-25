@@ -108,8 +108,8 @@ public abstract class ClientTestBase : IDisposable {
         var e2 = new EventData(id, eventId2, EventType, Array.Empty<byte>(), Array.Empty<byte>());
         var e3 = new EventData(id, eventId3, EventType, Array.Empty<byte>(), Array.Empty<byte>());
 
-        var writeResult1 = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { e1, e2 });
-        var writeResult2 = await Client.AppendToStreamAsync(_loadedStreamId, writeResult1.Version, new[] { e2, e3 });
+        var writeResult1 = await Client.AppendToStreamAsync(id, ExpectedVersion.Any, new[] { e1, e2 });
+        var writeResult2 = await Client.AppendToStreamAsync(id, writeResult1.Version, new[] { e2, e3 });
 
         Assert.True(writeResult1.Successful);
         Assert.False(writeResult2.Successful);

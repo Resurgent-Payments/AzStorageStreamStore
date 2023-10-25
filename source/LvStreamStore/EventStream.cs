@@ -10,14 +10,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 public abstract partial class EventStream : IDisposable {
-    private readonly ILoggerFactory _loggerFactory;
     protected readonly EventStreamOptions _options;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed = false;
     private Subscribers _subscribers;
     private Bus _inboundEventBus;
-    private readonly List<IDisposable> _subscriptions = new();
 
     protected ILogger Log { get; }
     protected IEventSerializer Serializer { get; }
@@ -41,8 +39,8 @@ public abstract partial class EventStream : IDisposable {
     }
 
     protected void AfterConstructed() {
-        _inboundEventBus = new(_loggerFactory.CreateLogger(GetType()));
-        _subscribers = new(this, _loggerFactory.CreateLogger(GetType()));
+        _inboundEventBus = new(Log);
+        _subscribers = new(this, Log);
     }
 
     public async Task<IDisposable> SubscribeToStreamAsync(Func<RecordedEvent, Task> onAppeared)
@@ -135,8 +133,11 @@ public abstract partial class EventStream : IDisposable {
                 // first full scan
                 // if we don't have a StreamCreated event, we need to append one now.
                 if (await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
+                    position += 1;
+                    var created = new StreamCreated(streamId, position);
+                    
                     // write the stream created event.
-                    var stream = Serializer.Serialize(new StreamCreated(streamId, position));
+                    var stream = Serializer.Serialize(created);
                     stream.WriteByte(StreamConstants.EndOfRecord);
                     await WriteAsync(stream.ToArray());
                 }

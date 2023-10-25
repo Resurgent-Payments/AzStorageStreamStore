@@ -76,6 +76,8 @@ internal class MemoryEventStreamReader : EventStreamReader {
                                 Offset = Convert.ToInt32(ms.Length);
                                 return ValueTask.FromResult(true);
                             }
+
+                            ms.WriteByte(_buffer[idx]);
                         }
 
                         Offset += readOffset; // need to do this in the event that we need to read 2x4k chunks, that we hold the position between the chunks.
