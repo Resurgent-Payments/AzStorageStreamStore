@@ -20,6 +20,13 @@ public static class LvStreamStoreConfigurationBuilderExtensions {
         return new LvStreamStoreConfigurationBuilder(builder);
     }
 
+    public static LvStreamStoreConfigurationBuilder UseEmbeddedClient(this LvStreamStoreConfigurationBuilder builder) {
+        builder.Builder.ConfigureServices((ctx, services) => {
+            services.AddSingleton<IEventStreamClient, EmbeddedEventStreamClient>();
+        });
+        return builder;
+    }
+
     public static LvStreamStoreConfigurationBuilder UseMemoryStorage(this LvStreamStoreConfigurationBuilder builder, Action<MemoryEventStreamOptions> options) {
         builder.Builder.ConfigureServices((ctx, services) => {
             var registered = services.FirstOrDefault(x => x.ServiceType == typeof(EventStream));

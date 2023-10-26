@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 internal class MemoryEventStream : EventStream {
     private readonly MemoryStream _stream = new();
 
-    internal MemoryEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<EventStreamOptions> options) : base(loggerFactory, eventSerializer, options) {
+    public MemoryEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<MemoryEventStreamOptions> options) : base(loggerFactory, eventSerializer, options) {
         AfterConstructed();
     }
 

@@ -1,6 +1,7 @@
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.AddLvStreamStore()
+    .UseEmbeddedClient()
     .UseMemoryStorage()
     .UseJsonSerialization();
 
