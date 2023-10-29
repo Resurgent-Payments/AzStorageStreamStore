@@ -8,7 +8,7 @@ namespace LvStreamStore {
 
     internal class EventBus : IDisposable {
         private readonly ILogger _logger;
-        private readonly Channel<Message> _messageChannel = Channel.CreateUnbounded<Message>(new UnboundedChannelOptions {
+        private readonly Channel<StreamMessage> _messageChannel = Channel.CreateUnbounded<StreamMessage>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });

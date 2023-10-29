@@ -1,10 +1,10 @@
 namespace LvStreamStore;
 using System;
 
-public abstract record Message {
+public abstract record StreamMessage {
     public Guid? MsgId { get; }
 
-    public Message(Guid? msgId) {
+    public StreamMessage(Guid? msgId) {
         MsgId = msgId ?? Guid.NewGuid();
     }
 }
