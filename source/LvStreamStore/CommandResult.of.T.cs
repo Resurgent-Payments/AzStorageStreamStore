@@ -1,2 +1,2 @@
 namespace LvStreamStore;
-public record CommandResult(Command command) : Message(command.MsgId) { }
+public record CommandResult(StreamCommand command) : Message(command.MsgId) { }

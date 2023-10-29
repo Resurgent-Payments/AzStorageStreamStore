@@ -6,7 +6,7 @@ namespace LvStreamStore {
 
     using Microsoft.Extensions.Logging;
 
-    internal class Bus : IDisposable {
+    internal class EventBus : IDisposable {
         private readonly ILogger _logger;
         private readonly Channel<Message> _messageChannel = Channel.CreateUnbounded<Message>(new UnboundedChannelOptions {
             SingleReader = true,
@@ -20,33 +20,33 @@ namespace LvStreamStore {
         long _averageExecutionTimeTicks = 0;
 
 
-        public Bus(ILogger logger) {
+        public EventBus(ILogger logger) {
             _logger = logger;
             var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             Task.Run(async () => { while (!_cts.IsCancellationRequested) { await timer.WaitForNextTickAsync(); PublishTelemetry(); } }, _cts.Token);
             Task.Run(Pump, _cts.Token);
         }
 
-        public async Task PublishAsync<T>(T @event) where T : Event {
+        public async Task PublishAsync<T>(T @event) where T : StreamEvent {
             await _messageChannel.Writer.WriteAsync(@event);
         }
 
-        public Task<CommandResult> RunAsync<T>(T command) where T : Command => RunAsync(command, TimeSpan.FromSeconds(30));
+        public Task<CommandResult> RunAsync<T>(T command) where T : StreamCommand => RunAsync(command, TimeSpan.FromSeconds(30));
 
-        public async Task<CommandResult> RunAsync<T>(T command, TimeSpan timesOutAfter) where T : Command {
+        public async Task<CommandResult> RunAsync<T>(T command, TimeSpan timesOutAfter) where T : StreamCommand {
             var tcs = new TaskCompletionSource<CommandResult>();
             _pending.Add(command.MsgId!.Value, tcs);
             await _messageChannel.Writer.WriteAsync(command);
             return await tcs.Task.WithTimeout(timesOutAfter);
         }
 
-        public IDisposable Subscribe<T>(IHandleAsync<T> handler) where T : Event {
+        public IDisposable Subscribe<T>(IHandleAsync<T> handler) where T : StreamEvent {
             var func = new Func<object, Task>((o) => handler.HandleAsync((T)o));
             _eventSubscriptions.Add(func);
             return new Disposer(() => _eventSubscriptions.Remove(func));
         }
 
-        public IDisposable Subscribe<T>(IHandleCommand<T> handler) where T : Command {
+        public IDisposable Subscribe<T>(IHandleCommand<T> handler) where T : StreamCommand {
             var cmdType = typeof(T);
             var func = new Func<object, Task<CommandResult>>((o) => handler.HandleAsync((T)o));
             _commandSubscriptions.Add(cmdType, func);
@@ -67,7 +67,7 @@ namespace LvStreamStore {
                 _logger.LogDebug("Received message.");
 
                 switch (msg) {
-                    case Event @event:
+                    case StreamEvent @event:
                         if (@event.GetType() == typeof(BusTelemetry)) { return; }
                         _logger.LogDebug("Received an event.");
                         foreach (var evtHandler in _eventSubscriptions) {
@@ -81,7 +81,7 @@ namespace LvStreamStore {
                         }
                         _logger.LogDebug("Event handled.");
                         break;
-                    case Command command:
+                    case StreamCommand command:
                         _logger.LogDebug("Received Command");
                         if (!_commandSubscriptions.TryGetValue(command.GetType(), out var cmdHandler)) { throw new NotSupportedException(); }
                         if (!_pending.TryGetValue(command.MsgId!.Value, out var tcs)) { throw new NotSupportedException(); }

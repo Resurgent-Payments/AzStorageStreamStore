@@ -1,2 +1,2 @@
 namespace LvStreamStore;
-public record Fail(Command command, Exception? Exception = default) : CommandResult(command) { }
+public record Fail(StreamCommand command, Exception? Exception = default) : CommandResult(command) { }

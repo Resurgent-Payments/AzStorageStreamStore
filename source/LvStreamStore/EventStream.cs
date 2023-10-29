@@ -15,7 +15,7 @@ public abstract partial class EventStream : IDisposable {
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed = false;
     private Collection<IDisposable> _subscribers = new();
-    private Bus _inboundEventBus;
+    private EventBus _inboundEventBus;
 
     protected ILogger Log { get; }
     protected IEventSerializer Serializer { get; }

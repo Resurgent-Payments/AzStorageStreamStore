@@ -1,2 +1,2 @@
 namespace LvStreamStore;
-public record Ok(Command command) : CommandResult(command) { }
+public record Ok(StreamCommand command) : CommandResult(command) { }
