@@ -1,11 +1,11 @@
 namespace LvStreamStore;
 
-internal class AdHocCommandHandler<T> : IHandleCommand<T> where T : StreamCommand {
-    private readonly Func<T, Task<CommandResult>> _handle;
+//internal class AdHocCommandHandler<T> : IHandleCommand<T> where T : StreamCommand {
+//    private readonly Func<T, Task<CommandResult>> _handle;
 
-    public AdHocCommandHandler(Func<T, Task<CommandResult>> handle) {
-        _handle = handle;
-    }
+//    public AdHocCommandHandler(Func<T, Task<CommandResult>> handle) {
+//        _handle = handle;
+//    }
 
-    public Task<CommandResult> HandleAsync(T cmd) => _handle.Invoke(cmd);
-}
+//    public Task<CommandResult> HandleAsync(T cmd) => _handle.Invoke(cmd);
+//}

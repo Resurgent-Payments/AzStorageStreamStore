@@ -12,10 +12,10 @@ namespace LvStreamStore {
             SingleReader = true,
             SingleWriter = false
         });
-        private readonly Dictionary<Guid, TaskCompletionSource<CommandResult>> _pending = new();
+        //private readonly Dictionary<Guid, TaskCompletionSource<CommandResult>> _pending = new();
         private readonly CancellationTokenSource _cts = new();
         private readonly List<Func<object, Task>> _eventSubscriptions = new();
-        private readonly Dictionary<Type, Func<object, Task<CommandResult>>> _commandSubscriptions = new();
+        //private readonly Dictionary<Type, Func<object, Task<CommandResult>>> _commandSubscriptions = new();
         long _numberOfEventsPublished = 0;
         long _averageExecutionTimeTicks = 0;
 
@@ -31,14 +31,14 @@ namespace LvStreamStore {
             await _messageChannel.Writer.WriteAsync(@event);
         }
 
-        public Task<CommandResult> RunAsync<T>(T command) where T : StreamCommand => RunAsync(command, TimeSpan.FromSeconds(30));
+        //public Task<CommandResult> RunAsync<T>(T command) where T : StreamCommand => RunAsync(command, TimeSpan.FromSeconds(30));
 
-        public async Task<CommandResult> RunAsync<T>(T command, TimeSpan timesOutAfter) where T : StreamCommand {
-            var tcs = new TaskCompletionSource<CommandResult>();
-            _pending.Add(command.MsgId!.Value, tcs);
-            await _messageChannel.Writer.WriteAsync(command);
-            return await tcs.Task.WithTimeout(timesOutAfter);
-        }
+        //public async Task<CommandResult> RunAsync<T>(T command, TimeSpan timesOutAfter) where T : StreamCommand {
+        //    var tcs = new TaskCompletionSource<CommandResult>();
+        //    _pending.Add(command.MsgId!.Value, tcs);
+        //    await _messageChannel.Writer.WriteAsync(command);
+        //    return await tcs.Task.WithTimeout(timesOutAfter);
+        //}
 
         public IDisposable Subscribe<T>(IHandleAsync<T> handler) where T : StreamEvent {
             var func = new Func<object, Task>((o) => handler.HandleAsync((T)o));
@@ -46,12 +46,12 @@ namespace LvStreamStore {
             return new Disposer(() => _eventSubscriptions.Remove(func));
         }
 
-        public IDisposable Subscribe<T>(IHandleCommand<T> handler) where T : StreamCommand {
-            var cmdType = typeof(T);
-            var func = new Func<object, Task<CommandResult>>((o) => handler.HandleAsync((T)o));
-            _commandSubscriptions.Add(cmdType, func);
-            return new Disposer(() => _commandSubscriptions.Remove(cmdType));
-        }
+        //public IDisposable Subscribe<T>(IHandleCommand<T> handler) where T : StreamCommand {
+        //    var cmdType = typeof(T);
+        //    var func = new Func<object, Task<CommandResult>>((o) => handler.HandleAsync((T)o));
+        //    _commandSubscriptions.Add(cmdType, func);
+        //    return new Disposer(() => _commandSubscriptions.Remove(cmdType));
+        //}
 
         private async void Pump() {
 
@@ -81,26 +81,26 @@ namespace LvStreamStore {
                         }
                         _logger.LogDebug("Event handled.");
                         break;
-                    case StreamCommand command:
-                        _logger.LogDebug("Received Command");
-                        if (!_commandSubscriptions.TryGetValue(command.GetType(), out var cmdHandler)) { throw new NotSupportedException(); }
-                        if (!_pending.TryGetValue(command.MsgId!.Value, out var tcs)) { throw new NotSupportedException(); }
+                    //case StreamCommand command:
+                    //    _logger.LogDebug("Received Command");
+                    //    if (!_commandSubscriptions.TryGetValue(command.GetType(), out var cmdHandler)) { throw new NotSupportedException(); }
+                    //    if (!_pending.TryGetValue(command.MsgId!.Value, out var tcs)) { throw new NotSupportedException(); }
 
-                        try {
-                            var result = await cmdHandler.Invoke(command);
-                            tcs.SetResult(result);
-                            _logger.LogDebug("Command handled");
-                        }
-                        catch (Exception exc) {
-                            tcs.SetResult(command.Fail(exc));
-                        }
-                        finally {
-                            _pending.Remove(command.MsgId!.Value);
-                            if (!tcs.Task.IsCompleted) {
-                                tcs.SetCanceled();
-                            }
-                        }
-                        break;
+                    //    try {
+                    //        var result = await cmdHandler.Invoke(command);
+                    //        tcs.SetResult(result);
+                    //        _logger.LogDebug("Command handled");
+                    //    }
+                    //    catch (Exception exc) {
+                    //        tcs.SetResult(command.Fail(exc));
+                    //    }
+                    //    finally {
+                    //        _pending.Remove(command.MsgId!.Value);
+                    //        if (!tcs.Task.IsCompleted) {
+                    //            tcs.SetCanceled();
+                    //        }
+                    //    }
+                    //    break;
                     default:
                         throw new NotSupportedException();
                 }
