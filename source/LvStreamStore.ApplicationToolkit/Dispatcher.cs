@@ -89,7 +89,6 @@ namespace LvStreamStore.ApplicationToolkit {
 
                 switch (msg) {
                     case Event @event:
-                        if (@event.GetType() == typeof(BusTelemetry)) { return; }
                         if (!_eventSubscriptions.TryGetValue(@event.GetType(), out var handles)) { continue; }
                         _logger.LogDebug("Received an event.");
                         foreach (var evtHandler in handles) {
