@@ -2,15 +2,18 @@ namespace MvcHost.Controllers;
 using System.Diagnostics;
 
 using LvStreamStore;
+using LvStreamStore.ApplicationToolkit;
 
 using Microsoft.AspNetCore.Mvc;
 
 using MvcHost.Models;
 
 public class HomeController : Controller {
+    private readonly ICommandPublisher _cmdPublisher;
     private readonly ILogger<HomeController> _logger;
 
-    public HomeController(IEventStreamClient client, ILogger<HomeController> logger) {
+    public HomeController(ICommandPublisher cmdPublisher, ILogger<HomeController> logger) {
+        _cmdPublisher = cmdPublisher;
         _logger = logger;
     }
 

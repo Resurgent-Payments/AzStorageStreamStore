@@ -3,10 +3,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.AddLvStreamStore()
     .UseEmbeddedClient()
     .UseMemoryStorage()
-    .UseJsonSerialization();
+    .UseJsonSerialization()
+    .UseApplicationToolkit();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+// add command/event services.
+builder.Host.ConfigureServices((ctx, services) => {
+    services.AddSingleton<BusinessDomain.ItemMsgHandlers>();
+});
 
 var app = builder.Build();
 

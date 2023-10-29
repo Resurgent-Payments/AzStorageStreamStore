@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\LvStreamStore.ApplicationToolkit\LvStreamStore.ApplicationToolkit.csproj" />
     <ProjectReference Include="..\LvStreamStore\LvStreamStore.csproj" />
   </ItemGroup>
 
