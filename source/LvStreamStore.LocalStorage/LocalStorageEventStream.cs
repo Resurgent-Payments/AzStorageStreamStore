@@ -14,8 +14,8 @@ internal class LocalStorageEventStream : EventStream {
     private readonly string _dataFile;
     private LocalStorageEventStreamOptions _localStorageOptions() => (LocalStorageEventStreamOptions)_options;
 
-    internal LocalStorageEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<EventStreamOptions> options) : base(loggerFactory, eventSerializer, options) {
-        _options = options.Value as LocalStorageEventStreamOptions ?? new LocalStorageEventStreamOptions();
+    internal LocalStorageEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<LocalStorageEventStreamOptions> options) : base(loggerFactory, eventSerializer, options.Value!) {
+        _options = options.Value!;
         _dataFile = Path.Combine(_options.BaseDataPath, "chunk.dat");
 
         if (!Directory.Exists(_localStorageOptions().BaseDataPath)) {
@@ -25,8 +25,6 @@ internal class LocalStorageEventStream : EventStream {
         if (!File.Exists(_dataFile)) {
             File.Create(_dataFile).Dispose();
         }
-
-        AfterConstructed();
     }
 
     protected override async Task WriteAsync(byte[] data) {

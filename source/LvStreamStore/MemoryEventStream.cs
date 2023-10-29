@@ -11,9 +11,8 @@ using Microsoft.Extensions.Options;
 internal class MemoryEventStream : EventStream {
     private readonly MemoryStream _stream = new();
 
-    public MemoryEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<MemoryEventStreamOptions> options) : base(loggerFactory, eventSerializer, options) {
-        AfterConstructed();
-    }
+    public MemoryEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<MemoryEventStreamOptions> options)
+        : base(loggerFactory, eventSerializer, options.Value!) { }
 
     protected override async Task WriteAsync(byte[] data) {
         var endOfData = data.Length;

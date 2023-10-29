@@ -1,20 +1,20 @@
 namespace LvStreamStore;
 
 using System;
+using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Threading.Channels;
 
 using LvStreamStore.Serialization;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 public abstract partial class EventStream : IDisposable {
     protected readonly EventStreamOptions _options;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed = false;
-    private Subscribers _subscribers;
+    private Collection<IDisposable> _subscribers = new();
     private Bus _inboundEventBus;
 
     protected ILogger Log { get; }
@@ -23,10 +23,11 @@ public abstract partial class EventStream : IDisposable {
 
     public int Checkpoint { get; protected set; }
 
-    protected EventStream(ILoggerFactory loggerFactory, IEventSerializer serializer, IOptions<EventStreamOptions> options) {
+    protected EventStream(ILoggerFactory loggerFactory, IEventSerializer serializer, EventStreamOptions options) {
         Log = loggerFactory.CreateLogger<EventStream>();
+        _inboundEventBus = new(Log);
         Serializer = serializer!;
-        _options = options.Value ?? throw new ArgumentNullException(nameof(options));
+        _options = options;
 
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
             SingleReader = true,
@@ -38,27 +39,36 @@ public abstract partial class EventStream : IDisposable {
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
     }
 
-    protected void AfterConstructed() {
-        _inboundEventBus = new(Log);
-        _subscribers = new(this, Log);
-    }
-
-    public async Task<IDisposable> SubscribeToStreamAsync(Func<RecordedEvent, Task> onAppeared)
-        => await _subscribers.SubscribeToStreamAsync(onAppeared);
-
-    public async Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Func<RecordedEvent, Task> onAppeared) {
-        return await _subscribers.SubscribeToStreamAsync(async (recorded) => {
-            if (streamId == recorded.StreamId) {
-                await onAppeared(recorded);
-            }
+    public IDisposable SubscribeToStream(IHandleAsync<RecordedEvent> handle) {
+        var sub = _inboundEventBus.Subscribe(handle);
+        _subscribers.Add(sub);
+        return new Disposer(() => {
+            _subscribers.Remove(sub);
+            sub?.Dispose();
         });
     }
 
-    public async Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, Func<RecordedEvent, Task> onAppeared) {
-        return await _subscribers.SubscribeToStreamAsync(async (recorded) => {
-            if (streamKey == recorded.StreamId) {
-                await onAppeared(recorded);
+    public IDisposable SubscribeToStream(StreamId streamId, IHandleAsync<RecordedEvent> handle) {
+        var sub = _inboundEventBus.Subscribe(new AdHocHandler<RecordedEvent>(async (@event) => {
+            if (streamId == @event.StreamId) {
+                await handle.HandleAsync(@event);
             }
+        }));
+        return new Disposer(() => {
+            _subscribers.Remove(sub);
+            sub?.Dispose();
+        });
+    }
+
+    public IDisposable SubscribeToStream(StreamKey streamKey, IHandleAsync<RecordedEvent> handle) {
+        var sub = _inboundEventBus.Subscribe(new AdHocHandler<RecordedEvent>(async (@event) => {
+            if (streamKey == @event.StreamId) {
+                await handle.HandleAsync(@event);
+            }
+        }));
+        return new Disposer(() => {
+            _subscribers.Remove(sub);
+            sub?.Dispose();
         });
     }
 
@@ -103,7 +113,9 @@ public abstract partial class EventStream : IDisposable {
 
     public void Dispose() {
         Dispose(true);
-        _subscribers?.Dispose();
+        foreach (var sub in _subscribers ?? Enumerable.Empty<IDisposable>()) {
+            sub?.Dispose();
+        }
         GC.SuppressFinalize(this);
     }
 
@@ -135,7 +147,7 @@ public abstract partial class EventStream : IDisposable {
                 if (await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
                     position += 1;
                     var created = new StreamCreated(streamId, position);
-                    
+
                     // write the stream created event.
                     var stream = Serializer.Serialize(created);
                     stream.WriteByte(StreamConstants.EndOfRecord);
@@ -155,17 +167,6 @@ public abstract partial class EventStream : IDisposable {
 
                     await _inboundEventBus.PublishAsync(recorded); //note: this is going to be really f** slow.
                 }
-
-                // capture the offset here.
-
-                // write the index log entry.
-
-
-                // dump WAL to disc
-                // - - - - - 
-                // emit message to append WAL to data file.
-                //  - capture last-modified for data file, send to wal writer
-                //  - if wal writer finds last-modified changed, then reject write request.
 
                 onceCompleted.SetResult(WriteResult.Ok(position));
             }
