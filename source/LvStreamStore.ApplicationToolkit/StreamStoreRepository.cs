@@ -55,6 +55,17 @@ namespace LvStreamStore.ApplicationToolkit {
             return aggregate;
         }
 
+        public IDisposable Subscribe<TAggregate, TEvent>(IAsyncHandler<TEvent> handle) where TAggregate : AggregateRoot, new() where TEvent : Event {
+            var streamKey = CreateStreamKey<TAggregate>();
+            var adhoc = new AdHocHandler<RecordedEvent>(async (@event) => {
+                if (streamKey == @event.StreamId) {
+                    await handle.HandleAsync(Deserialize<TEvent>(@event));
+                }
+            });
+            return _client.SubscribeToStreamAsync(streamKey, adhoc.HandleAsync).GetAwaiter().GetResult();
+        }
+
+
         private async IAsyncEnumerable<TMessage> ReadAsync<TMessage>(StreamKey key) where TMessage : Message {
             await foreach (var @event in _client.ReadStreamAsync(key)) {
                 yield return Deserialize<TMessage>(@event);
@@ -68,6 +79,15 @@ namespace LvStreamStore.ApplicationToolkit {
 
             //todo: pull this from a tenant resolver implementation.
             var streamId = new StreamId(Guid.Empty.ToString("N"), namespaceParts, aggregateId.ToString("N"));
+            return streamId;
+        }
+        private static StreamKey CreateStreamKey<TAggregate>() where TAggregate : AggregateRoot, new() {
+            // use namespace(s) for the categories between the tenant and aggregate id.  (e.g. "Gift", "Card"), so the StreamKey will be: []{"azdkf", "Gift", "Card", "azkdf"}
+            var typeOfAggregate = typeof(TAggregate);
+            var namespaceParts = typeOfAggregate.FullName!.Split('.', StringSplitOptions.RemoveEmptyEntries);
+
+            //todo: pull this from a tenant resolver implementation.
+            var streamId = new StreamKey(new[] { Guid.Empty.ToString("N") }.Union(namespaceParts).ToArray());
             return streamId;
         }
 
