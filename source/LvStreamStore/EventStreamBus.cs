@@ -41,7 +41,7 @@ namespace LvStreamStore {
         //}
 
         public IDisposable Subscribe<T>(IHandleAsync<T> handler) where T : StreamEvent {
-            var func = new Func<object, Task>((o) => handler.HandleAsync((T)o));
+            var func = new Func<object, Task>(async (o) => await handler.HandleAsync((T)o));
             _eventSubscriptions.Add(func);
             return new Disposer(() => _eventSubscriptions.Remove(func));
         }

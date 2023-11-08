@@ -1,9 +1,5 @@
 namespace LvStreamStore.ApplicationToolkit {
-    public abstract record Message {
-        public Guid? MsgId { get; }
-
-        public Message(Guid? msgId) {
-            MsgId = msgId ?? Guid.NewGuid();
-        }
-    };
+    public abstract record Message(Guid? MsgId) {
+        public Guid? MsgId { get; } = MsgId;
+    }
 }

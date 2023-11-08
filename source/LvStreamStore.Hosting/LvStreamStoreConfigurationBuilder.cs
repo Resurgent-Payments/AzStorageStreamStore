@@ -64,6 +64,8 @@ public static class LvStreamStoreConfigurationBuilderExtensions {
             services.AddSingleton<ISubscriber>((provider) => provider.GetRequiredService<IDispatcher>());
             services.AddSingleton<IPublisher>((provider) => provider.GetRequiredService<IDispatcher>());
             services.AddSingleton<ICommandPublisher>((provider) => provider.GetRequiredService<IDispatcher>());
+
+            services.AddSingleton<IStreamStoreRepository, StreamStoreRepository>();
         });
         return builder;
     }
