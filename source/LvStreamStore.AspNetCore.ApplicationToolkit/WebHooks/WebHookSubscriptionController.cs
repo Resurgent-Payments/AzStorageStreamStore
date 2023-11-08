@@ -11,8 +11,13 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             _cmdPublisher = cmdPublisher;
         }
 
-        [Route("subscribe")]
-        public async Task<ActionResult> Subscribe(SubscriptionForm form, CancellationToken token) {
+        [Route("{subscriptionId:guid}")]
+        public ActionResult Index(Guid subscriptionId) {
+            return Ok();
+        }
+
+        [Route("subscribe"), HttpPost]
+        public async Task<ActionResult> Subscribe([FromBody] SubscriptionForm form, CancellationToken token) {
             var cmd = new WebHookSubscriptionMsgs.Subscribe(form.WebHookId, form.SubscriptionId, form.Description, form.PostUrl, token);
 
             try {
@@ -24,10 +29,10 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
                 return StatusCode((int)HttpStatusCode.BadRequest);
             }
 
-            return Ok();
+            return Created(Url.Action("Index", "WebHookSubscription", new { subscriptionId = cmd.SubscriptionId }), new { });
         }
 
-        [Route("enable/{subscriptionId:guid}")]
+        [Route("enable/{subscriptionId:guid}"), HttpPost]
         public async Task<ActionResult> Enable(Guid subscriptionId, CancellationToken token) {
             var cmd = new WebHookSubscriptionMsgs.Enable(subscriptionId, token);
 
@@ -43,7 +48,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             return Ok();
         }
 
-        [Route("disable/{subscriptionId:guid}")]
+        [Route("disable/{subscriptionId:guid}"), HttpPost]
         public async Task<ActionResult> Disable(Guid subscriptionId, CancellationToken token) {
             var cmd = new WebHookSubscriptionMsgs.Disable(subscriptionId, token);
 
@@ -59,7 +64,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             return Ok();
         }
 
-        [Route("remove/{subscriptionId:guid}")]
+        [Route("remove/{subscriptionId:guid}"), HttpPost]
         public async Task<ActionResult> Remove(Guid subscriptionId, CancellationToken token) {
             var cmd = new WebHookSubscriptionMsgs.Remove(subscriptionId, token);
 

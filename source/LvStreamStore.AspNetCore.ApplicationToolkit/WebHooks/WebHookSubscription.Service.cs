@@ -2,15 +2,14 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks;
 
 //todo: need to make this internal and use it as part of a fluent configuration.
 public class WebHookSubscriptionService :
+    IAutoStartService, // service locator interface.
     IAsyncCommandHandler<WebHookSubscriptionMsgs.Subscribe>,
     IAsyncCommandHandler<WebHookSubscriptionMsgs.Enable>,
     IAsyncCommandHandler<WebHookSubscriptionMsgs.Disable>,
-    IAsyncCommandHandler<WebHookSubscriptionMsgs.Remove>
-{
+    IAsyncCommandHandler<WebHookSubscriptionMsgs.Remove> {
     IStreamStoreRepository _repository;
 
-    public WebHookSubscriptionService(IStreamStoreRepository repository, IDispatcher dispatcher)
-    {
+    public WebHookSubscriptionService(IStreamStoreRepository repository, IDispatcher dispatcher) {
         _repository = repository;
         dispatcher.Subscribe<WebHookSubscriptionMsgs.Subscribe>(this);
         dispatcher.Subscribe<WebHookSubscriptionMsgs.Enable>(this);
@@ -18,24 +17,19 @@ public class WebHookSubscriptionService :
         dispatcher.Subscribe<WebHookSubscriptionMsgs.Remove>(this);
     }
 
-    public async ValueTask<CommandResult> HandleAsync(WebHookSubscriptionMsgs.Subscribe command)
-    {
-        try
-        {
+    public async ValueTask<CommandResult> HandleAsync(WebHookSubscriptionMsgs.Subscribe command) {
+        try {
             return await _repository.Save(new WebHookSubscription(command.SubscriptionId, command.WebHookId, command.Description, command.PostUrl))
                 ? command.Complete()
                 : command.Fail();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             return command.Fail(ex);
         }
     }
 
-    public async ValueTask<CommandResult> HandleAsync(WebHookSubscriptionMsgs.Enable command)
-    {
-        try
-        {
+    public async ValueTask<CommandResult> HandleAsync(WebHookSubscriptionMsgs.Enable command) {
+        try {
             var subscription = await _repository.TryGetById<WebHookSubscription>(command.SubscriptionId);
             subscription.Enable();
 
@@ -43,16 +37,13 @@ public class WebHookSubscriptionService :
                 ? command.Complete()
                 : command.Fail();
         }
-        catch (Exception exc)
-        {
+        catch (Exception exc) {
             return command.Fail(exc);
         }
     }
 
-    public async ValueTask<CommandResult> HandleAsync(WebHookSubscriptionMsgs.Disable command)
-    {
-        try
-        {
+    public async ValueTask<CommandResult> HandleAsync(WebHookSubscriptionMsgs.Disable command) {
+        try {
             var subscription = await _repository.TryGetById<WebHookSubscription>(command.SubscriptionId);
             subscription.Disable();
 
@@ -60,16 +51,13 @@ public class WebHookSubscriptionService :
                 ? command.Complete()
                 : command.Fail();
         }
-        catch (Exception exc)
-        {
+        catch (Exception exc) {
             return command.Fail(exc);
         }
     }
 
-    public async ValueTask<CommandResult> HandleAsync(WebHookSubscriptionMsgs.Remove command)
-    {
-        try
-        {
+    public async ValueTask<CommandResult> HandleAsync(WebHookSubscriptionMsgs.Remove command) {
+        try {
             var subscription = await _repository.TryGetById<WebHookSubscription>(command.SubscriptionId);
             subscription.Remove();
 
@@ -77,8 +65,7 @@ public class WebHookSubscriptionService :
                 ? command.Complete()
                 : command.Fail();
         }
-        catch (Exception exc)
-        {
+        catch (Exception exc) {
             return command.Fail(exc);
         }
     }

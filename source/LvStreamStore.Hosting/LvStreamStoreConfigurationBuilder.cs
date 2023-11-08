@@ -66,7 +66,22 @@ public static class LvStreamStoreConfigurationBuilderExtensions {
             services.AddSingleton<ICommandPublisher>((provider) => provider.GetRequiredService<IDispatcher>());
 
             services.AddSingleton<IStreamStoreRepository, StreamStoreRepository>();
+            services.AddHostedService<AutoStartServicesHostedService>();
         });
+        return builder;
+    }
+
+    public static LvStreamStoreConfigurationBuilder RegisterAutoStartService<TService>(this LvStreamStoreConfigurationBuilder builder) where TService : IAutoStartService {
+        builder.RegisterAutoStartService(typeof(TService));
+
+        return builder;
+    }
+
+    public static LvStreamStoreConfigurationBuilder RegisterAutoStartService(this LvStreamStoreConfigurationBuilder builder, Type serviceType) {
+        builder.Builder.ConfigureServices((ctx, services) => {
+            services.AddSingleton(typeof(IAutoStartService), serviceType);
+        });
+
         return builder;
     }
 }
