@@ -96,10 +96,10 @@ namespace LvStreamStore.ApplicationToolkit {
             var eventOptions = JsonSerializer.Deserialize<Dictionary<string, string>>(new ReadOnlySpan<byte>(@event.Metadata), _options.JsonOptions)!;
 
             // find key/value for event type
-            if (!eventOptions.TryGetValue("FullName", out var fullName)) throw new InvalidOperationException("Missing clr type from serialized event information.");
+            if (!eventOptions.TryGetValue("AssemblyQualifiedName", out var aqName)) throw new InvalidOperationException("Missing clr type from serialized event information.");
 
             // get the clr type that should be decoded.
-            var resolvedClrType = Type.GetType(fullName, true, true)!;
+            var resolvedClrType = Type.GetType(aqName, true, true);
 
             return (TMessage)JsonSerializer.Deserialize(new ReadOnlySpan<byte>(@event.Data), resolvedClrType, _options.JsonOptions)!;
         }

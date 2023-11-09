@@ -18,7 +18,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
 
         [Route("subscribe"), HttpPost]
         public async Task<ActionResult> Subscribe([FromBody] SubscriptionForm form, CancellationToken token) {
-            var cmd = new WebHookSubscriptionMsgs.Subscribe(form.WebHookId, form.SubscriptionId, form.Description, form.PostUrl, token);
+            var cmd = new WebHookSubscriptionMsgs.Subscribe(form.WebHookId, Guid.NewGuid(), form.Description, form.PostUrl, token);
 
             try {
                 var result = await _cmdPublisher.SendAsync(cmd);
@@ -32,7 +32,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             return Created(Url.Action("Index", "WebHookSubscription", new { subscriptionId = cmd.SubscriptionId }), new { });
         }
 
-        [Route("enable/{subscriptionId:guid}"), HttpPost]
+        [Route("{subscriptionId:guid}/enable"), HttpPost]
         public async Task<ActionResult> Enable(Guid subscriptionId, CancellationToken token) {
             var cmd = new WebHookSubscriptionMsgs.Enable(subscriptionId, token);
 
@@ -48,7 +48,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             return Ok();
         }
 
-        [Route("disable/{subscriptionId:guid}"), HttpPost]
+        [Route("{subscriptionId:guid}/disable"), HttpPost]
         public async Task<ActionResult> Disable(Guid subscriptionId, CancellationToken token) {
             var cmd = new WebHookSubscriptionMsgs.Disable(subscriptionId, token);
 
@@ -64,7 +64,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             return Ok();
         }
 
-        [Route("remove/{subscriptionId:guid}"), HttpPost]
+        [Route("{subscriptionId:guid}/remove"), HttpPost]
         public async Task<ActionResult> Remove(Guid subscriptionId, CancellationToken token) {
             var cmd = new WebHookSubscriptionMsgs.Remove(subscriptionId, token);
 
@@ -83,7 +83,6 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
 
 
     public class SubscriptionForm {
-        public Guid SubscriptionId { get; set; }
         public Guid WebHookId { get; set; }
         public string PostUrl { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
