@@ -3,16 +3,23 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
 
     using Microsoft.AspNetCore.Mvc;
 
-    [Route("webhooks")]
+    [Route("webhooks/subscriptions")]
     public class WebHookSubscriptionController : ControllerBase {
-        ICommandPublisher _cmdPublisher;
+        private readonly ICommandPublisher _cmdPublisher;
+        private readonly WebHookRm _readModel;
 
-        public WebHookSubscriptionController(ICommandPublisher cmdPublisher) {
+        public WebHookSubscriptionController(ICommandPublisher cmdPublisher, WebHookRm readModel) {
             _cmdPublisher = cmdPublisher;
+            _readModel = readModel;
         }
 
-        [Route("{subscriptionId:guid}")]
-        public ActionResult Index(Guid subscriptionId) {
+        [Route("", Order = 0), Produces("application/json")]
+        public ActionResult Index() {
+            return Ok(new { _readModel.Subscriptions });
+        }
+
+        [Route("{subscriptionId:guid}", Order = 1)]
+        public ActionResult Subscription(Guid subscriptionId) {
             return Ok();
         }
 

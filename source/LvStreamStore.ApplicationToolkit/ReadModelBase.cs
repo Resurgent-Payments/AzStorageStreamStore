@@ -2,12 +2,13 @@ namespace LvStreamStore.ApplicationToolkit;
 
 using System.Collections.ObjectModel;
 
-internal class ReadModelBase : IDisposable {
+public class ReadModelBase : IAutoStartService, IDisposable {
     private readonly Collection<IDisposable> _subscriptions = new();
     private readonly IStreamStoreRepository _repository;
     private readonly ISubscriber _inBus;
 
-    public ReadModelBase(IStreamStoreRepository repository) {
+    public ReadModelBase(ISubscriber inBus, IStreamStoreRepository repository) {
+        _inBus = inBus!;
         _repository = repository!;
     }
 

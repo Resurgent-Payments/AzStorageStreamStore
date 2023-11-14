@@ -213,7 +213,7 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(streamId, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
-        var sub = Client.SubscribeToStreamAsync(streamId, (item) => { events.Add(item); return Task.CompletedTask; });
+        var sub = Client.SubscribeToStreamAsync(streamId, (item) => { events.Add(item); return ValueTask.CompletedTask; });
         await Client.AppendToStreamAsync(streamId, ExpectedVersion.Any, new[] { e4 });
 
         AssertEx.IsOrBecomesTrue(() => events.Count >= 1, TimeSpan.FromSeconds(3));
@@ -233,7 +233,7 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
-        _ = await Client.SubscribeToStreamAsync(key, (item) => { events.Add(item); return Task.CompletedTask; });
+        _ = await Client.SubscribeToStreamAsync(key, (item) => { events.Add(item); return ValueTask.CompletedTask; });
 
         await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
 
@@ -352,7 +352,7 @@ public abstract class ClientTestBase : IDisposable {
         for (var i = 0; i < numberOfSubscriptions; i++) {
             _ = Client.SubscribeToStreamAsync(key, (item) => {
                 events.Add(item);
-                return Task.CompletedTask;
+                return ValueTask.CompletedTask;
             });
         }
 
@@ -373,7 +373,7 @@ public abstract class ClientTestBase : IDisposable {
 
         (await Client.SubscribeToStreamAsync((item) => {
             events.Add(item);
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         })).Dispose();
 
         var key = new StreamId("test", Array.Empty<string>(), "stream");
@@ -396,11 +396,11 @@ public abstract class ClientTestBase : IDisposable {
 
         await Client.SubscribeToStreamAsync((item) => {
             events.Add(item);
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         });
         (await Client.SubscribeToStreamAsync((item) => {
             events.Add(item);
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         })).Dispose();
 
         events.Clear();

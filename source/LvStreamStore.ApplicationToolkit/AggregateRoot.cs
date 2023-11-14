@@ -24,7 +24,10 @@ namespace LvStreamStore.ApplicationToolkit {
             }
         }
 
-        public object[] TakeMessages() => Recorder.TakeMessages();
+        public object[] TakeMessages() {
+            if (Id == Guid.Empty) { throw new InvalidOperationException("Aggregate has not been initialized."); }
+            return Recorder.TakeMessages();
+        }
     }
 
     class Router {
