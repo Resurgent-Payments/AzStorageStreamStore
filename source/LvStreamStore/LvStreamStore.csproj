@@ -12,6 +12,7 @@
         <InternalsVisibleTo Include="LvStreamStore.Hosting" />
         <InternalsVisibleTo Include="LvStreamStore.AspNetCore.Hosting" />
         <InternalsVisibleTo Include="LvStreamStore.ApplicationToolkit.Tests" />
+        <InternalsVisibleTo Include="LvStreamStore.Test" />
     </ItemGroup>
 
     <ItemGroup>
