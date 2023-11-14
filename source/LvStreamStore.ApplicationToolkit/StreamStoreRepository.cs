@@ -72,6 +72,14 @@ namespace LvStreamStore.ApplicationToolkit {
             }
         }
 
+        public async IAsyncEnumerable<Message> ReadAsync<TAggregate>() where TAggregate : AggregateRoot, new() {
+            var key = CreateStreamKey<TAggregate>();
+
+            await foreach (var @event in _client.ReadStreamAsync(key)) {
+                yield return Deserialize(@event);
+            }
+        }
+
         private static StreamId CreateStreamId<TAggregate>(Guid aggregateId) where TAggregate : AggregateRoot, new() {
             // use namespace(s) for the categories between the tenant and aggregate id.  (e.g. "Gift", "Card"), so the StreamKey will be: []{"azdkf", "Gift", "Card", "azkdf"}
             var typeOfAggregate = typeof(TAggregate);
@@ -87,8 +95,9 @@ namespace LvStreamStore.ApplicationToolkit {
             var namespaceParts = typeOfAggregate.FullName!.Split('.', StringSplitOptions.RemoveEmptyEntries);
 
             //todo: pull this from a tenant resolver implementation.
-            var streamId = new StreamKey(new[] { Guid.Empty.ToString("N") }.Union(namespaceParts).ToArray());
-            return streamId;
+            // Splat ("*") signifies all tenants (for now).
+            var streamKey = new StreamKey(new[] { "*" }.Union(namespaceParts).ToArray());
+            return streamKey;
         }
 
         private Message Deserialize(RecordedEvent @event) {

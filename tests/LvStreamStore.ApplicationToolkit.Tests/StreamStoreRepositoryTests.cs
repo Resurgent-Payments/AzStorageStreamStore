@@ -51,6 +51,12 @@ namespace LvStreamStore.ApplicationToolkit.Tests {
             Assert.Single(await reader.ToListAsync());
         }
 
+        [Fact]
+        public async Task AggregateEventsCanBeRead() {
+            var reader = _repository.ReadAsync<TestAggregate>();
+            Assert.Single(await reader.ToListAsync());
+        }
+
         public Task DisposeAsync() => Task.CompletedTask;
     }
 }
