@@ -40,7 +40,7 @@ namespace LvStreamStore.ApplicationToolkit {
             try {
                 var streamId = CreateStreamId<TAggregate>(aggregateId);
                 var stream = (await _client.ReadStreamAsync(streamId).ToListAsync())
-                    .Select(Deserialize<Message>)
+                    .Select(Deserialize)
                     .ToArray();
                 aggregate = new TAggregate();
                 aggregate.RestoreFromMessages(stream);
@@ -59,16 +59,16 @@ namespace LvStreamStore.ApplicationToolkit {
             var streamKey = CreateStreamKey<TAggregate>();
             var adhoc = new AdHocHandler<RecordedEvent>(async (@event) => {
                 if (streamKey == @event.StreamId) {
-                    await handle.HandleAsync(Deserialize<TEvent>(@event));
+                    await handle.HandleAsync((TEvent)Deserialize(@event));
                 }
             });
             return _client.SubscribeToStreamAsync(streamKey, adhoc.HandleAsync).GetAwaiter().GetResult();
         }
 
 
-        private async IAsyncEnumerable<TMessage> ReadAsync<TMessage>(StreamKey key) where TMessage : Message {
+        public async IAsyncEnumerable<Message> ReadAsync(StreamKey key) {
             await foreach (var @event in _client.ReadStreamAsync(key)) {
-                yield return Deserialize<TMessage>(@event);
+                yield return Deserialize(@event);
             }
         }
 
@@ -91,7 +91,7 @@ namespace LvStreamStore.ApplicationToolkit {
             return streamId;
         }
 
-        private TMessage Deserialize<TMessage>(RecordedEvent @event) {
+        private Message Deserialize(RecordedEvent @event) {
             // get dictionary.
             var eventOptions = JsonSerializer.Deserialize<Dictionary<string, string>>(new ReadOnlySpan<byte>(@event.Metadata), _options.JsonOptions)!;
 
@@ -101,7 +101,7 @@ namespace LvStreamStore.ApplicationToolkit {
             // get the clr type that should be decoded.
             var resolvedClrType = Type.GetType(aqName, true, true);
 
-            return (TMessage)JsonSerializer.Deserialize(new ReadOnlySpan<byte>(@event.Data), resolvedClrType, _options.JsonOptions)!;
+            return (Message)JsonSerializer.Deserialize(new ReadOnlySpan<byte>(@event.Data), resolvedClrType, _options.JsonOptions)!;
         }
 
         private EventData Serialize(StreamId streamId, object @event) {
