@@ -4,7 +4,10 @@ builder.Host.AddLvStreamStore()
     .UseEmbeddedClient()
     .UseMemoryStorage()
     .UseJsonSerialization()
-    .UseApplicationToolkit();
+    .UseApplicationToolkit()
+    .UseWebHooks(opts => {
+        opts.RegisterAssemblyFromType<MvcHost.Controllers.HomeController>();
+    });
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();

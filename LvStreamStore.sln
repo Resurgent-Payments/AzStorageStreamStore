@@ -38,6 +38,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LvStreamStore.ApplicationTo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BusinessDomain", "samples\BusinessDomain\BusinessDomain.csproj", "{3E4E77D6-BEB2-418F-8C91-C94B480F7139}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LvStreamStore.AspNetCore.Hosting", "source\LvStreamStore.AspNetCore.Hosting\LvStreamStore.AspNetCore.Hosting.csproj", "{90E0FC06-AD33-4204-8D8B-2DF68731042A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -92,6 +94,10 @@ Global
 		{3E4E77D6-BEB2-418F-8C91-C94B480F7139}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E4E77D6-BEB2-418F-8C91-C94B480F7139}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3E4E77D6-BEB2-418F-8C91-C94B480F7139}.Release|Any CPU.Build.0 = Release|Any CPU
+		{90E0FC06-AD33-4204-8D8B-2DF68731042A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{90E0FC06-AD33-4204-8D8B-2DF68731042A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{90E0FC06-AD33-4204-8D8B-2DF68731042A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{90E0FC06-AD33-4204-8D8B-2DF68731042A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -109,6 +115,7 @@ Global
 		{7FE77AA3-1E83-4BD2-A8BF-895FFB8ABBE3} = {A0D3D0E2-E9C9-4578-9E2E-DE9602EF4A44}
 		{664F55AE-EBA6-4F0C-8200-B164AD170187} = {90F6921D-000F-413A-B1BA-74BA90C49BF5}
 		{3E4E77D6-BEB2-418F-8C91-C94B480F7139} = {8C830C28-6721-483E-AC09-D07D648B9583}
+		{90E0FC06-AD33-4204-8D8B-2DF68731042A} = {A0D3D0E2-E9C9-4578-9E2E-DE9602EF4A44}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D9574B60-4360-4BA2-90F9-98C5A7E42755}

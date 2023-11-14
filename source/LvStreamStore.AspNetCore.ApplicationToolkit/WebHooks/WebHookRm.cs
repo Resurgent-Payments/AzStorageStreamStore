@@ -52,6 +52,12 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             _webHooks.Add(new WebHookTerm { Id = attr.WebHookId, Name = attr.Name, Description = attr.Description });
         }
 
+        public void RegisterMessage(Type t) {
+            var attr = t.GetCustomAttribute<WebHookMessageAttribute>();
+            if (attr == null) { return; }
+            _webHooks.Add(new WebHookTerm { Id = attr.WebHookId, Name = attr.Name, Description = attr.Description });
+        }
+
         public class WebHookTerm {
             public Guid Id { get; set; }
             public string Name { get; set; } = string.Empty;
