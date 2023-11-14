@@ -84,7 +84,15 @@ namespace LvStreamStore.ApplicationToolkit {
                 _numberOfEventsPublished++;
                 var startTime = DateTime.UnixEpoch.Ticks;
 
-                var msg = await _messageChannel.Reader.ReadAsync();
+                Message? msg;
+                try {
+                    msg = await _messageChannel.Reader.ReadAsync();
+                }
+                catch (ChannelClosedException closedEx) {
+                    _logger.LogDebug(closedEx, "Channel has been closed.  Pump is most likely shutting down.");
+                    break;
+                }
+
                 _logger.LogDebug("Received message.");
 
                 switch (msg) {
