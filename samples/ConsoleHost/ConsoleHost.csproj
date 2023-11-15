@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\source\LvStreamStore.Hosting\LvStreamStore.Hosting.csproj" />
     <ProjectReference Include="..\..\source\LvStreamStore.LocalStorage\LvStreamStore.LocalStorage.csproj" />
     <ProjectReference Include="..\..\source\LvStreamStore\LvStreamStore.csproj" />
   </ItemGroup>

@@ -2,6 +2,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 
 using System.Reflection;
 
+using LvStreamStore;
 using LvStreamStore.ApplicationToolkit;
 using LvStreamStore.ApplicationToolkit.WebHooks;
 

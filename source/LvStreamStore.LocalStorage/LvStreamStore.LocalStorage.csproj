@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <ItemGroup>
-        <ProjectReference Include="..\LvStreamStore.Hosting\LvStreamStore.Hosting.csproj" />
         <ProjectReference Include="..\LvStreamStore\LvStreamStore.csproj" />
     </ItemGroup>
 

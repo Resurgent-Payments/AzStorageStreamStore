@@ -7,8 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\source\LvStreamStore.AspNetCore.Hosting\LvStreamStore.AspNetCore.Hosting.csproj" />
-    <ProjectReference Include="..\..\source\LvStreamStore.Hosting\LvStreamStore.Hosting.csproj" />
     <ProjectReference Include="..\..\source\LvStreamStore.LocalStorage\LvStreamStore.LocalStorage.csproj" />
     <ProjectReference Include="..\..\source\LvStreamStore\LvStreamStore.csproj" />
     <ProjectReference Include="..\BusinessDomain\BusinessDomain.csproj" />

@@ -20,25 +20,21 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LvStreamStore.LocalStorage"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LvStreamStore.LocalStorage.Tests", "tests\LvStreamStore.LocalStorage.Tests\LvStreamStore.LocalStorage.Tests.csproj", "{DD306BC0-07FC-400D-A185-7D8B84963200}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LvStreamStore.Hosting", "source\LvStreamStore.Hosting\LvStreamStore.Hosting.csproj", "{1D94D9DA-CAC9-43F3-9E8B-4F06601E5590}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{8C830C28-6721-483E-AC09-D07D648B9583}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MvcHost", "samples\MvcHost\MvcHost.csproj", "{1F83460F-0607-43AF-B896-B8336FA9B19B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleHost", "samples\ConsoleHost\ConsoleHost.csproj", "{44B74CF5-55A1-4CB3-B2AA-AE11019344B9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LvStreamStore.Test", "tests\LvStreamStore.Test\LvStreamStore.Test.csproj", "{6807F7F9-42D6-406E-9750-FEB8669F25AB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LvStreamStore.Test", "tests\LvStreamStore.Test\LvStreamStore.Test.csproj", "{6807F7F9-42D6-406E-9750-FEB8669F25AB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LvStreamStore.ApplicationToolkit", "source\LvStreamStore.ApplicationToolkit\LvStreamStore.ApplicationToolkit.csproj", "{8E62DF65-AE47-4F69-B04D-F29BB57E02E6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LvStreamStore.ApplicationToolkit", "source\LvStreamStore.ApplicationToolkit\LvStreamStore.ApplicationToolkit.csproj", "{8E62DF65-AE47-4F69-B04D-F29BB57E02E6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LvStreamStore.AspNetCore.ApplicationToolkit", "source\LvStreamStore.AspNetCore.ApplicationToolkit\LvStreamStore.AspNetCore.ApplicationToolkit.csproj", "{7FE77AA3-1E83-4BD2-A8BF-895FFB8ABBE3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LvStreamStore.AspNetCore.ApplicationToolkit", "source\LvStreamStore.AspNetCore.ApplicationToolkit\LvStreamStore.AspNetCore.ApplicationToolkit.csproj", "{7FE77AA3-1E83-4BD2-A8BF-895FFB8ABBE3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LvStreamStore.ApplicationToolkit.Tests", "tests\LvStreamStore.ApplicationToolkit.Tests\LvStreamStore.ApplicationToolkit.Tests.csproj", "{664F55AE-EBA6-4F0C-8200-B164AD170187}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LvStreamStore.ApplicationToolkit.Tests", "tests\LvStreamStore.ApplicationToolkit.Tests\LvStreamStore.ApplicationToolkit.Tests.csproj", "{664F55AE-EBA6-4F0C-8200-B164AD170187}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BusinessDomain", "samples\BusinessDomain\BusinessDomain.csproj", "{3E4E77D6-BEB2-418F-8C91-C94B480F7139}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LvStreamStore.AspNetCore.Hosting", "source\LvStreamStore.AspNetCore.Hosting\LvStreamStore.AspNetCore.Hosting.csproj", "{90E0FC06-AD33-4204-8D8B-2DF68731042A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BusinessDomain", "samples\BusinessDomain\BusinessDomain.csproj", "{3E4E77D6-BEB2-418F-8C91-C94B480F7139}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -62,10 +58,6 @@ Global
 		{DD306BC0-07FC-400D-A185-7D8B84963200}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DD306BC0-07FC-400D-A185-7D8B84963200}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DD306BC0-07FC-400D-A185-7D8B84963200}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1D94D9DA-CAC9-43F3-9E8B-4F06601E5590}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1D94D9DA-CAC9-43F3-9E8B-4F06601E5590}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1D94D9DA-CAC9-43F3-9E8B-4F06601E5590}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1D94D9DA-CAC9-43F3-9E8B-4F06601E5590}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1F83460F-0607-43AF-B896-B8336FA9B19B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1F83460F-0607-43AF-B896-B8336FA9B19B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1F83460F-0607-43AF-B896-B8336FA9B19B}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -94,10 +86,6 @@ Global
 		{3E4E77D6-BEB2-418F-8C91-C94B480F7139}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E4E77D6-BEB2-418F-8C91-C94B480F7139}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3E4E77D6-BEB2-418F-8C91-C94B480F7139}.Release|Any CPU.Build.0 = Release|Any CPU
-		{90E0FC06-AD33-4204-8D8B-2DF68731042A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{90E0FC06-AD33-4204-8D8B-2DF68731042A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{90E0FC06-AD33-4204-8D8B-2DF68731042A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{90E0FC06-AD33-4204-8D8B-2DF68731042A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -107,7 +95,6 @@ Global
 		{29BF77DD-9CA9-41BF-B3E7-355F6EF7FAE2} = {90F6921D-000F-413A-B1BA-74BA90C49BF5}
 		{D46605A2-1F7D-401C-81B1-70354963E773} = {A0D3D0E2-E9C9-4578-9E2E-DE9602EF4A44}
 		{DD306BC0-07FC-400D-A185-7D8B84963200} = {90F6921D-000F-413A-B1BA-74BA90C49BF5}
-		{1D94D9DA-CAC9-43F3-9E8B-4F06601E5590} = {A0D3D0E2-E9C9-4578-9E2E-DE9602EF4A44}
 		{1F83460F-0607-43AF-B896-B8336FA9B19B} = {8C830C28-6721-483E-AC09-D07D648B9583}
 		{44B74CF5-55A1-4CB3-B2AA-AE11019344B9} = {8C830C28-6721-483E-AC09-D07D648B9583}
 		{6807F7F9-42D6-406E-9750-FEB8669F25AB} = {90F6921D-000F-413A-B1BA-74BA90C49BF5}
@@ -115,7 +102,6 @@ Global
 		{7FE77AA3-1E83-4BD2-A8BF-895FFB8ABBE3} = {A0D3D0E2-E9C9-4578-9E2E-DE9602EF4A44}
 		{664F55AE-EBA6-4F0C-8200-B164AD170187} = {90F6921D-000F-413A-B1BA-74BA90C49BF5}
 		{3E4E77D6-BEB2-418F-8C91-C94B480F7139} = {8C830C28-6721-483E-AC09-D07D648B9583}
-		{90E0FC06-AD33-4204-8D8B-2DF68731042A} = {A0D3D0E2-E9C9-4578-9E2E-DE9602EF4A44}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D9574B60-4360-4BA2-90F9-98C5A7E42755}
