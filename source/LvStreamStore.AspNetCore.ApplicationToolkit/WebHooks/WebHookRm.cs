@@ -5,43 +5,43 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
     using System.Threading.Tasks;
 
     public class WebHookRm : ReadModelBase,
-        IAsyncHandler<WebHookSubscriptionMsgs.Subscribed>,
-        IAsyncHandler<WebHookSubscriptionMsgs.Enabled>,
-        IAsyncHandler<WebHookSubscriptionMsgs.Disabled>,
-        IAsyncHandler<WebHookSubscriptionMsgs.Removed> {
+        IAsyncHandler<SubscriptionMsgs.Subscribed>,
+        IAsyncHandler<SubscriptionMsgs.Enabled>,
+        IAsyncHandler<SubscriptionMsgs.Disabled>,
+        IAsyncHandler<SubscriptionMsgs.Removed> {
         private readonly List<WebHookTerm> _webHooks = new();
         private readonly List<Subscription> _subscriptions = new();
 
         public WebHookRm(ISubscriber inBus, IStreamStoreRepository repository) : base(inBus, repository) {
-            SubscribeToStream<WebHookSubscription, WebHookSubscriptionMsgs.Subscribed>(this);
-            SubscribeToStream<WebHookSubscription, WebHookSubscriptionMsgs.Enabled>(this);
-            SubscribeToStream<WebHookSubscription, WebHookSubscriptionMsgs.Disabled>(this);
-            SubscribeToStream<WebHookSubscription, WebHookSubscriptionMsgs.Removed>(this);
+            SubscribeToStream<WebHooks.Subscription, SubscriptionMsgs.Subscribed>(this);
+            SubscribeToStream<WebHooks.Subscription, SubscriptionMsgs.Enabled>(this);
+            SubscribeToStream<WebHooks.Subscription, SubscriptionMsgs.Disabled>(this);
+            SubscribeToStream<WebHooks.Subscription, SubscriptionMsgs.Removed>(this);
         }
 
         public IReadOnlyList<WebHookTerm> WebHooks => _webHooks.AsReadOnly();
         public IReadOnlyList<Subscription> Subscriptions => _subscriptions.AsReadOnly();
 
-        public ValueTask HandleAsync(WebHookSubscriptionMsgs.Subscribed msg) {
+        public ValueTask HandleAsync(SubscriptionMsgs.Subscribed msg) {
             _subscriptions.Add(new Subscription(msg.SubscriptionId, msg.WebHookId, msg.Description, msg.PostUrl) { IsEnabled = false });
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask HandleAsync(WebHookSubscriptionMsgs.Enabled msg) {
+        public ValueTask HandleAsync(SubscriptionMsgs.Enabled msg) {
             foreach (var sub in _subscriptions.Where(s => s.SubscriptionId == msg.SubscriptionId)) {
                 sub.IsEnabled = true;
             }
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask HandleAsync(WebHookSubscriptionMsgs.Disabled msg) {
+        public ValueTask HandleAsync(SubscriptionMsgs.Disabled msg) {
             foreach (var sub in _subscriptions.Where(s => s.SubscriptionId == msg.SubscriptionId)) {
                 sub.IsEnabled = false;
             }
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask HandleAsync(WebHookSubscriptionMsgs.Removed msg) {
+        public ValueTask HandleAsync(SubscriptionMsgs.Removed msg) {
             _subscriptions.RemoveAll(sub => sub.SubscriptionId == msg.SubscriptionId);
             return ValueTask.CompletedTask;
         }

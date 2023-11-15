@@ -4,11 +4,11 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
     using Microsoft.AspNetCore.Mvc;
 
     [Route("webhooks/subscriptions")]
-    public class WebHookSubscriptionController : ControllerBase {
+    public class SubscriptionController : ControllerBase {
         private readonly ICommandPublisher _cmdPublisher;
         private readonly WebHookRm _readModel;
 
-        public WebHookSubscriptionController(ICommandPublisher cmdPublisher, WebHookRm readModel) {
+        public SubscriptionController(ICommandPublisher cmdPublisher, WebHookRm readModel) {
             _cmdPublisher = cmdPublisher;
             _readModel = readModel;
         }
@@ -25,7 +25,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
 
         [Route("subscribe"), HttpPost]
         public async Task<ActionResult> Subscribe([FromBody] SubscriptionForm form, CancellationToken token) {
-            var cmd = new WebHookSubscriptionMsgs.Subscribe(form.WebHookId, Guid.NewGuid(), form.Description, form.PostUrl, token);
+            var cmd = new SubscriptionMsgs.Subscribe(form.WebHookId, Guid.NewGuid(), form.Description, form.PostUrl, token);
 
             try {
                 var result = await _cmdPublisher.SendAsync(cmd);
@@ -41,7 +41,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
 
         [Route("{subscriptionId:guid}/enable"), HttpPost]
         public async Task<ActionResult> Enable(Guid subscriptionId, CancellationToken token) {
-            var cmd = new WebHookSubscriptionMsgs.Enable(subscriptionId, token);
+            var cmd = new SubscriptionMsgs.Enable(subscriptionId, token);
 
             try {
                 var result = await _cmdPublisher.SendAsync(cmd);
@@ -57,7 +57,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
 
         [Route("{subscriptionId:guid}/disable"), HttpPost]
         public async Task<ActionResult> Disable(Guid subscriptionId, CancellationToken token) {
-            var cmd = new WebHookSubscriptionMsgs.Disable(subscriptionId, token);
+            var cmd = new SubscriptionMsgs.Disable(subscriptionId, token);
 
             try {
                 var result = await _cmdPublisher.SendAsync(cmd);
@@ -73,7 +73,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
 
         [Route("{subscriptionId:guid}/remove"), HttpPost]
         public async Task<ActionResult> Remove(Guid subscriptionId, CancellationToken token) {
-            var cmd = new WebHookSubscriptionMsgs.Remove(subscriptionId, token);
+            var cmd = new SubscriptionMsgs.Remove(subscriptionId, token);
 
             try {
                 var result = await _cmdPublisher.SendAsync(cmd);

@@ -2,10 +2,10 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
     using Microsoft.AspNetCore.Mvc;
 
     [Route(".well-known/webhooks")]
-    public class WebHookDiscoveryController : ControllerBase {
+    public class DiscoveryController : ControllerBase {
         private readonly WebHookRm _webHooks;
 
-        public WebHookDiscoveryController(WebHookRm webHooks) {
+        public DiscoveryController(WebHookRm webHooks) {
             _webHooks = webHooks;
         }
 

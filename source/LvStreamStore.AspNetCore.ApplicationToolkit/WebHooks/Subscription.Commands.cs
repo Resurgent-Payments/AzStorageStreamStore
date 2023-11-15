@@ -1,6 +1,6 @@
 namespace LvStreamStore.ApplicationToolkit.WebHooks;
 
-public partial class WebHookSubscriptionMsgs
+public partial class SubscriptionMsgs
 {
     public record Subscribe(Guid SubscriptionId, Guid WebHookId, string Description, string PostUrl, CancellationToken Token = default, Guid? MsgId = null) : Command(Token, MsgId);
 

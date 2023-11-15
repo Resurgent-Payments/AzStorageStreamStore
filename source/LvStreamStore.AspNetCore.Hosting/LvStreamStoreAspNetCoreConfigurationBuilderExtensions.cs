@@ -13,7 +13,7 @@ public static class LvStreamStoreAspNetCoreConfigurationBuilderExtensions {
         configure(options);
 
         builder.Builder.ConfigureServices((ctx, services) => {
-            services.AddSingleton<IAutoStartService, WebHookSubscriptionService>();
+            services.AddSingleton<IAutoStartService, SubscriptionService>();
 
             services.AddSingleton(sp => {
                 var rm = new WebHookRm(sp.GetRequiredService<ISubscriber>(), sp.GetRequiredService<IStreamStoreRepository>());
@@ -33,7 +33,7 @@ public static class LvStreamStoreAspNetCoreConfigurationBuilderExtensions {
 
             var mvcBuilder = services.AddMvcCore();
 
-            mvcBuilder.AddApplicationPart(typeof(WebHookDiscoveryController).Assembly);
+            mvcBuilder.AddApplicationPart(typeof(DiscoveryController).Assembly);
             foreach (var asm in options.DiscoveryAssemblies) {
                 mvcBuilder.AddApplicationPart(asm);
             }
