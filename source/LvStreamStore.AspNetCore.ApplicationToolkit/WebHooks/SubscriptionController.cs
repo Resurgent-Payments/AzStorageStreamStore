@@ -40,7 +40,7 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
         }
 
         [Route("{subscriptionId:guid}/enable"), HttpPost]
-        public async Task<ActionResult> Enable(Guid subscriptionId, CancellationToken token) {
+        public async Task<IActionResult> Enable(Guid subscriptionId, CancellationToken token) {
             var cmd = new SubscriptionMsgs.Enable(subscriptionId, token);
 
             try {
