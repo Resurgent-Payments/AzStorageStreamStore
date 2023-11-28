@@ -19,10 +19,9 @@ namespace LvStreamStore.LocalStorage {
         }
 
         public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default)
-            => new Enumerator(_dataFile, this, _eventSerializer, _options, token);
+            => new Enumerator(this, _eventSerializer, _options, token);
 
         class Enumerator : IEnumerator {
-            private readonly string _dataFile;
             private readonly IEventSerializer _eventSerializer;
             private readonly CancellationToken _token;
             private readonly LocalStorageEventStreamOptions _options;
@@ -35,8 +34,7 @@ namespace LvStreamStore.LocalStorage {
 
             public int Offset { get; private set; }
 
-            public Enumerator(string dataFile, LocalStorageEventStreamReader reader, IEventSerializer eventSerializer, LocalStorageEventStreamOptions options, CancellationToken token = default) {
-                _dataFile = dataFile;
+            public Enumerator(LocalStorageEventStreamReader reader, IEventSerializer eventSerializer, LocalStorageEventStreamOptions options, CancellationToken token = default) {
                 _eventSerializer = eventSerializer;
                 _options = options;
                 _token = token;
