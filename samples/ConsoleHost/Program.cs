@@ -1,4 +1,5 @@
-using Microsoft.Extensions.DependencyInjection;
+using LvStreamStore;
+
 using Microsoft.Extensions.Hosting;
 
 var host = Host.CreateDefaultBuilder(args);

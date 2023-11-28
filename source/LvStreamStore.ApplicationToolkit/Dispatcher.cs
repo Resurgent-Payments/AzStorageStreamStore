@@ -28,7 +28,7 @@ namespace LvStreamStore.ApplicationToolkit {
         }
 
         /// <inheritdoc/>
-        public async ValueTask PublishAsync<TEvent>(TEvent @event) where TEvent : Event => await _messageChannel.Writer.WriteAsync(@event);
+        public async ValueTask PublishAsync<TMessage>(TMessage @event) where TMessage : Message => await _messageChannel.Writer.WriteAsync(@event);
 
         /// <inheritdoc/>
         public IDisposable Subscribe<TEvent>(IAsyncHandler<TEvent> handler) where TEvent : Message {

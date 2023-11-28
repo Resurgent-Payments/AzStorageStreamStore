@@ -1,3 +1,5 @@
+using LvStreamStore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.AddLvStreamStore()

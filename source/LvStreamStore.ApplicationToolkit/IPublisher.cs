@@ -8,6 +8,6 @@ namespace LvStreamStore.ApplicationToolkit {
         /// <typeparam name="TMessage">The "type" of event</typeparam>
         /// <param name="message">The event to be published.</param>
         /// <returns>A <see cref="ValueTask"/> that can be awaited.</returns>
-        public ValueTask PublishAsync<TMessage>(TMessage message) where TMessage : Event;
+        public ValueTask PublishAsync<TMessage>(TMessage message) where TMessage : Message;
     }
 }

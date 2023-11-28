@@ -18,6 +18,7 @@ namespace LvStreamStore.ApplicationToolkit {
             _subscriptions.Add(_dispatcher.Subscribe(handler));
         }
 
+        //note: we may need to provide another subscribe here to respond to committed events from the underlying stream.
         protected void Subscribe<TEvent>(IAsyncHandler<TEvent> handler) where TEvent : Event {
             _subscriptions.Add(_dispatcher.Subscribe(handler));
         }

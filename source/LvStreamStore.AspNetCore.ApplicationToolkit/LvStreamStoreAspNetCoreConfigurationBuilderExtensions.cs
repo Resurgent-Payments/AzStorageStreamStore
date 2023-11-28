@@ -15,6 +15,7 @@ public static class LvStreamStoreAspNetCoreConfigurationBuilderExtensions {
 
         builder.Builder.ConfigureServices((ctx, services) => {
             services.AddSingleton<IAutoStartService, SubscriptionService>();
+            services.AddSingleton<IAutoStartService, SubscriptionCallbackService>();
 
             services.AddSingleton(sp => {
                 var rm = new WebHookRm(sp.GetRequiredService<ISubscriber>(), sp.GetRequiredService<IStreamStoreRepository>());
