@@ -13,7 +13,6 @@ public abstract partial class EventStream : IDisposable {
     protected readonly EventStreamOptions _options;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
-    private readonly Lazy<EventStreamObserver> _streamObserver;
     private bool _disposed = false;
     private Collection<IDisposable> _subscribers = new();
     private EventBus _inboundEventBus;
@@ -36,15 +35,9 @@ public abstract partial class EventStream : IDisposable {
 
         _cts.Token.Register(() => _streamWriter.Writer.Complete());
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
-
-        _streamObserver = new Lazy<EventStreamObserver>(() => {
-            var o = new EventStreamObserver(this, Log);
-            return o;
-        });
     }
 
     public IDisposable SubscribeToStream(IHandleAsync<StreamItem> handle) {
-        _streamObserver.Value.ObserveForEvents(handle);
         var sub = _inboundEventBus.Subscribe(handle);
         _subscribers.Add(sub);
         return new Disposer(() => {
