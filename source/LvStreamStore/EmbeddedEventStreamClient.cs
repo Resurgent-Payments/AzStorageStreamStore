@@ -22,8 +22,8 @@ public class EmbeddedEventStreamClient : IEventStreamClient {
 
 
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToStreamAsync(Func<RecordedEvent, ValueTask> handler)
-        => Task.FromResult(_eventStream.SubscribeToStream(new AdHocHandler<RecordedEvent>(handler)));
+    public Task<IDisposable> SubscribeToStreamAsync(Func<StreamItem, ValueTask> handler)
+        => Task.FromResult(_eventStream.SubscribeToStream(new AdHocHandler<StreamItem>(handler)));
 
     /// <inheritdoc />
     public Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, Func<RecordedEvent, ValueTask> handler)

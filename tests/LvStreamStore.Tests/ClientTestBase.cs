@@ -372,7 +372,9 @@ public abstract class ClientTestBase : IDisposable {
         var events = new List<RecordedEvent>();
 
         (await Client.SubscribeToStreamAsync((item) => {
-            events.Add(item);
+            if (item is RecordedEvent @event) {
+                events.Add(@event);
+            }
             return ValueTask.CompletedTask;
         })).Dispose();
 
@@ -395,11 +397,15 @@ public abstract class ClientTestBase : IDisposable {
         var key = new StreamId("test", Array.Empty<string>(), "stream");
 
         await Client.SubscribeToStreamAsync((item) => {
-            events.Add(item);
+            if (item is RecordedEvent @event) {
+                events.Add(@event);
+            }
             return ValueTask.CompletedTask;
         });
         (await Client.SubscribeToStreamAsync((item) => {
-            events.Add(item);
+            if (item is RecordedEvent @event) {
+                events.Add(@event);
+            }
             return ValueTask.CompletedTask;
         })).Dispose();
 

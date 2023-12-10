@@ -1,6 +1,7 @@
 namespace LvStreamStore;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Threading.Channels;
@@ -13,9 +14,12 @@ public abstract partial class EventStream : IDisposable {
     protected readonly EventStreamOptions _options;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
+    private readonly Lazy<EventStreamObserver> _streamObserver;
     private bool _disposed = false;
     private Collection<IDisposable> _subscribers = new();
     private EventBus _inboundEventBus;
+    private ConcurrentBag<IObserver<Unit>> _newEventSubscribers = new();
+
 
     protected ILogger Log { get; }
     protected IEventSerializer Serializer { get; }
@@ -37,9 +41,15 @@ public abstract partial class EventStream : IDisposable {
 
         _cts.Token.Register(() => _streamWriter.Writer.Complete());
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
+
+        _streamObserver = new Lazy<EventStreamObserver>(() => {
+            var o = new EventStreamObserver(this);
+            return o;
+        });
     }
 
-    public IDisposable SubscribeToStream(IHandleAsync<RecordedEvent> handle) {
+    public IDisposable SubscribeToStream(IHandleAsync<StreamItem> handle) {
+        _streamObserver.Value.ObserveForEvents(handle);
         var sub = _inboundEventBus.Subscribe(handle);
         _subscribers.Add(sub);
         return new Disposer(() => {
@@ -111,6 +121,20 @@ public abstract partial class EventStream : IDisposable {
         return await tcs.Task;
     }
 
+    public IDisposable OnNewEvents(IObserver<Unit> observer) {
+        _newEventSubscribers.Add(observer);
+
+        var disposable = new Disposer(() => {
+            Interlocked.Exchange(ref _newEventSubscribers,
+                new ConcurrentBag<IObserver<Unit>>(_newEventSubscribers.Except(new[] { observer }))
+            );
+        });
+
+        _subscribers.Add(disposable);
+
+        return disposable;
+    }
+
     public void Dispose() {
         Dispose(true);
         foreach (var sub in _subscribers ?? Enumerable.Empty<IDisposable>()) {
@@ -166,6 +190,10 @@ public abstract partial class EventStream : IDisposable {
                     await WriteAsync(ms.ToArray());
 
                     await _inboundEventBus.PublishAsync(recorded); //note: this is going to be really f** slow.
+                }
+
+                if (events.Any()) {
+                    NewEventsReceived();
                 }
 
                 onceCompleted.SetResult(WriteResult.Ok(position));
@@ -251,4 +279,11 @@ public abstract partial class EventStream : IDisposable {
     }
 
     protected abstract Task WriteAsync(byte[] data);
+
+    private void NewEventsReceived() {
+        var subscribers = _newEventSubscribers.ToArray();
+        foreach (var subscriber in subscribers) {
+            subscriber?.OnNext(Unit.Default);
+        }
+    }
 }
