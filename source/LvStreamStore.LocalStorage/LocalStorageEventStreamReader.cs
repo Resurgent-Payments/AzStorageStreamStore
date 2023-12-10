@@ -9,8 +9,7 @@ namespace LvStreamStore.LocalStorage {
         private readonly string _dataFile;
         private readonly IEventSerializer _eventSerializer;
         private readonly LocalStorageEventStreamOptions _options;
-        private long _lastPosition = 0;
-        private int _lastOffset = 0;
+        private int _lastBytePosition = 0;
 
         public LocalStorageEventStreamReader(string dataFileName, IEventSerializer eventSerializer, LocalStorageEventStreamOptions options) {
             _dataFile = dataFileName;
@@ -19,74 +18,75 @@ namespace LvStreamStore.LocalStorage {
         }
 
         public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default)
-            => new Enumerator(this, _eventSerializer, _options, token);
+            => new Enumerator(this, _eventSerializer, token);
 
-        class Enumerator : IEnumerator {
+        class Enumerator : IStreamEnumerator {
             private readonly IEventSerializer _eventSerializer;
-            private readonly CancellationToken _token;
-            private readonly LocalStorageEventStreamOptions _options;
-            private byte[] _buffer = new byte[4096];
             private readonly LocalStorageEventStreamReader _reader;
+            private int _lastBytePosition;
 
             public StreamItem Current { get; private set; }
 
-            public long Position { get; private set; }
 
-            public int Offset { get; private set; }
 
-            public Enumerator(LocalStorageEventStreamReader reader, IEventSerializer eventSerializer, LocalStorageEventStreamOptions options, CancellationToken token = default) {
+            public Enumerator(LocalStorageEventStreamReader reader, IEventSerializer eventSerializer, CancellationToken token = default) {
                 _eventSerializer = eventSerializer;
-                _options = options;
-                _token = token;
                 _reader = reader;
 
-                Position = _reader._lastPosition;
-                Offset = _reader._lastOffset;
+                _lastBytePosition = _reader._lastBytePosition;
             }
 
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
             public async ValueTask<bool> MoveNextAsync() {
-                Position += Offset;
-                Offset = 0;
-                Current = default;
-
-                var ms = new MemoryStream();
                 int readOffset;
-
-
+                byte[] headerBuffer = new byte[EventStream.LengthOfEventHeader];
+                byte[] readBuffer = new byte[4096];
 
                 using (var fStream = new FileStream(_reader._dataFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
-                    fStream.Seek(Position, SeekOrigin.Begin);
+                    if (fStream.Length <= _lastBytePosition) {
+                        Current = null;
+                        return false;
+                    }
+
+
+                    fStream.Seek(_lastBytePosition, SeekOrigin.Begin);
+
+                    // read event header bytes
+                    Array.Clear(headerBuffer);
+                    readOffset = await fStream.ReadAsync(headerBuffer, 0, headerBuffer.Length);
+
+                    if (readOffset <= 0) {
+                        Current = null;
+                        return false;
+                    }
+
+                    var numberOfBytesToRead = BitConverter.ToInt32(headerBuffer);
+                    _lastBytePosition += EventStream.LengthOfEventHeader;
+
+                    var ms = new MemoryStream(numberOfBytesToRead);
+
                     do {
-                        Array.Clear(_buffer);
-                        readOffset = await fStream.ReadAsync(_buffer, 0, _buffer.Length, _token);
+                        Array.Clear(readBuffer);
+                        readOffset = await fStream.ReadAsync(readBuffer, 0, Math.Min(numberOfBytesToRead, EventStream.LengthOfEventHeader));
 
-                        for (var idx = 0; idx < readOffset; idx++) {
-                            if (_buffer[idx] == StreamConstants.NULL) break; // if null, then no further data exists.
-
-                            if (_buffer[idx] == StreamConstants.EndOfRecord) { // found a point whereas we need to deserialize what we have in the buffer, yield it back to the caller, then advance the index by 1.
-                                ms.Seek(0, SeekOrigin.Begin);
-
-                                Current = _eventSerializer.Deserialize<StreamItem>(ms)!;
-
-                                Position += Offset + 1;
-                                Offset = Convert.ToInt32(ms.Length);
-                                ms?.Dispose();
-
-                                return true;
-                            }
-
-                            ms.WriteByte(_buffer[idx]);
+                        if (readOffset > 0) {
+                            ms.Write(readBuffer, 0, readOffset);
                         }
 
-                        Offset += readOffset;
-                    } while (readOffset != 0);
+                        _lastBytePosition += readOffset;
+                        numberOfBytesToRead -= readOffset;
+                    } while (readOffset > 0);
+
+                    ms.Seek(0, SeekOrigin.Begin);
+
+                    var str = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+
+                    Current = _eventSerializer.Deserialize<StreamItem>(ms);
                 }
 
-                _reader._lastPosition = Position;
-                _reader._lastOffset = Offset;
-                return false;
+                _reader._lastBytePosition = _lastBytePosition;
+                return true;
             }
         }
     }

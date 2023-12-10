@@ -4,16 +4,19 @@ namespace LvStreamStore {
     using System.Reactive;
     using System.Threading.Tasks;
 
+    using Microsoft.Extensions.Logging;
+
     internal class EventStreamObserver : IObserver<Unit>, IDisposable {
         private readonly EventStream _eventStream;
         private readonly EventStreamReader _reader;
         private readonly CancellationTokenSource _cts = new();
         private CancellationTokenSource _onTick = new();
         private Dictionary<StreamKey, List<IHandleAsync<StreamItem>>> _handlers;
-        private EventBus _bus = new(null);
+        private EventBus _bus;
 
-        public EventStreamObserver(EventStream eventStream) {
+        public EventStreamObserver(EventStream eventStream, ILogger logger) {
             _eventStream = eventStream;
+            _bus = new(logger);
 
             _reader = _eventStream.GetReader();
             _cts.Token.Register(() => _onTick?.Cancel());

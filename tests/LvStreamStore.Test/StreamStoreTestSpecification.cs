@@ -34,7 +34,7 @@ namespace LvStreamStore.Test {
                 builder.SetMinimumLevel(LogLevel.Trace);
             });
             EventSerializer = new JsonEventSerializer(jsonSerializationOptions);
-            Stream = new MemoryEventStream(LoggingFactory, EventSerializer, eventStreamOptions);
+            Stream = new MemoryEventStream(LoggingFactory, eventStreamOptions);
             ClientApi = new EmbeddedEventStreamClient(Stream);
             Repository = new StreamStoreRepository(ClientApi, repositoryOptions);
             Bus = new Dispatcher(LoggingFactory);

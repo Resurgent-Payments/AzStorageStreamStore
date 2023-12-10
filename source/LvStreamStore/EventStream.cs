@@ -6,11 +6,11 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Threading.Channels;
 
-using LvStreamStore.Serialization;
-
 using Microsoft.Extensions.Logging;
 
 public abstract partial class EventStream : IDisposable {
+    public const short LengthOfEventHeader = 4; // 32-bit integer.
+
     protected readonly EventStreamOptions _options;
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
@@ -22,15 +22,13 @@ public abstract partial class EventStream : IDisposable {
 
 
     protected ILogger Log { get; }
-    protected IEventSerializer Serializer { get; }
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
 
-    public int Checkpoint { get; protected set; }
+    public long Checkpoint { get; protected set; }
 
-    protected EventStream(ILoggerFactory loggerFactory, IEventSerializer serializer, EventStreamOptions options) {
+    protected EventStream(ILoggerFactory loggerFactory, EventStreamOptions options) {
         Log = loggerFactory.CreateLogger<EventStream>();
         _inboundEventBus = new(Log);
-        Serializer = serializer!;
         _options = options;
 
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
@@ -43,7 +41,7 @@ public abstract partial class EventStream : IDisposable {
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
 
         _streamObserver = new Lazy<EventStreamObserver>(() => {
-            var o = new EventStreamObserver(this);
+            var o = new EventStreamObserver(this, Log);
             return o;
         });
     }
@@ -172,10 +170,7 @@ public abstract partial class EventStream : IDisposable {
                     position += 1;
                     var created = new StreamCreated(streamId, position);
 
-                    // write the stream created event.
-                    var stream = Serializer.Serialize(created);
-                    stream.WriteByte(StreamConstants.EndOfRecord);
-                    await WriteAsync(stream.ToArray());
+                    await WriteAsync(created);
                 }
 
                 // cache the current checkpoint.
@@ -184,10 +179,7 @@ public abstract partial class EventStream : IDisposable {
                     position += 1;
                     var recorded = new RecordedEvent(streamId, @event.EventId, position, @event.Type, @event.Metadata, @event.Data);
 
-                    // write the stream created event.
-                    var ms = Serializer.Serialize(recorded);
-                    ms.WriteByte(StreamConstants.EndOfRecord);
-                    await WriteAsync(ms.ToArray());
+                    await WriteAsync(recorded);
 
                     await _inboundEventBus.PublishAsync(recorded); //note: this is going to be really f** slow.
                 }
@@ -278,7 +270,7 @@ public abstract partial class EventStream : IDisposable {
         return true;
     }
 
-    protected abstract Task WriteAsync(byte[] data);
+    protected abstract Task WriteAsync(StreamItem item);
 
     private void NewEventsReceived() {
         var subscribers = _newEventSubscribers.ToArray();

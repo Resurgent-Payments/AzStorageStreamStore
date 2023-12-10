@@ -28,7 +28,7 @@ public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
 
 
 
-                _stream = new MemoryEventStream(_loggerFactory, new JsonEventSerializer(serializerOptions), options);
+                _stream = new MemoryEventStream(_loggerFactory, options);
             }
             return _stream;
         }
