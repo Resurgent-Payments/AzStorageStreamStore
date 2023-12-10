@@ -1,7 +1,6 @@
 namespace LvStreamStore;
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Threading.Channels;
@@ -18,8 +17,6 @@ public abstract partial class EventStream : IDisposable {
     private bool _disposed = false;
     private Collection<IDisposable> _subscribers = new();
     private EventBus _inboundEventBus;
-    private ConcurrentBag<IObserver<Unit>> _newEventSubscribers = new();
-
 
     protected ILogger Log { get; }
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
@@ -119,20 +116,6 @@ public abstract partial class EventStream : IDisposable {
         return await tcs.Task;
     }
 
-    public IDisposable OnNewEvents(IObserver<Unit> observer) {
-        _newEventSubscribers.Add(observer);
-
-        var disposable = new Disposer(() => {
-            Interlocked.Exchange(ref _newEventSubscribers,
-                new ConcurrentBag<IObserver<Unit>>(_newEventSubscribers.Except(new[] { observer }))
-            );
-        });
-
-        _subscribers.Add(disposable);
-
-        return disposable;
-    }
-
     public void Dispose() {
         Dispose(true);
         foreach (var sub in _subscribers ?? Enumerable.Empty<IDisposable>()) {
@@ -182,10 +165,6 @@ public abstract partial class EventStream : IDisposable {
                     await WriteAsync(recorded);
 
                     await _inboundEventBus.PublishAsync(recorded); //note: this is going to be really f** slow.
-                }
-
-                if (events.Any()) {
-                    NewEventsReceived();
                 }
 
                 onceCompleted.SetResult(WriteResult.Ok(position));
@@ -271,11 +250,4 @@ public abstract partial class EventStream : IDisposable {
     }
 
     protected abstract Task WriteAsync(StreamItem item);
-
-    private void NewEventsReceived() {
-        var subscribers = _newEventSubscribers.ToArray();
-        foreach (var subscriber in subscribers) {
-            subscriber?.OnNext(Unit.Default);
-        }
-    }
 }
