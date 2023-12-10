@@ -1,0 +1,16 @@
+@using LvStreamStore;
+@{
+    ViewData["Title"] = "Items";
+}
+
+@inject MvcHost.Models.ItemsRm _rm;
+
+<div class="text-center">
+    <h1 class="display-4">Items</h1>
+    <ul>
+        @foreach (var item in _rm.Items)
+        {
+        <li>@item.Name</li>
+        }
+    </ul>
+</div>

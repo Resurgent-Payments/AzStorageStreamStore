@@ -68,9 +68,9 @@ namespace LvStreamStore {
 
                 switch (msg) {
                     case StreamEvent @event:
-                        if (@event.GetType() == typeof(BusTelemetry)) { return; }
+                        if (@event.GetType() == typeof(BusTelemetry)) { continue; }
                         _logger.LogDebug("Received an event.");
-                        foreach (var evtHandler in _eventSubscriptions) {
+                        foreach (var evtHandler in _eventSubscriptions.AsReadOnly()) {
                             try {
                                 _logger.LogDebug("Handling event.");
                                 await evtHandler.Invoke(@event);

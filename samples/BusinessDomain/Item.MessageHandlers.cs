@@ -6,7 +6,7 @@ using LvStreamStore.ApplicationToolkit;
 
 using Microsoft.Extensions.Logging;
 
-public class ItemMsgHandlers : TransientSubscriber, IAsyncCommandHandler<ItemMsgs.CreateItem>, IAsyncCommandHandler<ItemMsgs.ChangeName> {
+public class ItemMsgHandlers : TransientSubscriber, IAsyncCommandHandler<ItemMsgs.CreateItem>, IAsyncCommandHandler<ItemMsgs.ChangeName>, IAsyncCommandHandler<ItemMsgs.AddItems>, IAutoStartService {
     private readonly IStreamStoreRepository _repository;
 
     public ItemMsgHandlers(IStreamStoreRepository repository, IDispatcher dispatcher, ILoggerFactory factory) : base(dispatcher, factory) {
@@ -14,6 +14,7 @@ public class ItemMsgHandlers : TransientSubscriber, IAsyncCommandHandler<ItemMsg
 
         Subscribe<ItemMsgs.CreateItem>(this);
         Subscribe<ItemMsgs.ChangeName>(this);
+        Subscribe<ItemMsgs.AddItems>(this);
     }
 
     public async ValueTask<CommandResult> HandleAsync(ItemMsgs.CreateItem command) {
@@ -29,5 +30,17 @@ public class ItemMsgHandlers : TransientSubscriber, IAsyncCommandHandler<ItemMsg
         return await _repository.Save(item)
             ? command.Complete()
             : command.Fail();
+    }
+
+    public async ValueTask<CommandResult> HandleAsync(ItemMsgs.AddItems command) {
+        try {
+            for (var x = 1; x <= command.NumberOfItems; x++) {
+                await _repository.Save(new Item(Guid.NewGuid(), $"Item #{x}"));
+            }
+            return command.Complete();
+        }
+        catch (Exception ex) {
+            return command.Fail(ex);
+        }
     }
 }
