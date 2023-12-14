@@ -1,7 +1,6 @@
 namespace LvStreamStore;
 
 using System;
-using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Threading.Channels;
 
@@ -14,8 +13,6 @@ public abstract partial class EventStream : IDisposable {
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed = false;
-    private Collection<IDisposable> _subscribers = new();
-    private EventBus _inboundEventBus;
 
     protected ILogger Log { get; }
     protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
@@ -24,7 +21,6 @@ public abstract partial class EventStream : IDisposable {
 
     protected EventStream(ILoggerFactory loggerFactory, EventStreamOptions options) {
         Log = loggerFactory.CreateLogger<EventStream>();
-        _inboundEventBus = new(Log);
         _options = options;
 
         _streamWriter = Channel.CreateUnbounded<WriteToStreamArgs>(new UnboundedChannelOptions {
@@ -35,39 +31,6 @@ public abstract partial class EventStream : IDisposable {
 
         _cts.Token.Register(() => _streamWriter.Writer.Complete());
         Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
-    }
-
-    public IDisposable SubscribeToStream(IHandleAsync<StreamItem> handle) {
-        var sub = _inboundEventBus.Subscribe(handle);
-        _subscribers.Add(sub);
-        return new Disposer(() => {
-            _subscribers.Remove(sub);
-            sub?.Dispose();
-        });
-    }
-
-    public IDisposable SubscribeToStream(StreamId streamId, IHandleAsync<RecordedEvent> handle) {
-        var sub = _inboundEventBus.Subscribe(new AdHocHandler<RecordedEvent>(async (@event) => {
-            if (streamId == @event.StreamId) {
-                await handle.HandleAsync(@event);
-            }
-        }));
-        return new Disposer(() => {
-            _subscribers.Remove(sub);
-            sub?.Dispose();
-        });
-    }
-
-    public IDisposable SubscribeToStream(StreamKey streamKey, IHandleAsync<RecordedEvent> handle) {
-        var sub = _inboundEventBus.Subscribe(new AdHocHandler<RecordedEvent>(async (@event) => {
-            if (streamKey == @event.StreamId) {
-                await handle.HandleAsync(@event);
-            }
-        }));
-        return new Disposer(() => {
-            _subscribers.Remove(sub);
-            sub?.Dispose();
-        });
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId streamId, int? revision = null) {
@@ -111,9 +74,6 @@ public abstract partial class EventStream : IDisposable {
 
     public void Dispose() {
         Dispose(true);
-        foreach (var sub in _subscribers ?? Enumerable.Empty<IDisposable>()) {
-            sub?.Dispose();
-        }
         GC.SuppressFinalize(this);
     }
 
@@ -154,10 +114,7 @@ public abstract partial class EventStream : IDisposable {
                 foreach (var @event in events) {
                     position += 1;
                     var recorded = new RecordedEvent(streamId, @event.EventId, position, @event.Type, @event.Metadata, @event.Data);
-
                     await WriteAsync(recorded);
-
-                    await _inboundEventBus.PublishAsync(recorded); //note: this is going to be really f** slow.
                 }
 
                 onceCompleted.SetResult(WriteResult.Ok(position));

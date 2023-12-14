@@ -4,6 +4,8 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 using Xunit;
 
 public abstract class ClientTestBase : IDisposable {
@@ -17,7 +19,7 @@ public abstract class ClientTestBase : IDisposable {
     public IEventStreamClient Client { get; }
 
     public ClientTestBase() {
-        Client = new EmbeddedEventStreamClient(Stream);
+        Client = new EmbeddedEventStreamClient(Stream, new NullLoggerFactory());
 
         AsyncHelper.RunSync(Client.InitializeAsync);
         var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>()) }));

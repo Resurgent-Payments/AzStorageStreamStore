@@ -35,7 +35,7 @@ namespace LvStreamStore.Test {
             });
             EventSerializer = new JsonEventSerializer(jsonSerializationOptions);
             Stream = new MemoryEventStream(LoggingFactory, eventStreamOptions);
-            ClientApi = new EmbeddedEventStreamClient(Stream);
+            ClientApi = new EmbeddedEventStreamClient(Stream, LoggingFactory);
             Repository = new StreamStoreRepository(ClientApi, repositoryOptions);
             Bus = new Dispatcher(LoggingFactory);
         }
