@@ -69,6 +69,7 @@ namespace LvStreamStore {
 
             public void Dispose() {
                 // no-op
+                var x = 0;
             }
 
             public bool MoveNext() {
@@ -77,6 +78,7 @@ namespace LvStreamStore {
                 if (_itemIndex == _pageSize) {
                     if (_page.Next is null) {
                         Current = default;
+                        _itemIndex--;
                         return false;
                     }
 
@@ -84,16 +86,19 @@ namespace LvStreamStore {
                     _page = _page.Next;
                 }
 
-                Current = _page.Items.Count > _itemIndex
-                    ? _page.Items[_itemIndex]
-                    : default;
+                if (_page.Items.Count > _itemIndex) {
+                    Current = _page.Items[_itemIndex];
+                } else {
+                    _itemIndex--;
+                    Current = default;
+                }
 
                 return Current is not null;
             }
 
             public void Reset() {
-                _itemIndex = -1;
-                _page = _head;
+                //_itemIndex = -1;
+                //_page = _head;
             }
         }
 

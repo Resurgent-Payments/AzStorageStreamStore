@@ -5,24 +5,24 @@ using System.Threading;
 using System.Threading.Tasks;
 
 internal class MemoryEventStreamReader : EventStreamReader {
-    private readonly SinglyLinkedList<StreamItem> _head;
+    private readonly IEnumerator<StreamItem> _enumerator;
 
     public MemoryEventStreamReader(MemoryEventStream eventStream, MemoryEventStreamOptions options) {
-        _head = eventStream._stream;
+        _enumerator = eventStream._stream.GetEnumerator();
     }
 
     public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default) =>
-        new Enumerator(this, token);
+        new Enumerator(_enumerator, token);
 
     class Enumerator : IStreamEnumerator {
         private readonly CancellationToken? _token;
-        private IEnumerator<StreamItem> _stream;
+        private readonly IEnumerator<StreamItem> _enumerator;
 
-        public StreamItem Current => _stream.Current;
+        public StreamItem Current => _enumerator.Current;
 
 
-        public Enumerator(MemoryEventStreamReader reader, CancellationToken? token = default) {
-            _stream = reader._head.GetEnumerator();
+        public Enumerator(IEnumerator<StreamItem> enumerator, CancellationToken? token = default) {
+            _enumerator = enumerator;
             _token = token;
         }
 
@@ -30,7 +30,7 @@ internal class MemoryEventStreamReader : EventStreamReader {
 
         public ValueTask<bool> MoveNextAsync() {
             if (_token?.IsCancellationRequested ?? false) { return ValueTask.FromResult(false); }
-            return ValueTask.FromResult(_stream.MoveNext());
+            return ValueTask.FromResult(_enumerator.MoveNext());
         }
     }
 }
