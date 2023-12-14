@@ -1,4 +1,4 @@
 namespace LvStreamStore;
-public interface IHandleAsync<T> where T : Event {
-    Task HandleAsync(T msg);
+public interface IHandleAsync<T> where T : StreamEvent {
+    ValueTask HandleAsync(T msg);
 }

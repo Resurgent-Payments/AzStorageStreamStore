@@ -1,15 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\source\LvStreamStore.Hosting\LvStreamStore.Hosting.csproj" />
+    <ProjectReference Include="..\..\source\LvStreamStore.AspNetCore.ApplicationToolkit\LvStreamStore.AspNetCore.ApplicationToolkit.csproj" />
     <ProjectReference Include="..\..\source\LvStreamStore.LocalStorage\LvStreamStore.LocalStorage.csproj" />
     <ProjectReference Include="..\..\source\LvStreamStore\LvStreamStore.csproj" />
+    <ProjectReference Include="..\BusinessDomain\BusinessDomain.csproj" />
   </ItemGroup>
 
 </Project>

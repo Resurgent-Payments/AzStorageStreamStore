@@ -1,11 +1,18 @@
 namespace LvStreamStore;
+
+using LvStreamStore.Subscriptions;
+
+using Microsoft.Extensions.Logging;
+
 public class EmbeddedEventStreamClient : IEventStreamClient {
     private readonly CancellationTokenSource _cts = new();
 
     private readonly EventStream _eventStream;
+    private readonly EventStreamPoller _watcher;
 
-    public EmbeddedEventStreamClient(EventStream eventStream) {
+    public EmbeddedEventStreamClient(EventStream eventStream, ILoggerFactory loggerFactory) {
         _eventStream = eventStream;
+        _watcher = new EventStreamPoller(loggerFactory, _eventStream, new());
     }
 
     public Task InitializeAsync() {
@@ -22,16 +29,24 @@ public class EmbeddedEventStreamClient : IEventStreamClient {
 
 
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToStreamAsync(Func<RecordedEvent, Task> handler)
-        => _eventStream.SubscribeToStreamAsync(handler);
+    public Task<IDisposable> SubscribeToStreamAsync(Func<StreamItem, ValueTask> handler)
+        => Task.FromResult(_watcher.SubscribeToStream(new AdHocHandler<StreamItem>(handler)));
 
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, Func<RecordedEvent, Task> handler)
-        => _eventStream.SubscribeToStreamAsync(streamKey, handler.Invoke);
- 
+    public Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, Func<RecordedEvent, ValueTask> handler)
+        => Task.FromResult(_watcher.SubscribeToStream(streamKey, new AdHocHandler<StreamItem>(async item => {
+            if (item is RecordedEvent @event && streamKey == @event.StreamId) {
+                await handler.Invoke(@event);
+            }
+        })));
+
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Func<RecordedEvent, Task> handler)
-        => _eventStream.SubscribeToStreamAsync(streamId, handler.Invoke);
+    public Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Func<RecordedEvent, ValueTask> handler)
+        => Task.FromResult(_watcher.SubscribeToStream(streamId, new AdHocHandler<StreamItem>(async item => {
+            if (item is RecordedEvent @event && streamId == @event.StreamId) {
+                await handler.Invoke(@event);
+            }
+        })));
 
     /// <inheritdoc />
     public ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events)
@@ -46,7 +61,8 @@ public class EmbeddedEventStreamClient : IEventStreamClient {
     protected virtual void Dispose(bool disposing) {
         if (_disposed || !disposing) return;
 
-        _eventStream.Dispose();
+        _watcher?.Dispose();
+        _eventStream?.Dispose();
         _cts.Cancel();
         _cts.Dispose();
 

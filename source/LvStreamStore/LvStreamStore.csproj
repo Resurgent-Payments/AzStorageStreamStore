@@ -1,18 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net7.0</TargetFramework>
+        <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="LvStreamStore.ApplicationToolkit" />
         <InternalsVisibleTo Include="LvStreamStore.Tests" />
         <InternalsVisibleTo Include="LvStreamStore.Hosting" />
         <InternalsVisibleTo Include="LvStreamStore.AspNetCore.Hosting" />
+        <InternalsVisibleTo Include="LvStreamStore.ApplicationToolkit.Tests" />
+        <InternalsVisibleTo Include="LvStreamStore.Test" />
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="7.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
         <PackageReference Include="Microsoft.Extensions.Options" Version="7.0.1" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />

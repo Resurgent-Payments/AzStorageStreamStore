@@ -6,7 +6,6 @@ using LvStreamStore.Serialization.Json;
 using LvStreamStore.Tests;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 public class LocalStorageEventStreamTests : ClientTestBase {
@@ -23,14 +22,14 @@ public class LocalStorageEventStreamTests : ClientTestBase {
                     BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
                     FileReadBlockSize = 4096 // 4k block size.
                 };
-                var diskOptionsAccessor = A.Fake<IOptions<EventStreamOptions>>();
+                var diskOptionsAccessor = A.Fake<IOptions<LocalStorageEventStreamOptions>>();
                 A.CallTo(() => diskOptionsAccessor.Value)
                     .Returns(diskOptions);
                 var serializerOptions = A.Fake<IOptions<JsonSerializationOptions>>();
                 A.CallTo(() => serializerOptions.Value)
                     .Returns(new JsonSerializationOptions());
 
-                _stream = new LocalStorageEventStream(NullLoggerFactory.Instance, new JsonEventSerializer(serializerOptions), diskOptionsAccessor);
+                _stream = new LocalStorageEventStream(_loggerFactory, new JsonEventSerializer(serializerOptions), diskOptionsAccessor);
             }
             return _stream;
         }

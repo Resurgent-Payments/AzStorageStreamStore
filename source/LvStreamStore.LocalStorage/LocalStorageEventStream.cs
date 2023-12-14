@@ -12,11 +12,14 @@ using Microsoft.Extensions.Options;
 internal class LocalStorageEventStream : EventStream {
     private readonly LocalStorageEventStreamOptions _options;
     private readonly string _dataFile;
+    private readonly IEventSerializer _eventSerializer;
+
     private LocalStorageEventStreamOptions _localStorageOptions() => (LocalStorageEventStreamOptions)_options;
 
-    internal LocalStorageEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<EventStreamOptions> options) : base(loggerFactory, eventSerializer, options) {
-        _options = options.Value as LocalStorageEventStreamOptions ?? new LocalStorageEventStreamOptions();
+    internal LocalStorageEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<LocalStorageEventStreamOptions> options) : base(loggerFactory, options.Value!) {
+        _options = options.Value!;
         _dataFile = Path.Combine(_options.BaseDataPath, "chunk.dat");
+        _eventSerializer = eventSerializer;
 
         if (!Directory.Exists(_localStorageOptions().BaseDataPath)) {
             Directory.CreateDirectory(_localStorageOptions().BaseDataPath);
@@ -25,27 +28,24 @@ internal class LocalStorageEventStream : EventStream {
         if (!File.Exists(_dataFile)) {
             File.Create(_dataFile).Dispose();
         }
-
-        AfterConstructed();
     }
 
-    protected override async Task WriteAsync(byte[] data) {
-        var endOfData = data.Length;
 
-        for (var i = 0; i < data.Length; i++) {
-            if (data[i] == 0x00) {
-                endOfData = i;
-                break;
-            }
-        }
+    protected override async Task WriteAsync(StreamItem item) {
+        var ser = _eventSerializer.Serialize(item);
+        var bytes = BitConverter.GetBytes((int)ser.Length); // presume that this'll be 4-bytes.
 
         using (var fileWriter = new FileStream(_dataFile, new FileStreamOptions { Access = FileAccess.Write, Mode = FileMode.Append, Options = FileOptions.Asynchronous, Share = FileShare.Read })) {
             fileWriter.Seek(0, SeekOrigin.End);
-            await fileWriter.WriteAsync(data, 0, data.Length);
+
+            // write header.
+
+            await fileWriter.WriteAsync(bytes);
+            await ser.CopyToAsync(fileWriter);
             await fileWriter.FlushAsync();
         }
 
-        Checkpoint += endOfData;
+        Checkpoint += ser.Length + LengthOfEventHeader;
     }
 
     bool _disposed = false;
@@ -56,5 +56,5 @@ internal class LocalStorageEventStream : EventStream {
         _disposed = true;
     }
 
-    public override EventStreamReader GetReader() => new LocalStorageEventStreamReader(_dataFile, Serializer, _options);
+    public override EventStreamReader GetReader() => new LocalStorageEventStreamReader(_dataFile, _eventSerializer, _options);
 }

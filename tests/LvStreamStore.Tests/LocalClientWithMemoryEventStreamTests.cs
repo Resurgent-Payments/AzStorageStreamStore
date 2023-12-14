@@ -19,7 +19,7 @@ public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
         get {
             if (_stream == null) {
                 var value = new MemoryEventStreamOptions();
-                var options = A.Fake<IOptions<EventStreamOptions>>();
+                var options = A.Fake<IOptions<MemoryEventStreamOptions>>();
                 A.CallTo(() => options.Value)
                     .Returns(value);
                 var serializerOptions = A.Fake<IOptions<JsonSerializationOptions>>();
@@ -28,7 +28,7 @@ public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
 
 
 
-                _stream = new MemoryEventStream(_loggerFactory, new JsonEventSerializer(serializerOptions), options);
+                _stream = new MemoryEventStream(_loggerFactory, options);
             }
             return _stream;
         }

@@ -1,31 +1,44 @@
-﻿using System.Diagnostics;
+namespace MvcHost.Controllers;
+using System.Diagnostics;
+
+using BusinessDomain;
+
+using LvStreamStore.ApplicationToolkit;
+
 using Microsoft.AspNetCore.Mvc;
+
 using MvcHost.Models;
 
-namespace MvcHost.Controllers;
+public class HomeController : Controller {
+    private readonly ICommandPublisher _cmdPublisher;
 
-public class HomeController : Controller
-{
-    private readonly ILogger<HomeController> _logger;
-
-    public HomeController(ILogger<HomeController> logger)
-    {
-        _logger = logger;
+    public HomeController(ICommandPublisher cmdPublisher) {
+        _cmdPublisher = cmdPublisher;
     }
 
-    public IActionResult Index()
-    {
+    [HttpGet("")]
+    public IActionResult Index() {
         return View();
     }
 
-    public IActionResult Privacy()
-    {
+    [HttpPost]
+    public async Task<IActionResult> AddItems() {
+        var x = await _cmdPublisher.SendAsync(new ItemMsgs.AddItems(5));
+        try {
+            _ = x.IsType<CommandCompleted>();
+            return RedirectToAction("Index");
+        }
+        catch (Exception ex) {
+            return BadRequest();
+        }
+    }
+
+    public IActionResult Privacy() {
         return View();
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Error()
-    {
+    public IActionResult Error() {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 }

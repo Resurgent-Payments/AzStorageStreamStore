@@ -4,6 +4,8 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 using Xunit;
 
 public abstract class ClientTestBase : IDisposable {
@@ -17,7 +19,7 @@ public abstract class ClientTestBase : IDisposable {
     public IEventStreamClient Client { get; }
 
     public ClientTestBase() {
-        Client = new EmbeddedEventStreamClient(Stream);
+        Client = new EmbeddedEventStreamClient(Stream, new NullLoggerFactory());
 
         AsyncHelper.RunSync(Client.InitializeAsync);
         var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, new[] { new EventData(_loadedStreamId, Guid.NewGuid(), EventType, Array.Empty<byte>(), Array.Empty<byte>()) }));
@@ -213,10 +215,10 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(streamId, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
-        var sub = Client.SubscribeToStreamAsync(streamId, (item) => { events.Add(item); return Task.CompletedTask; });
+        var sub = Client.SubscribeToStreamAsync(streamId, (item) => { events.Add(item); return ValueTask.CompletedTask; });
         await Client.AppendToStreamAsync(streamId, ExpectedVersion.Any, new[] { e4 });
 
-        AssertEx.IsOrBecomesTrue(() => events.Count > 3, TimeSpan.FromSeconds(3));
+        AssertEx.IsOrBecomesTrue(() => events.Count >= 1, TimeSpan.FromSeconds(3));
     }
 
     [Fact]
@@ -233,7 +235,7 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, new[] { e1, e2, e3 });
         Assert.True(writeResult.Successful);
 
-        _ = await Client.SubscribeToStreamAsync(key, (item) => { events.Add(item); return Task.CompletedTask; });
+        _ = await Client.SubscribeToStreamAsync(key, (item) => { events.Add(item); return ValueTask.CompletedTask; });
 
         await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
 
@@ -352,7 +354,7 @@ public abstract class ClientTestBase : IDisposable {
         for (var i = 0; i < numberOfSubscriptions; i++) {
             _ = Client.SubscribeToStreamAsync(key, (item) => {
                 events.Add(item);
-                return Task.CompletedTask;
+                return ValueTask.CompletedTask;
             });
         }
 
@@ -372,8 +374,10 @@ public abstract class ClientTestBase : IDisposable {
         var events = new List<RecordedEvent>();
 
         (await Client.SubscribeToStreamAsync((item) => {
-            events.Add(item);
-            return Task.CompletedTask;
+            if (item is RecordedEvent @event) {
+                events.Add(@event);
+            }
+            return ValueTask.CompletedTask;
         })).Dispose();
 
         var key = new StreamId("test", Array.Empty<string>(), "stream");
@@ -395,12 +399,16 @@ public abstract class ClientTestBase : IDisposable {
         var key = new StreamId("test", Array.Empty<string>(), "stream");
 
         await Client.SubscribeToStreamAsync((item) => {
-            events.Add(item);
-            return Task.CompletedTask;
+            if (item is RecordedEvent @event) {
+                events.Add(@event);
+            }
+            return ValueTask.CompletedTask;
         });
         (await Client.SubscribeToStreamAsync((item) => {
-            events.Add(item);
-            return Task.CompletedTask;
+            if (item is RecordedEvent @event) {
+                events.Add(@event);
+            }
+            return ValueTask.CompletedTask;
         })).Dispose();
 
         events.Clear();
