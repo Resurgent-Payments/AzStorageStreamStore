@@ -24,7 +24,8 @@ namespace LvStreamStore.ApplicationToolkit {
 
         public Dispatcher(ILoggerFactory loggerFactory) {
             _logger = loggerFactory.CreateLogger(typeof(Dispatcher));
-            Task.Run(Pump);
+
+            PumpMessages();
         }
 
         /// <inheritdoc/>
@@ -75,8 +76,9 @@ namespace LvStreamStore.ApplicationToolkit {
             _isDisposed = true;
         }
 
-        private async void Pump() {
+        private async void PumpMessages() {
             _logger.LogDebug("Pump online.");
+            await Task.Yield();
             while (!_cts.IsCancellationRequested) {
                 _logger.LogDebug("Waiting for message...");
                 await _messageChannel.Reader.WaitToReadAsync();

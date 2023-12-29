@@ -110,6 +110,7 @@ namespace LvStreamStore.ApplicationToolkit {
             // get the clr type that should be decoded.
             var resolvedClrType = Type.GetType(aqName, true, true);
 
+            //todo: custom deserializer to pickup messageid.
             return (Message)JsonSerializer.Deserialize(new ReadOnlySpan<byte>(@event.Data), resolvedClrType, _options.JsonOptions)!;
         }
 

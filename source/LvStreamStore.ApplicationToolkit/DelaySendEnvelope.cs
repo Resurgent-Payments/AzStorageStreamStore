@@ -5,12 +5,12 @@ namespace LvStreamStore.ApplicationToolkit {
         public readonly TimePosition At;
         public readonly Message ToSend;
 
-        public DelaySendEnvelope(TimePosition at, Message toSend, Guid? msgId = null) : base(msgId) {
+        public DelaySendEnvelope(TimePosition at, Message toSend) : base() {
             At = at;
             ToSend = toSend;
         }
 
-        public DelaySendEnvelope(ITimeSource timeSource, TimeSpan delay, Message toSend, Guid? msgId = null) :
-            this(timeSource.Now() + delay, toSend, msgId) { }
+        public DelaySendEnvelope(ITimeSource timeSource, TimeSpan delay, Message toSend) :
+            this(timeSource.Now() + delay, toSend) { }
     }
 }

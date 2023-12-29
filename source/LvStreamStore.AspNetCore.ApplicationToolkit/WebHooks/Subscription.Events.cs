@@ -1,8 +1,8 @@
 namespace LvStreamStore.ApplicationToolkit.WebHooks;
 
 public partial class SubscriptionMsgs {
-    public record Subscribed(Guid SubscriptionId, Guid WebHookId, string Description, string PostUrl, Guid? MsgId = null) : Event(MsgId);
-    public record Disabled(Guid SubscriptionId, Guid? MsgId = null) : Event(MsgId);
-    public record Enabled(Guid SubscriptionId, Guid? MsgId = null) : Event(MsgId);
-    public record Removed(Guid SubscriptionId, Guid? MsgId = null) : Event(MsgId);
+    public record Subscribed(Guid SubscriptionId, Guid WebHookId, string Description, string PostUrl) : Event;
+    public record Disabled(Guid SubscriptionId) : Event;
+    public record Enabled(Guid SubscriptionId) : Event;
+    public record Removed(Guid SubscriptionId) : Event;
 }

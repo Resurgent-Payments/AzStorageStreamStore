@@ -2,9 +2,9 @@ namespace LvStreamStore.ApplicationToolkit {
     using System;
     using System.Threading;
 
-    public record Command(CancellationToken Token = default, Guid? MsgId = null) : Message(MsgId) {
-        public CommandResult Complete(Guid? MsgId = null) => new CommandCompleted(this, MsgId);
-        public CommandResult Fail(Exception exc = null, Guid? MsgId = null) => new CommandFailed(this, exc, MsgId);
+    public record Command(CancellationToken Token = default) : Message() {
+        public CommandResult Complete() => new CommandCompleted(this);
+        public CommandResult Fail(Exception exc = null) => new CommandFailed(this, exc);
     }
 
     public static class CommandResultExtensions {
