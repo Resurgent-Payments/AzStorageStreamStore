@@ -23,9 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LvStreamStore.Tests\LvStreamStore.Tests.csproj" />
-    <ProjectReference Include="..\..\source\LvStreamStore\LvStreamStore.csproj" />
-    <ProjectReference Include="..\..\source\LvStreamStore.LocalStorage\LvStreamStore.LocalStorage.csproj" />
+    <ProjectReference Include="..\..\source\LvStreamStore.Authentication\LvStreamStore.Authentication.csproj" />
   </ItemGroup>
 
 </Project>

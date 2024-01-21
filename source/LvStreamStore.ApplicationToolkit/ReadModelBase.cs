@@ -20,8 +20,8 @@ public class ReadModelBase : IAutoStartService, IDisposable {
         _subscriptions.Add(_inBus.Subscribe(handle));
     }
 
-    protected void SubscribeToStream<TAggregate, TEvent>(IAsyncHandler<TEvent> handle) where TAggregate : AggregateRoot, new() where TEvent : Event {
-        _subscriptions.Add(_repository.Subscribe<TAggregate, TEvent>(handle));
+    protected void SubscribeToStream<TAggregate, TEvent>(IAsyncHandler<TEvent> handler) where TAggregate : AggregateRoot, new() where TEvent : Event {
+        _subscriptions.Add(_repository.Subscribe<TAggregate, TEvent>(handler));
     }
 
     public void Dispose() {

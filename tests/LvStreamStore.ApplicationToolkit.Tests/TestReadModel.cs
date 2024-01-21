@@ -1,4 +1,4 @@
-﻿namespace LvStreamStore.ApplicationToolkit.Tests {
+namespace LvStreamStore.ApplicationToolkit.Tests {
     using System;
     using System.Collections.Generic;
     using System.Linq;
