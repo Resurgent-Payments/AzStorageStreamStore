@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\source\LvStreamStore.AspNetCore.ApplicationToolkit\LvStreamStore.AspNetCore.ApplicationToolkit.csproj" />
+    <ProjectReference Include="..\..\source\LvStreamStore.Authentication\LvStreamStore.Authentication.csproj" />
     <ProjectReference Include="..\..\source\LvStreamStore.LocalStorage\LvStreamStore.LocalStorage.csproj" />
     <ProjectReference Include="..\..\source\LvStreamStore\LvStreamStore.csproj" />
     <ProjectReference Include="..\BusinessDomain\BusinessDomain.csproj" />

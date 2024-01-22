@@ -24,6 +24,9 @@ builder.Host.ConfigureServices((ctx, services) => {
     services.AddSingleton<IAutoStartService>(sp => sp.GetRequiredService<MvcHost.Models.ItemsRm>());
 });
 
+builder.Services.AddIdentityCore<object>()
+    
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\LvStreamStore.ApplicationToolkit\LvStreamStore.ApplicationToolkit.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.1" />
+    <ProjectReference Include="..\LvStreamStore.ApplicationToolkit\LvStreamStore.ApplicationToolkit.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
