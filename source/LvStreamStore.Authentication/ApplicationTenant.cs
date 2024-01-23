@@ -13,7 +13,7 @@ internal class ApplicationTenant : AggregateRoot {
     public ApplicationTenant(Guid applicationTenantId, string Name, string hostName) {
         RegisterEvents();
 
-        Raise(new ApplicationTenantMsgs.Approved(applicationTenantId, Name, hostName));
+        Raise(new ApplicationTenantMsgs.Created(applicationTenantId, Name, hostName));
     }
 
     public ApplicationTenant() {
@@ -21,7 +21,7 @@ internal class ApplicationTenant : AggregateRoot {
     }
 
     private void RegisterEvents() {
-        Register<ApplicationTenantMsgs.Approved>(Apply);
+        Register<ApplicationTenantMsgs.Created>(Apply);
         Register<ApplicationTenantMsgs.NameChanged>(Apply);
         Register<ApplicationTenantMsgs.HostnameChanged>(Apply);
         Register<ApplicationTenantMsgs.Locked>(Apply);
@@ -56,7 +56,7 @@ internal class ApplicationTenant : AggregateRoot {
         Raise(new ApplicationTenantMsgs.Closed(Id));
     }
 
-    private void Apply(ApplicationTenantMsgs.Approved msg) {
+    private void Apply(ApplicationTenantMsgs.Created msg) {
         Id = msg.ApplicationTenantId;
         _name = msg.Name;
         _hostname = msg.Hostname;

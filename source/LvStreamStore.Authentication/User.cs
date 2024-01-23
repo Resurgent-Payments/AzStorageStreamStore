@@ -9,7 +9,7 @@ internal class User : AggregateRoot {
 
     public User(Guid userId, Guid tenantId, string userName, string firstName, string lastName, string primaryEmailAddress) {
         RegisterEvents();
-        Raise(new UserMsgs.Created(userId, tenantId, userName, firstName, lastName));
+        Raise(new UserMsgs.Registered(userId, tenantId, userName, firstName, lastName));
         Raise(new UserMsgs.PrimaryEmailAddressChanged(userId, primaryEmailAddress));
     }
 
@@ -18,20 +18,9 @@ internal class User : AggregateRoot {
     }
 
     private void RegisterEvents() {
-        Register<UserMsgs.Created>(Apply);
-        Register<UserMsgs.MappedToAuthDomain>(Apply);
+        Register<UserMsgs.Registered>(Apply);
         Register<UserMsgs.PasswordChanged>(Apply);
         Register<UserMsgs.PrimaryEmailAddressChanged>(Apply);
-    }
-
-    public void MapToAuthDomain(string subjectId, string authProvider, string authDomain, string userName) {
-        subjectId = subjectId.ToLowerInvariant();
-        authProvider = authProvider.ToLowerInvariant();
-        authDomain = authDomain.ToLowerInvariant();
-        userName = userName.ToLowerInvariant();
-
-        if (_authenticationDomainMappings.Contains((subjectId, authProvider, authDomain, userName))) { return; }
-        Raise(new UserMsgs.MappedToAuthDomain(Id, subjectId, authProvider, authDomain, userName));
     }
 
     internal void ChangePassword(string hashedPassword) {
@@ -45,12 +34,8 @@ internal class User : AggregateRoot {
     }
 
 
-    private void Apply(UserMsgs.Created msg) {
+    private void Apply(UserMsgs.Registered msg) {
         Id = msg.UserId;
-    }
-
-    private void Apply(UserMsgs.MappedToAuthDomain msg) {
-        _authenticationDomainMappings.Add((msg.SubjectId, msg.AuthProvider, msg.AuthDomain, msg.UserName));
     }
 
     private void Apply(UserMsgs.PasswordChanged msg) {
