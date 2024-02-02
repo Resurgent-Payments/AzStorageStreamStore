@@ -239,10 +239,7 @@ public abstract class ClientTestBase : IDisposable {
 
         await Client.AppendToStreamAsync(id1, ExpectedVersion.Any, new[] { e4 });
 
-        AssertEx.IsOrBecomesTrue(() => {
-            Thread.Sleep(100);
-            return events.Count >= 1;
-        }, TimeSpan.FromSeconds(3));
+        AssertEx.IsOrBecomesTrue(() => events.Count >= 1, TimeSpan.FromSeconds(3));
     }
 
     //[Fact]

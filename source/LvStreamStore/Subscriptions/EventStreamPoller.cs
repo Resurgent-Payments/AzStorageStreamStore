@@ -16,16 +16,7 @@ namespace LvStreamStore.Subscriptions {
             _streamReader = stream.GetReader();
             _options = options;
 
-            // activate pump here?
-            Task.Run(async () => {
-                while (!_cts.IsCancellationRequested) {
-                    await foreach (var msg in _streamReader) {
-                        await _bus.PublishAsync(msg);
-                    }
-
-                    await Task.Delay(_options.PollingInterval).ConfigureAwait(false);
-                }
-            }, _cts.Token);
+            StartPolling();
         }
 
         public IDisposable SubscribeToStream(IHandleAsync<StreamItem> handler) {
@@ -67,6 +58,18 @@ namespace LvStreamStore.Subscriptions {
                     new ConcurrentBag<IDisposable>(_subscriptions.Except(new[] { sub })));
                 sub?.Dispose();
             });
+        }
+
+        private async void StartPolling() {
+            await Task.Yield();
+
+            while (!_cts.IsCancellationRequested) {
+                await foreach (var msg in _streamReader) {
+                    await _bus.PublishAsync(msg);
+                }
+
+                await Task.Delay(_options.PollingInterval).ConfigureAwait(false);
+            }
         }
 
         public void Dispose() {

@@ -4,12 +4,12 @@ using System.Collections.ObjectModel;
 
 public class ReadModelBase : IAutoStartService, IDisposable {
     private readonly Collection<IDisposable> _subscriptions = new();
-    private readonly IStreamStoreRepository _repository;
+    protected IStreamStoreRepository Repository { get; init; }
     private readonly ISubscriber _inBus;
 
     public ReadModelBase(ISubscriber inBus, IStreamStoreRepository repository) {
         _inBus = inBus!;
-        _repository = repository!;
+        Repository = repository!;
     }
 
     protected void Subscribe<TCommand>(IAsyncCommandHandler<TCommand> handle) where TCommand : Command {
@@ -20,8 +20,8 @@ public class ReadModelBase : IAutoStartService, IDisposable {
         _subscriptions.Add(_inBus.Subscribe(handle));
     }
 
-    protected void SubscribeToStream<TAggregate, TEvent>(IAsyncHandler<TEvent> handle) where TAggregate : AggregateRoot, new() where TEvent : Event {
-        _subscriptions.Add(_repository.Subscribe<TAggregate, TEvent>(handle));
+    protected void SubscribeToStream<TAggregate, TEvent>(IAsyncHandler<TEvent> handler) where TAggregate : AggregateRoot, new() where TEvent : Event {
+        _subscriptions.Add(Repository.Subscribe<TAggregate, TEvent>(handler));
     }
 
     public void Dispose() {

@@ -65,7 +65,6 @@ namespace LvStreamStore.ApplicationToolkit {
             return _client.SubscribeToStreamAsync(streamKey, adhoc.HandleAsync).GetAwaiter().GetResult();
         }
 
-
         public async IAsyncEnumerable<Message> ReadAsync(StreamKey key) {
             await foreach (var @event in _client.ReadStreamAsync(key)) {
                 yield return Deserialize(@event);
