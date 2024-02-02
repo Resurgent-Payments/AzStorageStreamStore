@@ -7,7 +7,6 @@ namespace LvStreamStore.Authentication {
         public record Registered(Guid UserId, Guid TenantId, string UserName, string FirstName, string LastName) : Event;
         public record PasswordChanged(Guid UserId, string HashedPassword) : Event;
         public record PrimaryEmailAddressChanged(Guid UserId, string EmailAddress) : Event;
+        public record UserHasBeenRegistered(Command SourceCommand, string Password, Guid? MsgId = null) : CommandCompleted(SourceCommand, MsgId);
     }
-
-    public record UserHasBeenRegistered(Command SourceCommand, string Password, Guid? MsgId = null) :  CommandCompleted(SourceCommand, MsgId);
 }

@@ -19,7 +19,7 @@ internal class UserService : ReadModelBase, IAsyncCommandHandler<UserMsgs.Regist
         var newPassword = GenerateRandomPassword();
         user.ChangePassword(newPassword);
         await Repository.Save(user);
-        return new UserHasBeenRegistered(command, newPassword, command.MsgId);
+        return new UserMsgs.UserHasBeenRegistered(command, newPassword, command.MsgId);
     }
 
     public async ValueTask<CommandResult> HandleAsync(UserMsgs.ChangePassword command) {
