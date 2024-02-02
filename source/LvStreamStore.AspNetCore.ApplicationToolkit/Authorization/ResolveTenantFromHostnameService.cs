@@ -17,6 +17,6 @@ internal class ResolveTenantFromHostnameService : ReadModelBase, ITenantService 
     }
 
     public Guid GetTenantId() {
-        //_httpContextAccessor.HttpContext.Request.Host;
+        return Guid.Empty;
     }
 }

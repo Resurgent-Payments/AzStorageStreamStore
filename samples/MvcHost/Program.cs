@@ -24,8 +24,8 @@ builder.Host.ConfigureServices((ctx, services) => {
     services.AddSingleton<IAutoStartService>(sp => sp.GetRequiredService<MvcHost.Models.ItemsRm>());
 });
 
-builder.Services.AddIdentityCore<object>()
-    
+builder.Services.AddIdentityCore<object>();
+
 
 var app = builder.Build();
 

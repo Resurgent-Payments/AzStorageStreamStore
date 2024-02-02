@@ -22,9 +22,7 @@ namespace LvStreamStore {
 
         public EventBus(ILogger logger) {
             _logger = logger;
-            var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-            Task.Run(async () => { while (!_cts.IsCancellationRequested) { await timer.WaitForNextTickAsync(); PublishTelemetry(); } }, _cts.Token);
-            Task.Run(Pump, _cts.Token);
+            Pump();
         }
 
         public async Task PublishAsync<T>(T @event) where T : StreamEvent {
@@ -54,6 +52,7 @@ namespace LvStreamStore {
         //}
 
         private async void Pump() {
+            await Task.Yield();
 
             _logger.LogDebug("Pump online.");
             while (!_cts.IsCancellationRequested) {
