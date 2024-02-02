@@ -2,7 +2,6 @@ namespace LvStreamStore.Authentication;
 
 using System;
 using System.Security.Cryptography;
-using System.Text;
 
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.Extensions.Options;
@@ -60,7 +59,7 @@ internal class PasswordHasher : IPasswordHasher {
     }
 }
 
-internal class PasswordHasherOptions {
+public class PasswordHasherOptions {
     private static readonly RandomNumberGenerator _defaultRng = RandomNumberGenerator.Create(); // secure PRNG
     public int IterationCount { get; set; } = 250_000;
     internal RandomNumberGenerator Rng { get; set; } = _defaultRng;
