@@ -30,7 +30,8 @@ public abstract partial class EventStream : IDisposable {
         });
 
         _cts.Token.Register(() => _streamWriter.Writer.Complete());
-        Task.Factory.StartNew(StreamWriterImpl, _cts.Token);
+
+        MonitorForWriteRequests();
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId streamId, int? revision = null) {
@@ -85,8 +86,10 @@ public abstract partial class EventStream : IDisposable {
 
     public abstract EventStreamReader GetReader();
 
-    protected async Task StreamWriterImpl() {
-        await foreach (var posssibleWalEntry in StreamWriter.ReadAllAsync()) {
+    protected async void MonitorForWriteRequests() {
+        await Task.Yield();
+
+        await foreach (var posssibleWalEntry in StreamWriter.ReadAllAsync(_cts.Token)) {
             var onceCompleted = posssibleWalEntry.OnceCompleted;
             var streamId = posssibleWalEntry.Id;
             var expected = posssibleWalEntry.Version;
@@ -145,19 +148,6 @@ public abstract partial class EventStream : IDisposable {
                         onceCompleted.SetResult(WriteResult.Failed(-1, new WrongExpectedVersionException(ExpectedVersion.NoStream, ExpectedVersion.StreamExists)));
                         return false;
                     }
-
-                    //else {
-                    //    // check for duplicates here.
-                    //    var nonEmptyStreamEvents = await ReadAsync(StreamKey.All).OfType<RecordedEvent>().Where(s => s.StreamId == streamId).ToListAsync();
-
-                    //    if (nonEmptyStreamEvents.Any()) {
-                    //        // if all events are appended, considered as a double request and post-back ok.
-                    //        if (!nonEmptyStreamEvents.All(e => events.All(i => e.EventId != i.EventId))) {
-                    //            onceCompleted.SetResult(WriteResult.Ok(nonEmptyStreamEvents.Max(x => x.Revision)));
-                    //            return false;
-                    //        }
-                    //    }
-                    //}
 
                     break;
                 default:
