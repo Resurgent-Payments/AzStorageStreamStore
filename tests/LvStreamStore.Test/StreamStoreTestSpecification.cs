@@ -39,6 +39,8 @@ namespace LvStreamStore.Test {
             Dispatcher = new AsyncDispatcher(LoggingFactory);
             StreamClient = new EmbeddedEventStreamClient(Dispatcher, Stream);
             Repository = new StreamStoreRepository(StreamClient, repositoryOptions);
+
+            AsyncHelper.RunSync(() => Stream.StartAsync());
         }
     }
 }

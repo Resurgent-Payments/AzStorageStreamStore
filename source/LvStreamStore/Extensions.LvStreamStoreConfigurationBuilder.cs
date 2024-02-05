@@ -51,4 +51,9 @@ public static class LvStreamStoreConfigurationBuilderExtensions {
 
         return builder;
     }
+
+    public static IHost UseLvStreamStore(this IHost host) {
+        AsyncHelper.RunSync(() => host.Services.GetRequiredService<EventStream>().StartAsync());
+        return host;
+    }
 }

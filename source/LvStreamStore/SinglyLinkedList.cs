@@ -3,7 +3,7 @@ namespace LvStreamStore {
     using System.Collections;
     using System.Linq;
 
-    internal class SinglyLinkedList<T> : IEnumerable<T>, IEnumerable {
+    public class SinglyLinkedList<T> : IEnumerable<T>, IEnumerable {
         private readonly int _pageSize;
 
         private Node<T> _head;
@@ -47,7 +47,7 @@ namespace LvStreamStore {
 
         public IEnumerator<T> GetEnumerator() => new Enumerator<T>(_head, _pageSize);
 
-        IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)new Enumerator<T>(_head, _pageSize);
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 
         private class Enumerator<T> : IEnumerator<T>, IEnumerator {
@@ -93,7 +93,7 @@ namespace LvStreamStore {
                     Current = default;
                 }
 
-                return Current is not null;
+                return Current != null;
             }
 
             public void Reset() {

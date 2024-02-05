@@ -13,9 +13,10 @@ public abstract partial class EventStream : IDisposable {
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed = false;
+    protected SinglyLinkedList<StreamMessage> Cache { get; private set; } = new();
 
     protected ILogger Log { get; }
-    protected ChannelReader<WriteToStreamArgs> StreamWriter => _streamWriter.Reader;
+    protected ChannelReader<WriteToStreamArgs> StreamReader => _streamWriter.Reader;
 
     public long Checkpoint { get; protected set; }
 
@@ -30,8 +31,11 @@ public abstract partial class EventStream : IDisposable {
         });
 
         _cts.Token.Register(() => _streamWriter.Writer.Complete());
+    }
 
+    public virtual Task StartAsync() {
         MonitorForWriteRequests();
+        return Task.CompletedTask;
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId streamId, int? revision = null) {
@@ -40,8 +44,8 @@ public abstract partial class EventStream : IDisposable {
 
         var numberOfItemsRead = 1;
 
-        await foreach (var item in GetReader()) {
-            if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamId == item.StreamId) {
+        if (_options.UseCaching) {
+            foreach (var item in Cache) {
                 if (numberOfItemsRead <= revision && revision.HasValue) {
                     numberOfItemsRead++;
                     continue;
@@ -49,20 +53,44 @@ public abstract partial class EventStream : IDisposable {
 
                 yield return (RecordedEvent)item!;
             }
+        } else {
+            await foreach (var item in GetReader()) {
+                if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamId == item.StreamId) {
+                    if (numberOfItemsRead <= revision && revision.HasValue) {
+                        numberOfItemsRead++;
+                        continue;
+                    }
+
+                    yield return (RecordedEvent)item!;
+                }
+            }
         }
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey streamKey, int? revision = null) {
         var numberOfItemsRead = 1;
 
-        await foreach (var item in GetReader()) {
-            if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamKey == item.StreamId) {
-                if (numberOfItemsRead <= revision && revision.HasValue) {
-                    numberOfItemsRead++;
-                    continue;
-                }
+        if (_options.UseCaching) {
+            foreach (var item in Cache) {
+                if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamKey == item.StreamId) {
+                    if (numberOfItemsRead <= revision && revision.HasValue) {
+                        numberOfItemsRead++;
+                        continue;
+                    }
 
-                yield return (RecordedEvent)item!;
+                    yield return (RecordedEvent)item!;
+                }
+            }
+        } else {
+            await foreach (var item in GetReader()) {
+                if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamKey == item.StreamId) {
+                    if (numberOfItemsRead <= revision && revision.HasValue) {
+                        numberOfItemsRead++;
+                        continue;
+                    }
+
+                    yield return (RecordedEvent)item!;
+                }
             }
         }
     }
@@ -90,8 +118,8 @@ public abstract partial class EventStream : IDisposable {
         await Task.Yield();
 
         try {
-            while (await StreamWriter.WaitToReadAsync(_cts.Token)) {
-                var possible = await StreamWriter.ReadAsync(_cts.Token);
+            while (await StreamReader.WaitToReadAsync(_cts.Token)) {
+                var possible = await StreamReader.ReadAsync(_cts.Token);
                 var onceCompleted = possible.OnceCompleted;
                 var streamId = possible.Id;
                 var expected = possible.Version;
@@ -103,11 +131,15 @@ public abstract partial class EventStream : IDisposable {
 
                     // refactor to create one memorystream to be appended to a WAL.
                     // get last stream position.
-                    var position = (await GetReader().LastOrDefaultAsync())?.Position ?? 0;
+                    var position = _options.UseCaching
+                        ? Cache.LastOrDefault()?.Position ?? 0
+                        : (await GetReader().LastOrDefaultAsync())?.Position ?? 0;
 
                     // first full scan
                     // if we don't have a StreamCreated event, we need to append one now.
-                    if (await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
+                    if (_options.UseCaching
+                        ? Cache.OfType<StreamCreated>().All(sc => sc.StreamId != streamId)
+                        : await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
                         position += 1;
                         var created = new StreamCreated(streamId, position);
 
@@ -115,10 +147,14 @@ public abstract partial class EventStream : IDisposable {
                     }
 
                     // second full scan
-                    var written = await GetReader()
-                        .OfType<RecordedEvent>()
-                        .Where(recorded => recorded.StreamId == streamId)
-                        .ToListAsync();
+                    var written = _options.UseCaching
+                        ? Cache.OfType<RecordedEvent>()
+                            .Where(recorded => recorded.StreamId == streamId)
+                            .ToList()
+                        : await GetReader()
+                            .OfType<RecordedEvent>()
+                            .Where(recorded => recorded.StreamId == streamId)
+                            .ToListAsync();
 
                     var recorded = events.Where(e => written.All(w => e.EventId != w.EventId))
                         .Select(e => {

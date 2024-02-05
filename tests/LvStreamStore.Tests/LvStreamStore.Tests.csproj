@@ -32,4 +32,8 @@
     <ProjectReference Include="..\LvStreamStore.Test\LvStreamStore.Test.csproj" />
   </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="LvStreamStore.LocalStorage.Tests"/>
+    </ItemGroup>
+
 </Project>

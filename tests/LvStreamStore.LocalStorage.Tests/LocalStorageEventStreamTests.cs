@@ -20,7 +20,8 @@ public class LocalStorageEventStreamTests : ClientTestBase {
             if (_stream == null) {
                 var diskOptions = new LocalStorageEventStreamOptions {
                     BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
-                    FileReadBlockSize = 4096 // 4k block size.
+                    FileReadBlockSize = 4096, // 4k block size.
+                    UseCaching = true,
                 };
                 var diskOptionsAccessor = A.Fake<IOptions<LocalStorageEventStreamOptions>>();
                 A.CallTo(() => diskOptionsAccessor.Value)
@@ -30,6 +31,7 @@ public class LocalStorageEventStreamTests : ClientTestBase {
                     .Returns(new JsonSerializationOptions());
 
                 _stream = new LocalStorageEventStream(_loggerFactory, new JsonEventSerializer(serializerOptions), diskOptionsAccessor);
+                AsyncHelper.RunSync(() => _stream.StartAsync());
             }
             return _stream;
         }

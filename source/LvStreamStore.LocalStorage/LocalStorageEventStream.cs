@@ -16,7 +16,7 @@ internal class LocalStorageEventStream : EventStream {
 
     private LocalStorageEventStreamOptions _localStorageOptions() => (LocalStorageEventStreamOptions)_options;
 
-    internal LocalStorageEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<LocalStorageEventStreamOptions> options) : base(loggerFactory, options.Value!) {
+    public LocalStorageEventStream(ILoggerFactory loggerFactory, IEventSerializer eventSerializer, IOptions<LocalStorageEventStreamOptions> options) : base(loggerFactory, options.Value!) {
         _options = options.Value!;
         _dataFile = Path.Combine(_options.BaseDataPath, "chunk.dat");
         _eventSerializer = eventSerializer;
@@ -42,6 +42,10 @@ internal class LocalStorageEventStream : EventStream {
                 await fileWriter.WriteAsync(bytes);
                 await ser.CopyToAsync(fileWriter);
                 Checkpoint += ser.Length + LengthOfEventHeader;
+
+                if (_options.UseCaching) {
+                    Cache.Append(item);
+                }
             }
 
             await fileWriter.FlushAsync();

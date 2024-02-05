@@ -13,7 +13,7 @@ internal class MemoryEventStream : EventStream {
     }
 
     protected override Task WriteAsync(params StreamMessage[] items) {
-        foreach(var item in items) { _stream.Append(item); }
+        foreach (var item in items) { _stream.Append(item); }
         return Task.CompletedTask;
     }
 

@@ -20,14 +20,13 @@ namespace LvStreamStore.LocalStorage {
         public override IAsyncEnumerator<StreamMessage> GetAsyncEnumerator(CancellationToken token = default)
             => new Enumerator(this, _eventSerializer, token);
 
-        class Enumerator : IStreamEnumerator {
+
+        public class Enumerator : IStreamEnumerator {
             private readonly IEventSerializer _eventSerializer;
             private readonly LocalStorageEventStreamReader _reader;
             private int _lastBytePosition;
 
-            public StreamMessage Current { get; private set; }
-
-
+            public StreamMessage Current { get; protected set; }
 
             public Enumerator(LocalStorageEventStreamReader reader, IEventSerializer eventSerializer, CancellationToken token = default) {
                 _eventSerializer = eventSerializer;
@@ -38,7 +37,7 @@ namespace LvStreamStore.LocalStorage {
 
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-            public async ValueTask<bool> MoveNextAsync() {
+            public async virtual ValueTask<bool> MoveNextAsync() {
                 int readOffset;
                 byte[] headerBuffer = new byte[EventStream.LengthOfEventHeader];
                 byte[] readBuffer = new byte[4096];

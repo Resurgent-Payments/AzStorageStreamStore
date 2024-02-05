@@ -26,6 +26,7 @@ public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
                     .Returns(new JsonSerializationOptions());
 
                 _stream = new MemoryEventStream(_loggerFactory, options);
+                AsyncHelper.RunSync(() => _stream.StartAsync());
             }
             return _stream;
         }

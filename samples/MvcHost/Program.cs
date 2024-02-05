@@ -16,11 +16,9 @@ builder.Host.AddLvStreamStore()
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-builder.Services.AddIdentityCore<object>();
-
-
 var app = builder.Build();
 
+app.UseLvStreamStore();
 app.UseApplicationToolkit();
 
 // Configure the HTTP request pipeline.
