@@ -8,7 +8,7 @@ using LvStreamStore.Tests;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-public class LocalStorageEventStreamTests : ClientTestBase {
+public class LocalStorageEventStreamTestsWithCaching : ClientTestBase {
     private EventStream? _stream;
     private ILoggerFactory _loggerFactory = LoggerFactory.Create((builder) => {
         builder.AddDebug();
@@ -21,7 +21,7 @@ public class LocalStorageEventStreamTests : ClientTestBase {
                 var diskOptions = new LocalStorageEventStreamOptions {
                     BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
                     FileReadBlockSize = 4096, // 4k block size.
-                    UseCaching = false,
+                    UseCaching = true,
                 };
                 var diskOptionsAccessor = A.Fake<IOptions<LocalStorageEventStreamOptions>>();
                 A.CallTo(() => diskOptionsAccessor.Value)
