@@ -40,28 +40,32 @@ public abstract partial class EventStream : IDisposable {
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId streamId, int? revision = null) {
         // need to find out if the stream exists.
-        if (await GetReader().AllAsync(item => streamId != item.StreamId)) { throw new StreamDoesNotExistException(); }
+        if (_options.UseCaching
+            ? Cache.All(item => streamId != item.StreamId)
+            : await GetReader().AllAsync(item => streamId != item.StreamId)) { 
+            throw new StreamDoesNotExistException(); 
+        }
 
         var numberOfItemsRead = 1;
 
         if (_options.UseCaching) {
-            foreach (var item in Cache) {
+            foreach (var item in Cache.OfType<RecordedEvent>()) {
                 if (numberOfItemsRead <= revision && revision.HasValue) {
                     numberOfItemsRead++;
                     continue;
                 }
 
-                yield return (RecordedEvent)item!;
+                yield return item!;
             }
         } else {
-            await foreach (var item in GetReader()) {
-                if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamId == item.StreamId) {
+            await foreach (var item in GetReader().OfType<RecordedEvent>()) {
+                if (streamId == item.StreamId) {
                     if (numberOfItemsRead <= revision && revision.HasValue) {
                         numberOfItemsRead++;
                         continue;
                     }
 
-                    yield return (RecordedEvent)item!;
+                    yield return item!;
                 }
             }
         }
@@ -71,25 +75,25 @@ public abstract partial class EventStream : IDisposable {
         var numberOfItemsRead = 1;
 
         if (_options.UseCaching) {
-            foreach (var item in Cache) {
-                if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamKey == item.StreamId) {
+            foreach (var item in Cache.OfType<RecordedEvent>()) {
+                if (streamKey == item.StreamId) {
                     if (numberOfItemsRead <= revision && revision.HasValue) {
                         numberOfItemsRead++;
                         continue;
                     }
 
-                    yield return (RecordedEvent)item!;
+                    yield return item!;
                 }
             }
         } else {
-            await foreach (var item in GetReader()) {
-                if (item.GetType().IsAssignableTo(typeof(RecordedEvent)) && streamKey == item.StreamId) {
+            await foreach (var item in GetReader().OfType<RecordedEvent>()) {
+                if (streamKey == item.StreamId) {
                     if (numberOfItemsRead <= revision && revision.HasValue) {
                         numberOfItemsRead++;
                         continue;
                     }
 
-                    yield return (RecordedEvent)item!;
+                    yield return item!;
                 }
             }
         }

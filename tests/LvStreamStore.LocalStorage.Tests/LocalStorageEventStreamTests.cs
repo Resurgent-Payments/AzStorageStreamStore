@@ -1,39 +1,11 @@
 namespace LvStreamStore.LocalStorage.Tests;
-
-using FakeItEasy;
-
-using LvStreamStore.Serialization.Json;
 using LvStreamStore.Tests;
 
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Xunit;
 
-public class LocalStorageEventStreamTests : ClientTestBase {
-    private EventStream? _stream;
-    private ILoggerFactory _loggerFactory = LoggerFactory.Create((builder) => {
-        builder.AddDebug();
-        builder.SetMinimumLevel(LogLevel.Trace);
-    });
+public class LocalStorageEventStreamTests : ClientTestBase, IClassFixture<LocalStorageTestFixtureWithoutCaching> {
 
-    protected override EventStream Stream {
-        get {
-            if (_stream == null) {
-                var diskOptions = new LocalStorageEventStreamOptions {
-                    BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
-                    FileReadBlockSize = 4096, // 4k block size.
-                    UseCaching = false,
-                };
-                var diskOptionsAccessor = A.Fake<IOptions<LocalStorageEventStreamOptions>>();
-                A.CallTo(() => diskOptionsAccessor.Value)
-                    .Returns(diskOptions);
-                var serializerOptions = A.Fake<IOptions<JsonSerializationOptions>>();
-                A.CallTo(() => serializerOptions.Value)
-                    .Returns(new JsonSerializationOptions());
+    public LocalStorageEventStreamTests(LocalStorageTestFixtureWithoutCaching fixture) : base(fixture) {
 
-                _stream = new LocalStorageEventStream(_loggerFactory, new JsonEventSerializer(serializerOptions), diskOptionsAccessor);
-                AsyncHelper.RunSync(() => _stream.StartAsync());
-            }
-            return _stream;
-        }
     }
 }

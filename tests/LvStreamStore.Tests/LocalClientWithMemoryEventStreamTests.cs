@@ -1,34 +1,10 @@
 namespace LvStreamStore.Tests;
 
-using FakeItEasy;
+using Xunit;
 
-using LvStreamStore.Serialization.Json;
+public class LocalClientWithMemoryEventStreamTests : ClientTestBase, IClassFixture<MemoryClientTestFixture> {
 
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+    public LocalClientWithMemoryEventStreamTests(MemoryClientTestFixture fixture) : base(fixture) {
 
-public class LocalClientWithMemoryEventStreamTests : ClientTestBase {
-    private MemoryEventStream? _stream;
-    private ILoggerFactory _loggerFactory = LoggerFactory.Create((builder) => {
-        builder.AddDebug();
-        builder.SetMinimumLevel(LogLevel.Trace);
-    });
-
-    protected override EventStream Stream {
-        get {
-            if (_stream == null) {
-                var value = new MemoryEventStreamOptions();
-                var options = A.Fake<IOptions<MemoryEventStreamOptions>>();
-                A.CallTo(() => options.Value)
-                    .Returns(value);
-                var serializerOptions = A.Fake<IOptions<JsonSerializationOptions>>();
-                A.CallTo(() => serializerOptions.Value)
-                    .Returns(new JsonSerializationOptions());
-
-                _stream = new MemoryEventStream(_loggerFactory, options);
-                AsyncHelper.RunSync(() => _stream.StartAsync());
-            }
-            return _stream;
-        }
     }
 }
