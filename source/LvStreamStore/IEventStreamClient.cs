@@ -11,9 +11,9 @@ public interface IEventStreamClient : IDisposable {
 
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key);
 
-    Task<IDisposable> SubscribeToStreamAsync(Messaging.IReceiver<StreamItem> handler);
+    Task<IDisposable> SubscribeToStreamAsync(Messaging.IReceiver<StreamMessage> handler);
 
-    Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, Messaging.IReceiver<StreamItem> handler);
+    Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, Messaging.IReceiver<StreamMessage> handler);
 
-    Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Messaging.IReceiver<StreamItem> handler);
+    Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, Messaging.IReceiver<StreamMessage> handler);
 }

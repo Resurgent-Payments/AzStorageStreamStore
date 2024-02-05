@@ -18,7 +18,7 @@ internal class EventStreamPoller : IDisposable {
         StartPolling();
     }
 
-    public IDisposable SubscribeToStream(Messaging.IReceiver<StreamItem> handler) {
+    public IDisposable SubscribeToStream(Messaging.IReceiver<StreamMessage> handler) {
         var msg = Messaging.AsyncDispatcher.Register(handler);
         AsyncHelper.RunSync(() => _dispatcher.HandleAsync(msg));
         if (msg is IDisposable disposable) {
@@ -33,8 +33,8 @@ internal class EventStreamPoller : IDisposable {
         return new Disposer(() => { });
     }
 
-    public IDisposable SubscribeToStream(StreamKey streamKey, Messaging.IReceiver<StreamItem> handler) {
-        var filter = new Messaging.FilteredReceiver<StreamItem>(handler,
+    public IDisposable SubscribeToStream(StreamKey streamKey, Messaging.IReceiver<StreamMessage> handler) {
+        var filter = new Messaging.FilteredReceiver<StreamMessage>(handler,
             msg => msg is RecordedEvent @event && streamKey == @event.StreamId);
         var msg = Messaging.AsyncDispatcher.Register(filter);
         AsyncHelper.RunSync(() => _dispatcher.HandleAsync(msg));
@@ -50,8 +50,8 @@ internal class EventStreamPoller : IDisposable {
         return new Disposer(() => { });
     }
 
-    public IDisposable SubscribeToStream(StreamId streamId, Messaging.IReceiver<StreamItem> handler) {
-        var filter = new Messaging.FilteredReceiver<StreamItem>(handler,
+    public IDisposable SubscribeToStream(StreamId streamId, Messaging.IReceiver<StreamMessage> handler) {
+        var filter = new Messaging.FilteredReceiver<StreamMessage>(handler,
             msg => msg is RecordedEvent @event && streamId == @event.StreamId);
         var msg = Messaging.AsyncDispatcher.Register(filter);
         AsyncHelper.RunSync(() => _dispatcher.HandleAsync(msg));

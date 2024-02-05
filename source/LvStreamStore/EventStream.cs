@@ -205,5 +205,5 @@ public abstract partial class EventStream : IDisposable {
         return true;
     }
 
-    protected abstract Task WriteAsync(params StreamItem[] item);
+    protected abstract Task WriteAsync(params StreamMessage[] item);
 }

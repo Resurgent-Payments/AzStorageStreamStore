@@ -29,15 +29,15 @@ public class EmbeddedEventStreamClient : IEventStreamClient {
 
 
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToStreamAsync(IReceiver<StreamItem> handler)
+    public Task<IDisposable> SubscribeToStreamAsync(IReceiver<StreamMessage> handler)
         => Task.FromResult(_watcher.SubscribeToStream(handler));
 
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, IReceiver<StreamItem> handler)
+    public Task<IDisposable> SubscribeToStreamAsync(StreamKey streamKey, IReceiver<StreamMessage> handler)
         => Task.FromResult(_watcher.SubscribeToStream(streamKey, handler));
 
     /// <inheritdoc />
-    public Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, IReceiver<StreamItem> handler)
+    public Task<IDisposable> SubscribeToStreamAsync(StreamId streamId, IReceiver<StreamMessage> handler)
         => Task.FromResult(_watcher.SubscribeToStream(streamId, handler));
 
     /// <inheritdoc />

@@ -6,13 +6,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 internal class MemoryEventStream : EventStream {
-    internal readonly SinglyLinkedList<StreamItem> _stream;
+    internal readonly SinglyLinkedList<StreamMessage> _stream;
     public MemoryEventStream(ILoggerFactory loggerFactory, IOptions<MemoryEventStreamOptions> options)
         : base(loggerFactory, options.Value!) {
         _stream = new(options.Value.PageSize);
     }
 
-    protected override Task WriteAsync(params StreamItem[] items) {
+    protected override Task WriteAsync(params StreamMessage[] items) {
         foreach(var item in items) { _stream.Append(item); }
         return Task.CompletedTask;
     }

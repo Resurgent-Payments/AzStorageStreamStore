@@ -57,7 +57,7 @@ namespace LvStreamStore.ApplicationToolkit {
 
         public IDisposable Subscribe<TEvent>(Messaging.IReceiver<TEvent> receiver) where TEvent : Event {
             var deserialize = new EventDeserializationReceiver<TEvent>(receiver, _options.JsonOptions);
-            var upcast = new Messaging.TypeCastReceiver<StreamItem, RecordedEvent>(deserialize);
+            var upcast = new Messaging.TypeCastReceiver<StreamMessage, RecordedEvent>(deserialize);
             return AsyncHelper.RunSync(() => _client.SubscribeToStreamAsync(upcast));
         }
 

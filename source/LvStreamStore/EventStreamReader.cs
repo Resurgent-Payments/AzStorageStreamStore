@@ -2,8 +2,8 @@ namespace LvStreamStore;
 
 using System.Threading;
 
-public abstract class EventStreamReader : IAsyncEnumerable<StreamItem> {
-    public abstract IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken cancellationToken = default);
+public abstract class EventStreamReader : IAsyncEnumerable<StreamMessage> {
+    public abstract IAsyncEnumerator<StreamMessage> GetAsyncEnumerator(CancellationToken cancellationToken = default);
 
-    public interface IStreamEnumerator : IAsyncEnumerator<StreamItem> { }
+    public interface IStreamEnumerator : IAsyncEnumerator<StreamMessage> { }
 }

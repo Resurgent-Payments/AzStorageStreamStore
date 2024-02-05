@@ -5,23 +5,23 @@ using System.Threading;
 using System.Threading.Tasks;
 
 internal class MemoryEventStreamReader : EventStreamReader {
-    private readonly IEnumerator<StreamItem> _enumerator;
+    private readonly IEnumerator<StreamMessage> _enumerator;
 
     public MemoryEventStreamReader(MemoryEventStream eventStream, MemoryEventStreamOptions options) {
         _enumerator = eventStream._stream.GetEnumerator();
     }
 
-    public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default) =>
+    public override IAsyncEnumerator<StreamMessage> GetAsyncEnumerator(CancellationToken token = default) =>
         new Enumerator(_enumerator, token);
 
     class Enumerator : IStreamEnumerator {
         private readonly CancellationToken? _token;
-        private readonly IEnumerator<StreamItem> _enumerator;
+        private readonly IEnumerator<StreamMessage> _enumerator;
 
-        public StreamItem Current => _enumerator.Current;
+        public StreamMessage Current => _enumerator.Current;
 
 
-        public Enumerator(IEnumerator<StreamItem> enumerator, CancellationToken? token = default) {
+        public Enumerator(IEnumerator<StreamMessage> enumerator, CancellationToken? token = default) {
             _enumerator = enumerator;
             _token = token;
         }

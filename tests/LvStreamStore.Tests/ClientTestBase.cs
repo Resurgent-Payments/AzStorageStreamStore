@@ -217,7 +217,7 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(streamId, ExpectedVersion.NoStream, [e1, e2, e3]);
         Assert.True(writeResult.Successful);
 
-        var sub = Client.SubscribeToStreamAsync(streamId, new TypeCastReceiver<StreamItem, RecordedEvent>(
+        var sub = Client.SubscribeToStreamAsync(streamId, new TypeCastReceiver<StreamMessage, RecordedEvent>(
             new AdHocReceiver<RecordedEvent>((@event) => { events.Add(@event); return Task.CompletedTask; }))
         );
         await Client.AppendToStreamAsync(streamId, ExpectedVersion.Any, [e4]);
@@ -239,7 +239,7 @@ public abstract class ClientTestBase : IDisposable {
         var writeResult = await Client.AppendToStreamAsync(id1, ExpectedVersion.NoStream, [e1, e2, e3]);
         Assert.True(writeResult.Successful);
 
-        _ = await Client.SubscribeToStreamAsync(key, new TypeCastReceiver<StreamItem, RecordedEvent>(
+        _ = await Client.SubscribeToStreamAsync(key, new TypeCastReceiver<StreamMessage, RecordedEvent>(
             new AdHocReceiver<RecordedEvent>((@event) => { events.Add(@event); return Task.CompletedTask; })
         ));
 
@@ -350,12 +350,12 @@ public abstract class ClientTestBase : IDisposable {
     [InlineData(1)]
     [InlineData(2)]
     public async Task Can_subscribe_to_all_stream(int numberOfSubscriptions) {
-        var events = new List<StreamItem>();
+        var events = new List<StreamMessage>();
 
         var key = new StreamId("test", Array.Empty<string>(), "stream");
 
         for (var i = 0; i < numberOfSubscriptions; i++) {
-            _ = Client.SubscribeToStreamAsync(key, new TypeCastReceiver<StreamItem, RecordedEvent>(
+            _ = Client.SubscribeToStreamAsync(key, new TypeCastReceiver<StreamMessage, RecordedEvent>(
                 new AdHocReceiver<RecordedEvent>((@event) => {
                     events.Add(@event);
                     return Task.CompletedTask;
@@ -378,7 +378,7 @@ public abstract class ClientTestBase : IDisposable {
     public async Task Can_remove_an_allstream_subscription_via_returned_idsposable() {
         var events = new List<RecordedEvent>();
 
-        (await Client.SubscribeToStreamAsync(new TypeCastReceiver<StreamItem, RecordedEvent>(
+        (await Client.SubscribeToStreamAsync(new TypeCastReceiver<StreamMessage, RecordedEvent>(
             new AdHocReceiver<RecordedEvent>((@event) => {
                 events.Add(@event);
                 return Task.CompletedTask;
@@ -403,13 +403,13 @@ public abstract class ClientTestBase : IDisposable {
 
         var key = new StreamId("test", Array.Empty<string>(), "stream");
 
-        await Client.SubscribeToStreamAsync(new TypeCastReceiver<StreamItem, RecordedEvent>(
+        await Client.SubscribeToStreamAsync(new TypeCastReceiver<StreamMessage, RecordedEvent>(
             new AdHocReceiver<RecordedEvent>((@event) => {
                 events.Add(@event);
                 return Task.CompletedTask;
             }))
         );
-        (await Client.SubscribeToStreamAsync(new TypeCastReceiver<StreamItem, RecordedEvent>(
+        (await Client.SubscribeToStreamAsync(new TypeCastReceiver<StreamMessage, RecordedEvent>(
             new AdHocReceiver<RecordedEvent>((@event) => {
                 events.Add(@event);
                 return Task.CompletedTask;

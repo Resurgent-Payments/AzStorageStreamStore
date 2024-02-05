@@ -4,14 +4,14 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-internal class StreamItemJsonConverter : JsonConverter<StreamItem> {
+internal class StreamItemJsonConverter : JsonConverter<StreamMessage> {
     const string EventType = nameof(EventType);
 
     public override bool CanConvert(Type typeToConvert) {
-        return typeToConvert.IsAssignableTo(typeof(StreamItem));
+        return typeToConvert.IsAssignableTo(typeof(StreamMessage));
     }
 
-    public override StreamItem? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+    public override StreamMessage? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
         var cloned = reader;
 
         if (cloned.TokenType != JsonTokenType.StartObject) throw new JsonException();
@@ -34,7 +34,7 @@ internal class StreamItemJsonConverter : JsonConverter<StreamItem> {
 
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
         //TODO: Ask if this is a legit warning "silence" item.
-        StreamItem item = discriminator switch {
+        StreamMessage item = discriminator switch {
             StreamItemTypes.StreamCreated => DeserializeStreamCreated(ref reader, options),
             StreamItemTypes.RecordedEvent => DeserializeRecordedEvent(ref reader, options),
             _ => throw new JsonException()
@@ -43,7 +43,7 @@ internal class StreamItemJsonConverter : JsonConverter<StreamItem> {
         return item;
     }
 
-    public override void Write(Utf8JsonWriter writer, StreamItem value, JsonSerializerOptions options) {
+    public override void Write(Utf8JsonWriter writer, StreamMessage value, JsonSerializerOptions options) {
         writer.WriteStartObject();
 
         switch (value) {
@@ -83,7 +83,7 @@ internal class StreamItemJsonConverter : JsonConverter<StreamItem> {
         long Position = -1;
         Guid MsgId = Guid.Empty;
 
-        while(reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject) {
             if (reader.TokenType != JsonTokenType.PropertyName) continue;
 
             var propertyName = options?.PropertyNamingPolicy?.ConvertName(reader.GetString() ?? string.Empty) ?? reader.GetString();
@@ -101,9 +101,9 @@ internal class StreamItemJsonConverter : JsonConverter<StreamItem> {
             }
         }
 
-        if (StreamId is null || Position < 0l|| MsgId == Guid.Empty) throw new JsonException();
+        if (StreamId is null || Position < 0l || MsgId == Guid.Empty) throw new JsonException();
 
-        return new StreamCreated(StreamId, Position, MsgId);
+        return new StreamCreated(StreamId, Position) { MsgId = MsgId };
     }
 
     private static RecordedEvent DeserializeRecordedEvent(ref Utf8JsonReader reader, JsonSerializerOptions options) {
@@ -143,7 +143,7 @@ internal class StreamItemJsonConverter : JsonConverter<StreamItem> {
 
         if (StreamId is null || EventId == Guid.Empty || Position < 0) throw new JsonException();
 
-        return new RecordedEvent(StreamId, EventId, Position, Type, Metadata, Data, MsgId);
+        return new RecordedEvent(StreamId, EventId, Position, Type, Metadata, Data) { MsgId = MsgId };
     }
 
     enum StreamItemTypes {

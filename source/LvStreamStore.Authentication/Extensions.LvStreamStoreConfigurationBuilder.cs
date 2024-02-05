@@ -23,4 +23,20 @@ public static class LvStreamStoreConfigurationBuilderExtensions {
 
         return builder;
     }
+
+    public static LvStreamStoreConfigurationBuilder UseAuthentication<TTenantService>(this LvStreamStoreConfigurationBuilder builder, Action<PasswordHasherOptions> onConfiguration) where TTenantService : ITenantService {
+
+        builder.Builder.ConfigureServices((ctx, services) => {
+
+            services.AddSingleton<ReadModelBase, ApplicationTenantService>();
+            services.AddSingleton<ReadModelBase, UserService>();
+            services.AddTransient(typeof(ITenantService), typeof(TTenantService));
+
+            services.Configure(onConfiguration);
+        });
+
+        return builder;
+    }
+
+
 }

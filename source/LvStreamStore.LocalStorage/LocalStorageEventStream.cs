@@ -31,7 +31,7 @@ internal class LocalStorageEventStream : EventStream {
     }
 
 
-    protected override async Task WriteAsync(params StreamItem[] items) {
+    protected override async Task WriteAsync(params StreamMessage[] items) {
 
         using (var fileWriter = new FileStream(_dataFile, new FileStreamOptions { Access = FileAccess.Write, Mode = FileMode.Append, Options = FileOptions.Asynchronous, Share = FileShare.Read })) {
             fileWriter.Seek(0, SeekOrigin.End);

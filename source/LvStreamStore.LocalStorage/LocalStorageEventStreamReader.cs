@@ -17,7 +17,7 @@ namespace LvStreamStore.LocalStorage {
             _options = options;
         }
 
-        public override IAsyncEnumerator<StreamItem> GetAsyncEnumerator(CancellationToken token = default)
+        public override IAsyncEnumerator<StreamMessage> GetAsyncEnumerator(CancellationToken token = default)
             => new Enumerator(this, _eventSerializer, token);
 
         class Enumerator : IStreamEnumerator {
@@ -25,7 +25,7 @@ namespace LvStreamStore.LocalStorage {
             private readonly LocalStorageEventStreamReader _reader;
             private int _lastBytePosition;
 
-            public StreamItem Current { get; private set; }
+            public StreamMessage Current { get; private set; }
 
 
 
@@ -82,7 +82,7 @@ namespace LvStreamStore.LocalStorage {
 
                     var str = System.Text.Encoding.UTF8.GetString(ms.ToArray());
 
-                    Current = _eventSerializer.Deserialize<StreamItem>(ms);
+                    Current = _eventSerializer.Deserialize<StreamMessage>(ms);
                 }
 
                 _reader._lastBytePosition = _lastBytePosition;
