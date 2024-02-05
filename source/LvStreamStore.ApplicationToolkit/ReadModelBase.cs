@@ -2,26 +2,32 @@ namespace LvStreamStore.ApplicationToolkit;
 
 using System.Collections.ObjectModel;
 
-public class ReadModelBase : IAutoStartService, IDisposable {
+using LvStreamStore.Messaging;
+
+public class ReadModelBase : IDisposable {
     private readonly Collection<IDisposable> _subscriptions = new();
     protected IStreamStoreRepository Repository { get; init; }
-    private readonly ISubscriber _inBus;
+    private readonly AsyncDispatcher _dispatcher;
 
-    public ReadModelBase(ISubscriber inBus, IStreamStoreRepository repository) {
-        _inBus = inBus!;
+    public ReadModelBase(AsyncDispatcher dispatcher, IStreamStoreRepository repository) {
+        _dispatcher = dispatcher;
         Repository = repository!;
     }
 
-    protected void Subscribe<TCommand>(IAsyncCommandHandler<TCommand> handle) where TCommand : Command {
-        _subscriptions.Add(_inBus.Subscribe(handle));
+    protected void Subscribe<TCommand>(IHandleAsync<TCommand> handle) where TCommand : Message {
+        AsyncHelper.RunSync(() => _dispatcher.HandleAsync(AsyncDispatcher.Register(handle)));
     }
 
-    protected void Subscribe<TEvent>(IAsyncHandler<TEvent> handle) where TEvent : Event {
-        _subscriptions.Add(_inBus.Subscribe(handle));
+    protected void Subscribe<TEvent>(IReceiver<TEvent> receiver) where TEvent : Event {
+        var msg = AsyncDispatcher.Register(receiver);
+        AsyncHelper.RunSync(() => _dispatcher.HandleAsync(msg));
+        if (msg is IDisposable d) {
+            _subscriptions.Add(d);
+        }
     }
 
-    protected void SubscribeToStream<TAggregate, TEvent>(IAsyncHandler<TEvent> handler) where TAggregate : AggregateRoot, new() where TEvent : Event {
-        _subscriptions.Add(Repository.Subscribe<TAggregate, TEvent>(handler));
+    protected void SubscribeToStream<TEvent>(IReceiver<TEvent> receiver) where TEvent : Event {
+        _subscriptions.Add(Repository.Subscribe(receiver));
     }
 
     public void Dispose() {

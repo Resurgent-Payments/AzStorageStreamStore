@@ -3,17 +3,17 @@ using System.Diagnostics;
 
 using BusinessDomain;
 
-using LvStreamStore.ApplicationToolkit;
+using LvStreamStore.Messaging;
 
 using Microsoft.AspNetCore.Mvc;
 
 using MvcHost.Models;
 
 public class HomeController : Controller {
-    private readonly ICommandPublisher _cmdPublisher;
+    private readonly AsyncDispatcher _dispatcher;
 
-    public HomeController(ICommandPublisher cmdPublisher) {
-        _cmdPublisher = cmdPublisher;
+    public HomeController(AsyncDispatcher dispatcher) {
+        _dispatcher = dispatcher;
     }
 
     [HttpGet("")]
@@ -23,14 +23,13 @@ public class HomeController : Controller {
 
     [HttpPost]
     public async Task<IActionResult> AddItems() {
-        var x = await _cmdPublisher.SendAsync(new ItemMsgs.AddItems(5));
         try {
-            _ = x.IsType<CommandCompleted>();
-            return RedirectToAction("Index");
+            await _dispatcher.SendAsync(new ItemMsgs.AddItems(5));
         }
-        catch (Exception ex) {
+        catch (Exception) {
             return BadRequest();
         }
+        return Ok();
     }
 
     public IActionResult Privacy() {

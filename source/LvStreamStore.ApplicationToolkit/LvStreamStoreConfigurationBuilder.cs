@@ -3,32 +3,27 @@ namespace Microsoft.Extensions.DependencyInjection;
 using LvStreamStore;
 using LvStreamStore.ApplicationToolkit;
 
+using Microsoft.Extensions.Hosting;
+
 public static class LvStreamStoreConfigurationBuilderExtensions {
 
-    public static LvStreamStoreConfigurationBuilder UseApplicationToolkit(this LvStreamStoreConfigurationBuilder builder) {
+    public static ApplicationToolkitConfigurationBuilder AddApplicationToolkit(this LvStreamStoreConfigurationBuilder builder) {
         builder.Builder.ConfigureServices((ctx, services) => {
-            services.AddSingleton<IDispatcher, Dispatcher>();
-            services.AddSingleton<ISubscriber>((provider) => provider.GetRequiredService<IDispatcher>());
-            services.AddSingleton<IPublisher>((provider) => provider.GetRequiredService<IDispatcher>());
-            services.AddSingleton<ICommandPublisher>((provider) => provider.GetRequiredService<IDispatcher>());
+            //services.AddSingleton<IDispatcher, Dispatcher>();
+            //services.AddSingleton<ISubscriber>((provider) => provider.GetRequiredService<IDispatcher>());
+            //services.AddSingleton<IPublisher>((provider) => provider.GetRequiredService<IDispatcher>());
+            //services.AddSingleton<ICommandPublisher>((provider) => provider.GetRequiredService<IDispatcher>());
 
             services.AddSingleton<IStreamStoreRepository, StreamStoreRepository>();
-            services.AddHostedService<AutoStartServicesHostedService>();
+            //services.AddHostedService<AutoStartServicesHostedService>();
         });
-        return builder;
+        return new ApplicationToolkitConfigurationBuilder(builder);
     }
 
-    public static LvStreamStoreConfigurationBuilder RegisterAutoStartService<TService>(this LvStreamStoreConfigurationBuilder builder) where TService : IAutoStartService {
-        builder.RegisterAutoStartService(typeof(TService));
+    public static IHost UseApplicationToolkit(this IHost host) {
+        _ = host.Services.GetServices<ReadModelBase>();
+        _ = host.Services.GetServices<TransientSubscriber>();
 
-        return builder;
-    }
-
-    public static LvStreamStoreConfigurationBuilder RegisterAutoStartService(this LvStreamStoreConfigurationBuilder builder, Type serviceType) {
-        builder.Builder.ConfigureServices((ctx, services) => {
-            services.AddSingleton(typeof(IAutoStartService), serviceType);
-        });
-
-        return builder;
+        return host;
     }
 }

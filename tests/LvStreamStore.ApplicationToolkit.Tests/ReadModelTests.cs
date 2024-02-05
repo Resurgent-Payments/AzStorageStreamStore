@@ -9,7 +9,7 @@ namespace LvStreamStore.ApplicationToolkit.Tests {
         private readonly TestReadModel _readModel;
 
         public ReadModelTests() : base() {
-            _readModel = new TestReadModel(Bus, Repository);
+            _readModel = new TestReadModel(Dispatcher, Repository);
         }
 
         [Fact]

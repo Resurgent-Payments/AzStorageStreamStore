@@ -1,3 +1,3 @@
-namespace LvStreamStore.ApplicationToolkit {
-    public record CommandResult(Command SourceCommand) : Message;
-}
+//namespace LvStreamStore.ApplicationToolkit {
+//    public record CommandResult(Command SourceCommand) : Message;
+//}

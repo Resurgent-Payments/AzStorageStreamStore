@@ -1,11 +1,11 @@
 namespace LvStreamStore.Messaging;
 
 public interface IReceiver<T> where T : Message {
-    void Receive(T msg);
+    Task Receive(T msg);
 }
 
 internal abstract record Receiver {
-    public abstract void Receive(Message msg);
+    public abstract Task Receive(Message msg);
 }
 
 internal record Receiver<T> : Receiver where T : Message {
@@ -15,9 +15,10 @@ internal record Receiver<T> : Receiver where T : Message {
         _inner = inner;
     }
 
-    public override void Receive(Message msg) {
-        if (msg is not T @event) { return; }
-        _inner.Receive(@event);
+    public override Task Receive(Message msg) {
+        if (msg is T @event) { return _inner.Receive(@event); }
+
+        return Task.CompletedTask;
     }
 }
 

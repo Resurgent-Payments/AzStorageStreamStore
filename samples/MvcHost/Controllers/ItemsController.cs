@@ -1,17 +1,17 @@
 namespace MvcHost.Controllers {
     using BusinessDomain;
 
-    using LvStreamStore.ApplicationToolkit;
+    using LvStreamStore.Messaging;
 
     using Microsoft.AspNetCore.Mvc;
 
     using MvcHost.Models;
 
     public class ItemsController : Controller {
-        private readonly ICommandPublisher _cmdPublisher;
+        private readonly AsyncDispatcher _dispatcher;
 
-        public ItemsController(ICommandPublisher cmdPublisher) {
-            _cmdPublisher = cmdPublisher;
+        public ItemsController(AsyncDispatcher dispatcher) {
+            _dispatcher = dispatcher;
         }
 
         public IActionResult Index() => View();
@@ -19,24 +19,23 @@ namespace MvcHost.Controllers {
 
         [HttpPost, Route("", Order = 2)]
         public async Task<IActionResult> PostAsync(ItemForms.AddItem form) {
-            var result = await _cmdPublisher.SendAsync(new ItemMsgs.CreateItem(form.ItemId, form.Name));
-            return ProcessResult(result);
+            try {
+                await _dispatcher.SendAsync(new ItemMsgs.CreateItem(form.ItemId, form.Name));
+                return RedirectToAction("Index");
+            }
+            catch (Exception) {
+                return BadRequest();
+            }
         }
 
 
         [HttpPost, Route("{itemid:guid}/rename", Order = 1)]
         public async Task<IActionResult> RenameAsync(Guid itemId, ItemForms.Rename form) {
-            var result = await _cmdPublisher.SendAsync(new ItemMsgs.ChangeName(itemId, form.Name));
-            return ProcessResult(result);
-        }
-
-
-        private IActionResult ProcessResult(CommandResult result) {
             try {
-                _ = result.IsType<CommandCompleted>();
+                await _dispatcher.SendAsync(new ItemMsgs.ChangeName(itemId, form.Name));
                 return RedirectToAction("Index");
             }
-            catch {
+            catch (Exception) {
                 return BadRequest();
             }
         }

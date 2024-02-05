@@ -1,3 +1,3 @@
 namespace LvStreamStore.ApplicationToolkit {
-    public record Event : Message;
+    public record Event : Messaging.Message;
 }

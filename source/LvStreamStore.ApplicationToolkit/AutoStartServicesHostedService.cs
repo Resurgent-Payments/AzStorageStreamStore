@@ -3,7 +3,6 @@ namespace LvStreamStore.ApplicationToolkit {
     using System.Threading;
     using System.Threading.Tasks;
 
-    using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Hosting;
 
     internal class AutoStartServicesHostedService : IHostedService {
@@ -14,7 +13,7 @@ namespace LvStreamStore.ApplicationToolkit {
         }
 
         public Task StartAsync(CancellationToken cancellationToken) {
-            _ = _services.GetServices<IAutoStartService>();
+            //_ = _services.GetServices<IAutoStartService>();
             return Task.CompletedTask;
         }
 

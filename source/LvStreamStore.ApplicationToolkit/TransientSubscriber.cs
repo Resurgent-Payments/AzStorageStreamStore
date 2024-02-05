@@ -2,25 +2,27 @@ namespace LvStreamStore.ApplicationToolkit {
     using System;
     using System.Collections.ObjectModel;
 
-    using Microsoft.Extensions.Logging;
+    using LvStreamStore.Messaging;
 
     public abstract class TransientSubscriber : IDisposable {
         private readonly Collection<IDisposable> _subscriptions = new();
-        private readonly IDispatcher _dispatcher;
-        private readonly ILogger _log;
+        private readonly AsyncDispatcher _dispatcher;
 
-        public TransientSubscriber(IDispatcher dispatcher, ILoggerFactory factory) {
+        public TransientSubscriber(AsyncDispatcher dispatcher) {
             _dispatcher = dispatcher;
-            _log = factory.CreateLogger(GetType());
         }
 
-        protected void Subscribe<TCommand>(IAsyncCommandHandler<TCommand> handler) where TCommand : Command {
-            _subscriptions.Add(_dispatcher.Subscribe(handler));
+        protected void Subscribe<TCommand>(IHandleAsync<TCommand> handler) where TCommand : Message {
+            AsyncHelper.RunSync(() => _dispatcher.HandleAsync(AsyncDispatcher.Register(handler)));
         }
 
         //note: we may need to provide another subscribe here to respond to committed events from the underlying stream.
-        protected void Subscribe<TEvent>(IAsyncHandler<TEvent> handler) where TEvent : Event {
-            _subscriptions.Add(_dispatcher.Subscribe(handler));
+        protected void Subscribe<TEvent>(IReceiver<TEvent> receiver) where TEvent : Event {
+            var x = AsyncDispatcher.Register(receiver);
+            AsyncHelper.RunSync(() => _dispatcher.HandleAsync(x));
+            if (x is IDisposable d) {
+                _subscriptions.Add(d);
+            }
         }
 
         bool _disposed = false;

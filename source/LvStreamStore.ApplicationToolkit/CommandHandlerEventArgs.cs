@@ -1,5 +1,5 @@
-﻿namespace LvStreamStore.ApplicationToolkit {
-    using System.Threading.Tasks;
+//namespace LvStreamStore.ApplicationToolkit {
+//    using System.Threading.Tasks;
 
-    public record CommandHandlerEventArgs(TaskCompletionSource<CommandResult> CompletionSource, Command Command);
-}
+//    public record CommandHandlerEventArgs(TaskCompletionSource<CommandResult> CompletionSource, Command Command);
+//}

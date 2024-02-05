@@ -1,5 +1,5 @@
-namespace LvStreamStore.ApplicationToolkit {
-    using System;
+//namespace LvStreamStore.ApplicationToolkit {
+//    using System;
 
-    public record CommandFailed(Command SourceCommand, Exception Exception = null) : CommandResult(SourceCommand);
-}
+//    public record CommandFailed(Command SourceCommand, Exception Exception = null) : CommandResult(SourceCommand);
+//}

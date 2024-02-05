@@ -5,20 +5,21 @@ using System.Reflection;
 using LvStreamStore;
 using LvStreamStore.ApplicationToolkit;
 using LvStreamStore.ApplicationToolkit.WebHooks;
+using LvStreamStore.Messaging;
 
 public static class LvStreamStoreAspNetCoreConfigurationBuilderExtensions {
 
-    public static LvStreamStoreConfigurationBuilder UseWebHooks(this LvStreamStoreConfigurationBuilder builder, Action<WebHookOptions> configure) {
+    public static ApplicationToolkitConfigurationBuilder UseWebHooks(this ApplicationToolkitConfigurationBuilder builder, Action<WebHookOptions> configure) {
         var options = new WebHookOptions();
 
         configure(options);
 
         builder.Builder.ConfigureServices((ctx, services) => {
-            services.AddSingleton<IAutoStartService, SubscriptionService>();
-            services.AddSingleton<IAutoStartService, SubscriptionCallbackService>();
+            services.AddSingleton<TransientSubscriber, SubscriptionService>();
+            services.AddSingleton<TransientSubscriber, SubscriptionCallbackService>();
 
             services.AddSingleton(sp => {
-                var rm = new WebHookRm(sp.GetRequiredService<ISubscriber>(), sp.GetRequiredService<IStreamStoreRepository>());
+                var rm = new WebHookRm(sp.GetRequiredService<AsyncDispatcher>(), sp.GetRequiredService<IStreamStoreRepository>());
 
                 var messageTypes = options.DiscoveryAssemblies.SelectMany(x =>
                     x.GetTypes()
@@ -31,7 +32,7 @@ public static class LvStreamStoreAspNetCoreConfigurationBuilderExtensions {
 
                 return rm;
             });
-            services.AddSingleton<IAutoStartService>(sp => sp.GetRequiredService<WebHookRm>());
+            services.AddSingleton<ReadModelBase>(sp => sp.GetRequiredService<WebHookRm>());
 
             var mvcBuilder = services.AddMvcCore();
 
@@ -39,6 +40,21 @@ public static class LvStreamStoreAspNetCoreConfigurationBuilderExtensions {
             foreach (var asm in options.DiscoveryAssemblies) {
                 mvcBuilder.AddApplicationPart(asm);
             }
+        });
+        return builder;
+    }
+
+
+    public static ApplicationToolkitConfigurationBuilder RegisterSubscriber<TSubscriber>(this ApplicationToolkitConfigurationBuilder builder) where TSubscriber : TransientSubscriber {
+        builder.Builder.ConfigureServices((ctx, services) => {
+            services.AddSingleton<TransientSubscriber, TSubscriber>();
+        });
+        return builder;
+    }
+
+    public static ApplicationToolkitConfigurationBuilder RegisterModel<TModel>(this ApplicationToolkitConfigurationBuilder builder) where TModel : ReadModelBase {
+        builder.Builder.ConfigureServices((ctx, services) => {
+            services.AddSingleton<ReadModelBase, TModel>();
         });
         return builder;
     }

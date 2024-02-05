@@ -1,5 +1,5 @@
-﻿namespace LvStreamStore.ApplicationToolkit {
-    using System;
+//namespace LvStreamStore.ApplicationToolkit {
+//    using System;
 
-    public class MissingCommandHandlerException : Exception { }
-}
+//    public class MissingCommandHandlerException : Exception { }
+//}

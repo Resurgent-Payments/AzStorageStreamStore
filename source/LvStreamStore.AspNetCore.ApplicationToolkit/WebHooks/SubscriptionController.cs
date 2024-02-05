@@ -1,15 +1,17 @@
 namespace LvStreamStore.ApplicationToolkit.WebHooks {
     using System.Net;
 
+    using LvStreamStore.Messaging;
+
     using Microsoft.AspNetCore.Mvc;
 
     [Route("webhooks/subscriptions")]
     public class SubscriptionController : ControllerBase {
-        private readonly ICommandPublisher _cmdPublisher;
+        private readonly ISendAsync _dispatcher;
         private readonly WebHookRm _readModel;
 
-        public SubscriptionController(ICommandPublisher cmdPublisher, WebHookRm readModel) {
-            _cmdPublisher = cmdPublisher;
+        public SubscriptionController(ISendAsync cmdPublisher, WebHookRm readModel) {
+            _dispatcher = cmdPublisher;
             _readModel = readModel;
         }
 
@@ -28,10 +30,9 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             var cmd = new SubscriptionMsgs.Subscribe(form.WebHookId, Guid.NewGuid(), form.Description, form.PostUrl, token);
 
             try {
-                var result = await _cmdPublisher.SendAsync(cmd);
-                _ = result.IsType<CommandCompleted>();
+                await _dispatcher.SendAsync(cmd);
             }
-            catch (InvalidResultException exc) {
+            catch (Exception) {
                 //todo: investigate exception for more information.  this could be a successful failure.
                 return StatusCode((int)HttpStatusCode.BadRequest);
             }
@@ -44,10 +45,9 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             var cmd = new SubscriptionMsgs.Enable(subscriptionId, token);
 
             try {
-                var result = await _cmdPublisher.SendAsync(cmd);
-                _ = result.IsType<CommandCompleted>();
+                await _dispatcher.SendAsync(cmd);
             }
-            catch (InvalidResultException exc) {
+            catch (Exception) {
                 //todo: investigate exception for more information.  this could be a successful failure.
                 return StatusCode((int)HttpStatusCode.BadRequest);
             }
@@ -60,10 +60,9 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             var cmd = new SubscriptionMsgs.Disable(subscriptionId, token);
 
             try {
-                var result = await _cmdPublisher.SendAsync(cmd);
-                _ = result.IsType<CommandCompleted>();
+                await _dispatcher.SendAsync(cmd);
             }
-            catch (InvalidResultException exc) {
+            catch (Exception) {
                 //todo: investigate exception for more information.  this could be a successful failure.
                 return StatusCode((int)HttpStatusCode.BadRequest);
             }
@@ -76,10 +75,9 @@ namespace LvStreamStore.ApplicationToolkit.WebHooks {
             var cmd = new SubscriptionMsgs.Remove(subscriptionId, token);
 
             try {
-                var result = await _cmdPublisher.SendAsync(cmd);
-                _ = result.IsType<CommandCompleted>();
+                await _dispatcher.SendAsync(cmd);
             }
-            catch (InvalidResultException exc) {
+            catch (Exception) {
                 //todo: investigate exception for more information.  this could be a successful failure.
                 return StatusCode((int)HttpStatusCode.BadRequest);
             }

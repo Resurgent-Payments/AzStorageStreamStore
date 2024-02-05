@@ -9,7 +9,7 @@ namespace LvStreamStore.ApplicationToolkit {
         private Router Router { get; } = new();
         private Recorder Recorder { get; } = new();
 
-        protected void Register<TMessage>(Action<TMessage> handler) where TMessage : Message {
+        protected void Register<TMessage>(Action<TMessage> handler) where TMessage : Messaging.Message {
             Router.RegisterRoute(handler);
         }
         protected void Raise(object @object) {
@@ -17,7 +17,7 @@ namespace LvStreamStore.ApplicationToolkit {
             Router.Route(@object);
         }
 
-        public void RestoreFromMessages(IEnumerable<Message> messages) {
+        public void RestoreFromMessages(IEnumerable<Messaging.Message> messages) {
             foreach (var msg in messages) {
                 Router.Route(msg);
                 Version += 1;

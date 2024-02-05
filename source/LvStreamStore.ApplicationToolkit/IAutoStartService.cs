@@ -1,4 +1,4 @@
-namespace LvStreamStore.ApplicationToolkit {
-    public interface IAutoStartService {
-    }
-}
+//namespace LvStreamStore.ApplicationToolkit {
+//    public interface IAutoStartService {
+//    }
+//}

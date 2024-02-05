@@ -31,21 +31,21 @@ internal class LocalStorageEventStream : EventStream {
     }
 
 
-    protected override async Task WriteAsync(StreamItem item) {
-        var ser = _eventSerializer.Serialize(item);
-        var bytes = BitConverter.GetBytes((int)ser.Length); // presume that this'll be 4-bytes.
+    protected override async Task WriteAsync(params StreamItem[] items) {
 
         using (var fileWriter = new FileStream(_dataFile, new FileStreamOptions { Access = FileAccess.Write, Mode = FileMode.Append, Options = FileOptions.Asynchronous, Share = FileShare.Read })) {
             fileWriter.Seek(0, SeekOrigin.End);
 
-            // write header.
+            foreach (var item in items) {
+                var ser = _eventSerializer.Serialize(item);
+                var bytes = BitConverter.GetBytes((int)ser.Length); // presume that this'll be 4-bytes.
+                await fileWriter.WriteAsync(bytes);
+                await ser.CopyToAsync(fileWriter);
+                Checkpoint += ser.Length + LengthOfEventHeader;
+            }
 
-            await fileWriter.WriteAsync(bytes);
-            await ser.CopyToAsync(fileWriter);
             await fileWriter.FlushAsync();
         }
-
-        Checkpoint += ser.Length + LengthOfEventHeader;
     }
 
     bool _disposed = false;

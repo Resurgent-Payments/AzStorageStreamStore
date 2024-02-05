@@ -55,27 +55,25 @@ namespace LvStreamStore.ApplicationToolkit {
             return aggregate;
         }
 
-        public IDisposable Subscribe<TAggregate, TEvent>(IAsyncHandler<TEvent> handle) where TAggregate : AggregateRoot, new() where TEvent : Event {
-            var streamKey = CreateStreamKey<TAggregate>();
-            var adhoc = new AdHocHandler<RecordedEvent>(async (@event) => {
-                if (streamKey == @event.StreamId) {
-                    await handle.HandleAsync((TEvent)Deserialize(@event));
-                }
-            });
-            return _client.SubscribeToStreamAsync(streamKey, adhoc.HandleAsync).GetAwaiter().GetResult();
+        public IDisposable Subscribe<TEvent>(Messaging.IReceiver<TEvent> receiver) where TEvent : Event {
+            var deserialize = new EventDeserializationReceiver<TEvent>(receiver, _options.JsonOptions);
+            var upcast = new Messaging.TypeCastReceiver<StreamItem, RecordedEvent>(deserialize);
+            return AsyncHelper.RunSync(() => _client.SubscribeToStreamAsync(upcast));
         }
 
-        public async IAsyncEnumerable<Message> ReadAsync(StreamKey key) {
-            await foreach (var @event in _client.ReadStreamAsync(key)) {
-                yield return Deserialize(@event);
+        public async IAsyncEnumerable<Event> ReadAsync(StreamKey key) {
+            await foreach (var recorded in _client.ReadStreamAsync(key)) {
+                var e = Deserialize(recorded);
+                if (e is Event @event) { yield return @event; }
             }
         }
 
-        public async IAsyncEnumerable<Message> ReadAsync<TAggregate>() where TAggregate : AggregateRoot, new() {
+        public async IAsyncEnumerable<Event> ReadAsync<TAggregate>() where TAggregate : AggregateRoot, new() {
             var key = CreateStreamKey<TAggregate>();
 
-            await foreach (var @event in _client.ReadStreamAsync(key)) {
-                yield return Deserialize(@event);
+            await foreach (var recorded in _client.ReadStreamAsync(key)) {
+                var e = Deserialize(recorded);
+                if (e is Event @event) { yield return @event; }
             }
         }
 
@@ -99,7 +97,7 @@ namespace LvStreamStore.ApplicationToolkit {
             return streamKey;
         }
 
-        private Message Deserialize(RecordedEvent @event) {
+        private Messaging.Message Deserialize(RecordedEvent @event) {
             // get dictionary.
             var eventOptions = JsonSerializer.Deserialize<Dictionary<string, string>>(new ReadOnlySpan<byte>(@event.Metadata), _options.JsonOptions)!;
 
@@ -107,10 +105,10 @@ namespace LvStreamStore.ApplicationToolkit {
             if (!eventOptions.TryGetValue("AssemblyQualifiedName", out var aqName)) throw new InvalidOperationException("Missing clr type from serialized event information.");
 
             // get the clr type that should be decoded.
-            var resolvedClrType = Type.GetType(aqName, true, true);
+            var resolvedClrType = Type.GetType(aqName, true, true)!;
 
             //todo: custom deserializer to pickup messageid.
-            return (Message)JsonSerializer.Deserialize(new ReadOnlySpan<byte>(@event.Data), resolvedClrType, _options.JsonOptions)!;
+            return (Event)JsonSerializer.Deserialize(new ReadOnlySpan<byte>(@event.Data), resolvedClrType, _options.JsonOptions)!;
         }
 
         private EventData Serialize(StreamId streamId, object @event) {

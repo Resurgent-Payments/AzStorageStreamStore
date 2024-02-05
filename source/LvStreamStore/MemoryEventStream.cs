@@ -12,8 +12,8 @@ internal class MemoryEventStream : EventStream {
         _stream = new(options.Value.PageSize);
     }
 
-    protected override Task WriteAsync(StreamItem item) {
-        _stream.Append(item);
+    protected override Task WriteAsync(params StreamItem[] items) {
+        foreach(var item in items) { _stream.Append(item); }
         return Task.CompletedTask;
     }
 

@@ -11,7 +11,7 @@ namespace LvStreamStore.Messaging {
         IHandleAsync<AsyncDispatcher.RegisterMessage>,
         IHandleAsync<AsyncDispatcher.RegisterReceiver>,
         IBroadcastAsync<Message>,
-        ISendAsync<Message> {
+        ISendAsync {
         private readonly ILogger _log;
         private readonly Dictionary<Type, AsyncHandler> _handlers = new();
         private readonly List<Receiver> _receivers = new();
@@ -50,13 +50,15 @@ namespace LvStreamStore.Messaging {
             return Task.CompletedTask;
         }
 
-        public Task SendAsync(Message msg)
-            => HandleAsync(msg);
+        public Task SendAsync(Message msg, TimeSpan? timesOutAfter = null)
+            => timesOutAfter.HasValue
+            ? HandleAsync(msg).WithTimeout(timesOutAfter)
+            : HandleAsync(msg);
 
-        public Task BroadcastAsync(Message message) {
-            var tcs = new TaskCompletionSource();
-            if (!_enqueueForBroadcast.Writer.TryWrite(new BroadcastArgs(message, tcs))) { throw new InvalidOperationException(); }
-            return tcs.Task;
+        public async Task BroadcastAsync(Message message) {
+            TaskCompletionSource tcs = new();
+            await _enqueueForBroadcast.Writer.WriteAsync(new BroadcastArgs(message, tcs));
+            await tcs.Task;
         }
 
         private record RegisterMessage(Type Type, AsyncHandler Wrapper) : Message;
@@ -73,7 +75,7 @@ namespace LvStreamStore.Messaging {
                 var args = await _enqueueForBroadcast.Reader.ReadAsync();
                 for (var idx = 0; idx < _receivers.Count; idx++) {
                     try {
-                        _receivers[idx].Receive(args.Message);
+                        await _receivers[idx].Receive(args.Message);
                     }
                     catch (Exception exc) {
                         _log.LogWarning(exc, "Broadcast receiver encountered an error.");

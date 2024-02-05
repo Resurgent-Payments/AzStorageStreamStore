@@ -3,13 +3,12 @@ namespace BusinessDomain;
 using System.Threading.Tasks;
 
 using LvStreamStore.ApplicationToolkit;
+using LvStreamStore.Messaging;
 
-using Microsoft.Extensions.Logging;
-
-public class ItemMsgHandlers : TransientSubscriber, IAsyncCommandHandler<ItemMsgs.CreateItem>, IAsyncCommandHandler<ItemMsgs.ChangeName>, IAsyncCommandHandler<ItemMsgs.AddItems>, IAutoStartService {
+public class ItemMsgHandlers : TransientSubscriber, IHandleAsync<ItemMsgs.CreateItem>, IHandleAsync<ItemMsgs.ChangeName>, IHandleAsync<ItemMsgs.AddItems> {
     private readonly IStreamStoreRepository _repository;
 
-    public ItemMsgHandlers(IStreamStoreRepository repository, IDispatcher dispatcher, ILoggerFactory factory) : base(dispatcher, factory) {
+    public ItemMsgHandlers(IStreamStoreRepository repository, AsyncDispatcher dispatcher) : base(dispatcher) {
         _repository = repository;
 
         Subscribe<ItemMsgs.CreateItem>(this);
@@ -17,30 +16,20 @@ public class ItemMsgHandlers : TransientSubscriber, IAsyncCommandHandler<ItemMsg
         Subscribe<ItemMsgs.AddItems>(this);
     }
 
-    public async ValueTask<CommandResult> HandleAsync(ItemMsgs.CreateItem command) {
+    public async Task HandleAsync(ItemMsgs.CreateItem command) {
         var item = new Item(command.ItemId, command.Name);
-        return await _repository.Save(item)
-            ? command.Complete()
-            : command.Fail();
+        if (!await _repository.Save(item)) { throw new Exception(); }
     }
 
-    public async ValueTask<CommandResult> HandleAsync(ItemMsgs.ChangeName command) {
+    public async Task HandleAsync(ItemMsgs.ChangeName command) {
         var item = await _repository.TryGetById<Item>(command.ItemId);
         item.Rename(command.Name);
-        return await _repository.Save(item)
-            ? command.Complete()
-            : command.Fail();
+        if (!await _repository.Save(item)) { throw new Exception(); }
     }
 
-    public async ValueTask<CommandResult> HandleAsync(ItemMsgs.AddItems command) {
-        try {
-            for (var x = 1; x <= command.NumberOfItems; x++) {
-                await _repository.Save(new Item(Guid.NewGuid(), $"Item #{x}"));
-            }
-            return command.Complete();
-        }
-        catch (Exception ex) {
-            return command.Fail(ex);
+    public async Task HandleAsync(ItemMsgs.AddItems command) {
+        for (var x = 1; x <= command.NumberOfItems; x++) {
+            if (!await _repository.Save(new Item(Guid.NewGuid(), $"Item #{x}"))) { throw new Exception(); }
         }
     }
 }

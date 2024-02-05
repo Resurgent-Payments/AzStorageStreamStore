@@ -2,6 +2,7 @@ namespace LvStreamStore.Test {
     using FakeItEasy;
 
     using LvStreamStore.ApplicationToolkit;
+    using LvStreamStore.Messaging;
     using LvStreamStore.Serialization;
     using LvStreamStore.Serialization.Json;
 
@@ -13,8 +14,8 @@ namespace LvStreamStore.Test {
         public EventStream Stream { get; }
         public IEventSerializer EventSerializer { get; }
         public IStreamStoreRepository Repository { get; }
-        public IEventStreamClient ClientApi { get; }
-        public Dispatcher Bus { get; }
+        public IEventStreamClient StreamClient { get; }
+        public AsyncDispatcher Dispatcher { get; }
 
         public StreamStoreTestSpecification() {
             var jsonSerializationConfiguration = new JsonSerializationOptions();
@@ -35,9 +36,9 @@ namespace LvStreamStore.Test {
             });
             EventSerializer = new JsonEventSerializer(jsonSerializationOptions);
             Stream = new MemoryEventStream(LoggingFactory, eventStreamOptions);
-            ClientApi = new EmbeddedEventStreamClient(Stream, LoggingFactory);
-            Repository = new StreamStoreRepository(ClientApi, repositoryOptions);
-            Bus = new Dispatcher(LoggingFactory);
+            Dispatcher = new AsyncDispatcher(LoggingFactory);
+            StreamClient = new EmbeddedEventStreamClient(Dispatcher, Stream);
+            Repository = new StreamStoreRepository(StreamClient, repositoryOptions);
         }
     }
 }

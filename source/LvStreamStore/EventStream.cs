@@ -89,47 +89,63 @@ public abstract partial class EventStream : IDisposable {
     protected async void MonitorForWriteRequests() {
         await Task.Yield();
 
-        await foreach (var posssibleWalEntry in StreamWriter.ReadAllAsync(_cts.Token)) {
-            var onceCompleted = posssibleWalEntry.OnceCompleted;
-            var streamId = posssibleWalEntry.Id;
-            var expected = posssibleWalEntry.Version;
-            var events = posssibleWalEntry.Events;
+        try {
+            while (await StreamWriter.WaitToReadAsync(_cts.Token)) {
+                var possible = await StreamWriter.ReadAsync(_cts.Token);
+                var onceCompleted = possible.OnceCompleted;
+                var streamId = possible.Id;
+                var expected = possible.Version;
+                var events = possible.Events;
 
-            try {
-                if (!await PassesValidationAsync(onceCompleted, streamId, expected, events)) continue;
+                try {
+                    if (!await PassesValidationAsync(onceCompleted, streamId, expected, events)) continue;
 
 
-                // refactor to create one memorystream to be appended to a WAL.
-                // get last stream position.
-                var position = (await GetReader().LastOrDefaultAsync())?.Position ?? 0;
+                    // refactor to create one memorystream to be appended to a WAL.
+                    // get last stream position.
+                    var position = (await GetReader().LastOrDefaultAsync())?.Position ?? 0;
 
-                // first full scan
-                // if we don't have a StreamCreated event, we need to append one now.
-                if (await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
-                    position += 1;
-                    var created = new StreamCreated(streamId, position);
+                    // first full scan
+                    // if we don't have a StreamCreated event, we need to append one now.
+                    if (await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
+                        position += 1;
+                        var created = new StreamCreated(streamId, position);
 
-                    await WriteAsync(created);
-                }
+                        await WriteAsync(created);
+                    }
 
-                // cache the current checkpoint.
+                    // second full scan
+                    var written = await GetReader()
+                        .OfType<RecordedEvent>()
+                        .Where(recorded => recorded.StreamId == streamId)
+                        .ToListAsync();
 
-                foreach (var @event in events) {
-                    position += 1;
-                    var recorded = new RecordedEvent(streamId, @event.EventId, position, @event.Type, @event.Metadata, @event.Data);
+                    var recorded = events.Where(e => written.All(w => e.EventId != w.EventId))
+                        .Select(e => {
+                            position += 1;
+                            return new RecordedEvent(streamId, e.EventId, position, e.Type, e.Metadata, e.Data);
+
+                        })
+                        .ToArray();
+
                     await WriteAsync(recorded);
-                }
 
-                onceCompleted.SetResult(WriteResult.Ok(position));
+                    onceCompleted.SetResult(WriteResult.Ok(position));
+                }
+                catch (Exception exc) {
+                    Log.LogWarning(exc, "Write process failed.");
+                    onceCompleted.SetResult(WriteResult.Failed(-1, exc));
+                }
             }
-            catch (Exception exc) {
-                Log.LogWarning(exc, "Write process failed.");
-                onceCompleted.SetResult(WriteResult.Failed(-1, exc));
-            }
+        }
+        catch (OperationCanceledException) {
+            //no-op - token is probably marked as canceled, so we should just exit.
         }
     }
 
     protected virtual async ValueTask<bool> PassesValidationAsync(TaskCompletionSource<WriteResult> onceCompleted, StreamId streamId, ExpectedVersion expected, IEnumerable<EventData> events) {
+        if (!events.Any()) { return true; }
+
         try {
             switch (expected) {
                 case -4: // stream exists
@@ -189,5 +205,5 @@ public abstract partial class EventStream : IDisposable {
         return true;
     }
 
-    protected abstract Task WriteAsync(StreamItem item);
+    protected abstract Task WriteAsync(params StreamItem[] item);
 }

@@ -1,3 +1,3 @@
-namespace LvStreamStore.ApplicationToolkit {
-    public record CommandCompleted(Command SourceCommand) : CommandResult(SourceCommand);
-}
+//namespace LvStreamStore.ApplicationToolkit {
+//    public record CommandCompleted(Command SourceCommand) : CommandResult(SourceCommand);
+//}

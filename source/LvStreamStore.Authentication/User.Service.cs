@@ -3,49 +3,52 @@ namespace LvStreamStore.Authentication;
 using System.Threading.Tasks;
 
 using LvStreamStore.ApplicationToolkit;
+using LvStreamStore.Messaging;
 
-internal class UserService : ReadModelBase, IAsyncCommandHandler<UserMsgs.RegisterUser>, IAsyncCommandHandler<UserMsgs.ChangePassword>, IAsyncCommandHandler<UserMsgs.ChangePrimaryEmailAddress>, IAsyncHandler<UserMsgs.PasswordChanged> {
+internal class UserService : ReadModelBase, IHandleAsync<UserMsgs.RegisterUser>, IHandleAsync<UserMsgs.ChangePassword>, IHandleAsync<UserMsgs.ChangePrimaryEmailAddress>, IReceiver<UserMsgs.PasswordChanged> {
     private readonly IPasswordHasher _passwordHasher;
     private readonly Dictionary<Guid, string> _currentUserPasswords = new();
 
-    public UserService(IDispatcher dispatcher, IStreamStoreRepository repository, IPasswordHasher passwordHasher) : base(dispatcher, repository) {
+    public UserService(AsyncDispatcher dispatcher, IStreamStoreRepository repository, IPasswordHasher passwordHasher) : base(dispatcher, repository) {
         _passwordHasher = passwordHasher;
 
-        SubscribeToStream<User, UserMsgs.PasswordChanged>(this);
+        SubscribeToStream<UserMsgs.PasswordChanged>(this);
     }
 
-    public async ValueTask<CommandResult> HandleAsync(UserMsgs.RegisterUser command) {
-        var user = new User(command.UserId, command.TenantId, command.UserName, command.FirstName, command.LastName, command.PrimaryEmailAddress);
-        var newPassword = GenerateRandomPassword();
-        user.ChangePassword(newPassword);
-        await Repository.Save(user);
-        return new UserMsgs.UserHasBeenRegistered(command, newPassword, command.MsgId);
+    public async Task HandleAsync(UserMsgs.RegisterUser command) {
+        try {
+            var user = new User(command.UserId, command.TenantId, command.UserName, command.FirstName, command.LastName, command.PrimaryEmailAddress);
+            var newPassword = GenerateRandomPassword();
+            user.ChangePassword(newPassword);
+            await Repository.Save(user);
+            command.OnRegistrationComplete.SetResult(new UserMsgs.UserHasBeenRegistered(newPassword));
+        }
+        catch (Exception exc) {
+            command.OnRegistrationComplete.SetException(exc);
+        }
     }
 
-    public async ValueTask<CommandResult> HandleAsync(UserMsgs.ChangePassword command) {
+    public async Task HandleAsync(UserMsgs.ChangePassword command) {
         var user = await Repository.TryGetById<User>(command.UserId);
 
         if (!_currentUserPasswords.TryGetValue(command.UserId, out var hashedPassword) && !_passwordHasher.VerifyPassword(command.CurrentPassword, hashedPassword ?? string.Empty)) {
-            return command.Fail();
+            throw new Exception();
         }
 
         user.ChangePassword(_passwordHasher.HashPassword(command.NewPassword));
 
         await Repository.Save(user);
-
-        return command.Complete();
     }
 
-    public async ValueTask<CommandResult> HandleAsync(UserMsgs.ChangePrimaryEmailAddress command) {
+    public async Task HandleAsync(UserMsgs.ChangePrimaryEmailAddress command) {
         var user = await Repository.TryGetById<User>(command.UserId);
         user.ChangePrimaryEmailAddress(command.PrimaryEmailAddress);
         await Repository.Save(user);
-        return command.Complete();
     }
 
-    public ValueTask HandleAsync(UserMsgs.PasswordChanged @event) {
+    public Task Receive(UserMsgs.PasswordChanged @event) {
         _currentUserPasswords[@event.UserId] = @event.HashedPassword;
-        return ValueTask.CompletedTask;
+        return Task.CompletedTask;
     }
 
     private static string GenerateRandomPassword() {
