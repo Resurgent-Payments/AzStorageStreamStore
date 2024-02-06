@@ -13,24 +13,25 @@ namespace LvStreamStore.LocalStorage.Tests {
     using Microsoft.Extensions.Options;
 
     public class LocalStorageTestFixtureWithoutCaching : IClientTestFixture {
-        IEventStreamClient _client;
+        IEventStreamClient? _client;
         private EventStream? _stream;
         private ILoggerFactory _loggerFactory = LoggerFactory.Create((builder) => {
             builder.AddDebug();
             builder.SetMinimumLevel(LogLevel.Trace);
         });
+        private LocalStorageEventStreamOptions? _diskOptions;
 
         public EventStream Stream {
             get {
                 if (_stream == null) {
-                    var diskOptions = new LocalStorageEventStreamOptions {
+                    _diskOptions = new LocalStorageEventStreamOptions {
                         BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
                         FileReadBlockSize = 4096, // 4k block size.
                         UseCaching = false,
                     };
                     var diskOptionsAccessor = A.Fake<IOptions<LocalStorageEventStreamOptions>>();
                     A.CallTo(() => diskOptionsAccessor.Value)
-                        .Returns(diskOptions);
+                        .Returns(_diskOptions);
                     var serializerOptions = A.Fake<IOptions<JsonSerializationOptions>>();
                     A.CallTo(() => serializerOptions.Value)
                         .Returns(new JsonSerializationOptions());
@@ -53,6 +54,7 @@ namespace LvStreamStore.LocalStorage.Tests {
 
         public void Dispose() {
             Stream?.Dispose();
+            Directory.Delete(_diskOptions!.BaseDataPath, true);
         }
     }
 }

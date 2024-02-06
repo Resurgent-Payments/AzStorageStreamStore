@@ -18,8 +18,6 @@ public abstract partial class EventStream : IDisposable {
     protected ILogger Log { get; }
     protected ChannelReader<WriteToStreamArgs> StreamReader => _streamWriter.Reader;
 
-    public long Checkpoint { get; protected set; }
-
     protected EventStream(ILoggerFactory loggerFactory, EventStreamOptions options) {
         Log = loggerFactory.CreateLogger<EventStream>();
         _options = options;
