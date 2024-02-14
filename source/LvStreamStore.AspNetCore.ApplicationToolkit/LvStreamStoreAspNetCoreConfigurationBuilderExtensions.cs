@@ -43,22 +43,6 @@ public static class LvStreamStoreAspNetCoreConfigurationBuilderExtensions {
         });
         return builder;
     }
-
-
-    public static ApplicationToolkitConfigurationBuilder RegisterSubscriber<TSubscriber>(this ApplicationToolkitConfigurationBuilder builder) where TSubscriber : TransientSubscriber {
-        builder.Builder.ConfigureServices((ctx, services) => {
-            services.AddSingleton<TransientSubscriber, TSubscriber>();
-        });
-        return builder;
-    }
-
-    public static ApplicationToolkitConfigurationBuilder RegisterModel<TModel>(this ApplicationToolkitConfigurationBuilder builder) where TModel : ReadModelBase {
-        builder.Builder.ConfigureServices((ctx, services) => {
-            services.AddSingleton<ReadModelBase, TModel>();
-        });
-        return builder;
-    }
-
 }
 
 public class WebHookOptions {
