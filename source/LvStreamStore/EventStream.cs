@@ -13,7 +13,7 @@ public abstract partial class EventStream : IDisposable {
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed = false;
-    protected SinglyLinkedList<StreamMessage> Cache { get; private set; } = new();
+    protected SinglyLinkedList<StreamMessage> Cache { get; private set; }
 
     protected ILogger Log { get; }
     protected ChannelReader<WriteToStreamArgs> StreamReader => _streamWriter.Reader;
@@ -28,20 +28,28 @@ public abstract partial class EventStream : IDisposable {
             AllowSynchronousContinuations = false
         });
 
+        Cache = new SinglyLinkedList<StreamMessage>(_options.CachePageSize);
+
         _cts.Token.Register(() => _streamWriter.Writer.Complete());
     }
 
-    public virtual Task StartAsync() {
+    public virtual async Task StartAsync() {
+        if (_options.UseCaching) {
+            // need to load cache.
+            await foreach (var item in GetReader().OfType<RecordedEvent>()) {
+                Cache.Append(item);
+            }
+        }
+
         MonitorForWriteRequests();
-        return Task.CompletedTask;
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId streamId, int? revision = null) {
         // need to find out if the stream exists.
         if (_options.UseCaching
             ? Cache.All(item => streamId != item.StreamId)
-            : await GetReader().AllAsync(item => streamId != item.StreamId)) { 
-            throw new StreamDoesNotExistException(); 
+            : await GetReader().AllAsync(item => streamId != item.StreamId)) {
+            throw new StreamDoesNotExistException();
         }
 
         var numberOfItemsRead = 1;

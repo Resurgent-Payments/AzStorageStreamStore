@@ -27,6 +27,9 @@ internal class LocalStorageEventStream : EventStream {
 
         if (!File.Exists(_dataFile)) {
             File.Create(_dataFile).Dispose();
+            using (var fs = new FileStream(_dataFile, FileMode.Create, FileAccess.Write, FileShare.None)) {
+                fs.SetLength(_options.ChunkFileSizeMB * 1_048_576);
+            }
         }
     }
 
@@ -48,10 +51,18 @@ internal class LocalStorageEventStream : EventStream {
             writer.Seek(metadata.CheckPoint, SeekOrigin.Begin);
 
             foreach (var item in items) {
+
                 var ser = _eventSerializer.Serialize(item);
                 var bytes = BitConverter.GetBytes((int)ser.Length); // presume that this'll be 4-bytes.
-                await writer.WriteAsync(bytes);
-                await ser.CopyToAsync(writer);
+                ser.Seek(0, 0);
+
+                var ms = new MemoryStream();
+                ms.Write(bytes);
+                ser.CopyTo(ms);
+                ms.Seek(0, 0);
+
+                await ms.CopyToAsync(writer);
+                await writer.FlushAsync();
                 metadata.CheckPoint += ser.Length + LengthOfEventHeader;
 
                 if (_options.UseCaching) {
@@ -59,7 +70,7 @@ internal class LocalStorageEventStream : EventStream {
                 }
             }
 
-            await writer.FlushAsync();
+            await writer.DisposeAsync();
         }
 
         if (File.Exists(metadataFile)) {

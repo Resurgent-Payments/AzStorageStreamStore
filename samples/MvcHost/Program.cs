@@ -4,9 +4,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.AddLvStreamStore()
     .UseEmbeddedClient()
-    .UseMemoryStorage()
+    //.UseMemoryStorage()
+    .UseLocalStorage(o => {
+        o.BaseDataPath = "c:\\temp\\LvStreamStore";
+        o.UseCaching = true;
+    })
     .UseJsonSerialization()
-    .AddApplicationToolkit()
+    .UseApplicationToolkit()
         .RegisterSubscriber<BusinessDomain.ItemMsgHandlers>()
         .RegisterModel<MvcHost.Models.ItemsRm>()
         .UseWebHooks(opts => {
@@ -18,8 +22,8 @@ builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 
-app.UseLvStreamStore();
-app.UseApplicationToolkit();
+app.UseLvStreamStore()
+    .InitializeApplicationToolkit();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment()) {

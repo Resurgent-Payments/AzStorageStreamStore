@@ -3,6 +3,7 @@ namespace LvStreamStore.ApplicationToolkit {
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Text;
     using System.Text.Json;
     using System.Threading.Tasks;
 
@@ -123,19 +124,17 @@ namespace LvStreamStore.ApplicationToolkit {
                 { nameof(type.Namespace), type.Namespace! },
                 { nameof(type.AssemblyQualifiedName), type.AssemblyQualifiedName! },
             };
-            var metaDataStream = new MemoryStream();
-            JsonSerializer.Serialize(metaDataStream, metaDataDict, _options.JsonOptions);
+            var metadata = JsonSerializer.Serialize(metaDataDict, _options.JsonOptions);
 
             // create data
             // todo: investigate if we can reduce memory allocations here.
-            var dataStream = new MemoryStream();
-            JsonSerializer.Serialize(dataStream, @event, _options.JsonOptions);
+            var data = JsonSerializer.Serialize(@event, _options.JsonOptions);
 
             // get name of event
             var eventType = type.Name.Contains("+") ? type.Name.Substring(type.Name.IndexOf("+") + 1) : type.Name;
 
             // create event id
-            return new EventData(streamId, Guid.NewGuid(), eventType, metaDataStream.ToArray(), dataStream.ToArray());
+            return new EventData(streamId, Guid.NewGuid(), eventType, Encoding.UTF8.GetBytes(metadata), Encoding.UTF8.GetBytes(data));
         }
 
         protected virtual void BeforeSerialization(object @object) { }

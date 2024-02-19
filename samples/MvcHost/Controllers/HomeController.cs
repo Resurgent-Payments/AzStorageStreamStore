@@ -29,7 +29,18 @@ public class HomeController : Controller {
         catch (Exception) {
             return BadRequest();
         }
-        return Ok();
+        return RedirectToAction("Index", "Home");
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> AddSingleItem() {
+        try {
+            await _dispatcher.SendAsync(new ItemMsgs.AddItems(1));
+        }
+        catch (Exception) {
+            return BadRequest();
+        }
+        return RedirectToAction("Index", "Home");
     }
 
     public IActionResult Privacy() {

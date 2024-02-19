@@ -40,7 +40,7 @@ namespace LvStreamStore.LocalStorage {
             public async virtual ValueTask<bool> MoveNextAsync() {
                 int readOffset;
                 byte[] headerBuffer = new byte[EventStream.LengthOfEventHeader];
-                byte[] readBuffer = new byte[4096];
+                byte[] readBuffer = new byte[_reader._options.FileReadBlockSize];
 
                 using (var fStream = new FileStream(_reader._dataFile, new FileStreamOptions { Access = FileAccess.Read, Mode = FileMode.Open, Options = FileOptions.Asynchronous, Share = FileShare.ReadWrite })) {
                     if (fStream.Length <= _lastBytePosition) {
@@ -67,7 +67,7 @@ namespace LvStreamStore.LocalStorage {
 
                     do {
                         Array.Clear(readBuffer);
-                        readOffset = await fStream.ReadAsync(readBuffer, 0, Math.Min(numberOfBytesToRead, EventStream.LengthOfEventHeader));
+                        readOffset = await fStream.ReadAsync(readBuffer, 0, numberOfBytesToRead);
 
                         if (readOffset > 0) {
                             ms.Write(readBuffer, 0, readOffset);
@@ -75,11 +75,16 @@ namespace LvStreamStore.LocalStorage {
 
                         _lastBytePosition += readOffset;
                         numberOfBytesToRead -= readOffset;
-                    } while (readOffset > 0);
+                    } while (readOffset > EventStream.LengthOfEventHeader);
 
                     ms.Seek(0, SeekOrigin.Begin);
 
                     var str = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+
+                    if (ms.Length == 0) {
+                        Current = null;
+                        return false;
+                    }
 
                     Current = _eventSerializer.Deserialize<StreamMessage>(ms);
                 }

@@ -29,7 +29,11 @@ public class ItemMsgHandlers : TransientSubscriber, IHandleAsync<ItemMsgs.Create
 
     public async Task HandleAsync(ItemMsgs.AddItems command) {
         for (var x = 1; x <= command.NumberOfItems; x++) {
-            if (!await _repository.Save(new Item(Guid.NewGuid(), $"Item #{x}"))) { throw new Exception(); }
+            var agg = new Item(Guid.NewGuid(), $"Item #{x}");
+            for (var y = 0; y < 10; y++) {
+                agg.Rename($"Renamed to: {y}");
+            }
+            if (!await _repository.Save(agg)) { throw new Exception(); }
         }
     }
 }

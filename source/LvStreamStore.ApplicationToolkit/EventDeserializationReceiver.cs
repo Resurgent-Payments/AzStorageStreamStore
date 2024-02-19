@@ -25,6 +25,8 @@ namespace LvStreamStore.ApplicationToolkit {
             // get the clr type that should be decoded.
             var resolvedClrType = Type.GetType(aqName, true, true)!;
 
+            if (resolvedClrType is not null && typeof(TEvent) != resolvedClrType) { return; }
+
             //todo: custom deserializer to pickup messageid.
             var @event = (TEvent)JsonSerializer.Deserialize(new ReadOnlySpan<byte>(msg.Data), resolvedClrType, _options)!;
 
