@@ -18,7 +18,9 @@ namespace LvStreamStore.ApplicationToolkit {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 Converters = {
                     new JsonStringEnumConverter(),
-                    new StreamItemJsonConverter()
+                    new StreamItemJsonConverter(),
+                    new DateOnlyJsonConverter(),
+                    new TimeOnlyJsonConverter()
                 }
             };
             foreach (var converter in JsonConverters) {

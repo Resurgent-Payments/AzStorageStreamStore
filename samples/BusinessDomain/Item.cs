@@ -25,7 +25,7 @@ public class Item : AggregateRoot {
     public void Rename(string name) {
         if (_name.Equals(name)) return;
 
-        Raise(new ItemMsgs.NameChanged(Id, name));
+        Raise(new ItemMsgs.NameChanged(Id, name, DateOnly.FromDateTime(DateTime.Now), TimeOnly.FromDateTime(DateTime.Now)));
     }
 
 
