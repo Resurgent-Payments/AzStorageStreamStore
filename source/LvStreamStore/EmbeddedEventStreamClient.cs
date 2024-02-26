@@ -15,6 +15,11 @@ public class EmbeddedEventStreamClient : IEventStreamClient {
         _watcher = new EventStreamPoller(_dispatcher, _eventStream, new());
     }
 
+    public Task Connect() {
+        _watcher.StartPolling();
+        return Task.CompletedTask;
+    }
+
     /// <inheritdoc />
     public IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamKey key)
         => _eventStream.ReadAsync(key);

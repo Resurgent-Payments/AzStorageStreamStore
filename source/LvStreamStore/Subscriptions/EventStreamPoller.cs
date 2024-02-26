@@ -14,8 +14,6 @@ internal class EventStreamPoller : IDisposable {
         _dispatcher = dispatcher;
         _streamReader = stream.GetReader();
         _options = options;
-
-        StartPolling();
     }
 
     public IDisposable SubscribeToStream(Messaging.IReceiver<StreamMessage> handler) {
@@ -67,7 +65,7 @@ internal class EventStreamPoller : IDisposable {
         return new Disposer(() => { });
     }
 
-    private async void StartPolling() {
+    internal async void StartPolling() {
         await Task.Yield();
 
         while (!_cts.IsCancellationRequested) {
