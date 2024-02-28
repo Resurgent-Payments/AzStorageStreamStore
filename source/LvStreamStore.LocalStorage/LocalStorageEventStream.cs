@@ -65,9 +65,9 @@ internal class LocalStorageEventStream : EventStream {
                 await writer.FlushAsync();
                 metadata.CheckPoint += ser.Length + LengthOfEventHeader;
 
-                if (_options.UseCaching) {
-                    Cache.Append(item);
-                }
+                //if (_options.UseCaching) {
+                //    Cache.Append(item);
+                //}
             }
 
             await writer.DisposeAsync();
@@ -92,5 +92,5 @@ internal class LocalStorageEventStream : EventStream {
         _disposed = true;
     }
 
-    public override EventStreamReader GetReader() => new LocalStorageEventStreamReader(_dataFile, _eventSerializer, _options);
+    public override EventStreamReader GetReader() => new OnDiscStreamReader(_dataFile, _eventSerializer, _options);
 }

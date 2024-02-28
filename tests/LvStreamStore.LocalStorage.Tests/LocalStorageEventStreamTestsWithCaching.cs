@@ -1,10 +1,10 @@
-namespace LvStreamStore.LocalStorage.Tests;
+//namespace LvStreamStore.LocalStorage.Tests;
 
-using LvStreamStore.Tests;
+//using LvStreamStore.Tests;
 
-using Xunit;
+//using Xunit;
 
-public class LocalStorageEventStreamTestsWithCaching : ClientTestBase, IClassFixture<LocalStorageTestFixtureWithCaching> {
-    public LocalStorageEventStreamTestsWithCaching(LocalStorageTestFixtureWithCaching fixture) : base(fixture) {
-    }
-}
+//public class LocalStorageEventStreamTestsWithCaching : ClientTestBase, IClassFixture<LocalStorageTestFixtureWithCaching> {
+//    public LocalStorageEventStreamTestsWithCaching(LocalStorageTestFixtureWithCaching fixture) : base(fixture) {
+//    }
+//}

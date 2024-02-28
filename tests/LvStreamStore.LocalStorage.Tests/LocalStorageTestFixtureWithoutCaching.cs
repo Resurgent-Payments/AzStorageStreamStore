@@ -26,7 +26,7 @@ namespace LvStreamStore.LocalStorage.Tests {
                 if (_stream == null) {
                     _diskOptions = new LocalStorageEventStreamOptions {
                         BaseDataPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
-                        FileReadBlockSize = 4096, // 4k block size.
+                        FileReadBlockSize = 1_048_576, // 1mb. // 4096, // 4k block size.
                         UseCaching = false,
                     };
                     var diskOptionsAccessor = A.Fake<IOptions<LocalStorageEventStreamOptions>>();

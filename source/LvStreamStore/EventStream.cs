@@ -13,7 +13,7 @@ public abstract partial class EventStream : IDisposable {
     private readonly Channel<WriteToStreamArgs> _streamWriter;
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed = false;
-    protected SinglyLinkedList<StreamMessage> Cache { get; private set; }
+    //protected SinglyLinkedList<StreamMessage> Cache { get; private set; }
 
     protected ILogger Log { get; }
     protected ChannelReader<WriteToStreamArgs> StreamReader => _streamWriter.Reader;
@@ -28,34 +28,46 @@ public abstract partial class EventStream : IDisposable {
             AllowSynchronousContinuations = false
         });
 
-        Cache = new SinglyLinkedList<StreamMessage>(_options.CachePageSize);
+        //Cache = new SinglyLinkedList<StreamMessage>(_options.CachePageSize);
 
         _cts.Token.Register(() => _streamWriter.Writer.Complete());
     }
 
     public virtual async Task StartAsync() {
-        if (_options.UseCaching) {
-            // need to load cache.
-            await foreach (var item in GetReader().OfType<RecordedEvent>()) {
-                Cache.Append(item);
-            }
-        }
+        //if (_options.UseCaching) {
+        //    // need to load cache.
+        //    await foreach (var item in GetReader().OfType<RecordedEvent>()) {
+        //        Cache.Append(item);
+        //    }
+        //}
 
         MonitorForWriteRequests();
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamId streamId, int? revision = null) {
         // need to find out if the stream exists.
-        if (_options.UseCaching
-            ? Cache.All(item => streamId != item.StreamId)
-            : await GetReader().AllAsync(item => streamId != item.StreamId)) {
+        if (
+            //_options.UseCaching
+            //? Cache.All(item => streamId != item.StreamId)
+            //: 
+            await GetReader().AllAsync(item => streamId != item.StreamId)) {
             throw new StreamDoesNotExistException();
         }
 
         var numberOfItemsRead = 1;
 
-        if (_options.UseCaching) {
-            foreach (var item in Cache.OfType<RecordedEvent>()) {
+        //if (_options.UseCaching) {
+        //    foreach (var item in Cache.OfType<RecordedEvent>()) {
+        //        if (numberOfItemsRead <= revision && revision.HasValue) {
+        //            numberOfItemsRead++;
+        //            continue;
+        //        }
+
+        //        yield return item!;
+        //    }
+        //} else {
+        await foreach (var item in GetReader().OfType<RecordedEvent>()) {
+            if (streamId == item.StreamId) {
                 if (numberOfItemsRead <= revision && revision.HasValue) {
                     numberOfItemsRead++;
                     continue;
@@ -63,46 +75,36 @@ public abstract partial class EventStream : IDisposable {
 
                 yield return item!;
             }
-        } else {
-            await foreach (var item in GetReader().OfType<RecordedEvent>()) {
-                if (streamId == item.StreamId) {
-                    if (numberOfItemsRead <= revision && revision.HasValue) {
-                        numberOfItemsRead++;
-                        continue;
-                    }
-
-                    yield return item!;
-                }
-            }
         }
+        //}
     }
 
     public async IAsyncEnumerable<RecordedEvent> ReadAsync(StreamKey streamKey, int? revision = null) {
         var numberOfItemsRead = 1;
 
-        if (_options.UseCaching) {
-            foreach (var item in Cache.OfType<RecordedEvent>()) {
-                if (streamKey == item.StreamId) {
-                    if (numberOfItemsRead <= revision && revision.HasValue) {
-                        numberOfItemsRead++;
-                        continue;
-                    }
+        //if (_options.UseCaching) {
+        //    foreach (var item in Cache.OfType<RecordedEvent>()) {
+        //        if (streamKey == item.StreamId) {
+        //            if (numberOfItemsRead <= revision && revision.HasValue) {
+        //                numberOfItemsRead++;
+        //                continue;
+        //            }
 
-                    yield return item!;
+        //            yield return item!;
+        //        }
+        //    }
+        //} else {
+        await foreach (var item in GetReader().OfType<RecordedEvent>()) {
+            if (streamKey == item.StreamId) {
+                if (numberOfItemsRead <= revision && revision.HasValue) {
+                    numberOfItemsRead++;
+                    continue;
                 }
-            }
-        } else {
-            await foreach (var item in GetReader().OfType<RecordedEvent>()) {
-                if (streamKey == item.StreamId) {
-                    if (numberOfItemsRead <= revision && revision.HasValue) {
-                        numberOfItemsRead++;
-                        continue;
-                    }
 
-                    yield return item!;
-                }
+                yield return item!;
             }
         }
+        //}
     }
 
     public async ValueTask<WriteResult> AppendAsync(StreamId streamId, ExpectedVersion version, IEnumerable<EventData> events) {
@@ -141,15 +143,19 @@ public abstract partial class EventStream : IDisposable {
 
                     // refactor to create one memorystream to be appended to a WAL.
                     // get last stream position.
-                    var position = _options.UseCaching
-                        ? Cache.LastOrDefault()?.Position ?? 0
-                        : (await GetReader().LastOrDefaultAsync())?.Position ?? 0;
+                    var position =
+                        //_options.UseCaching
+                        //? Cache.LastOrDefault()?.Position ?? 0
+                        //: 
+                        (await GetReader().LastOrDefaultAsync())?.Position ?? 0;
 
                     // first full scan
                     // if we don't have a StreamCreated event, we need to append one now.
-                    if (_options.UseCaching
-                        ? Cache.OfType<StreamCreated>().All(sc => sc.StreamId != streamId)
-                        : await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
+                    if (
+                        //_options.UseCaching
+                        //? Cache.OfType<StreamCreated>().All(sc => sc.StreamId != streamId)
+                        //: 
+                        await GetReader().OfType<StreamCreated>().AllAsync(sc => sc.StreamId != streamId)) {
                         position += 1;
                         var created = new StreamCreated(streamId, position);
 
@@ -157,11 +163,13 @@ public abstract partial class EventStream : IDisposable {
                     }
 
                     // second full scan
-                    var written = _options.UseCaching
-                        ? Cache.OfType<RecordedEvent>()
-                            .Where(recorded => recorded.StreamId == streamId)
-                            .ToList()
-                        : await GetReader()
+                    var written =
+                        // _options.UseCaching
+                        //? Cache.OfType<RecordedEvent>()
+                        //    .Where(recorded => recorded.StreamId == streamId)
+                        //    .ToList()
+                        //: 
+                        await GetReader()
                             .OfType<RecordedEvent>()
                             .Where(recorded => recorded.StreamId == streamId)
                             .ToListAsync();

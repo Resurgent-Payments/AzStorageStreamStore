@@ -12,7 +12,6 @@ using Xunit;
 public abstract class ClientTestBase {
     private readonly StreamId _loadedStreamId = new("tenant-id", [], "some-id");
     private readonly StreamId _emptyStreamId = new("empty-id", [], "stream-id");
-    private readonly AsyncDispatcher _dispatcher = new();
 
     const string EventType = "event-type";
     const string AllStreamEventType = "$all";
@@ -24,12 +23,28 @@ public abstract class ClientTestBase {
 
     public ClientTestBase(IClientTestFixture fixture) {
         Fixture = fixture;
+    }
 
-        var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, [new EventData(_loadedStreamId, Guid.NewGuid(), EventType, [], [])]));
-        Assert.True(result.Successful);
+    [Theory]
+    [InlineData(1)]
+    [InlineData(10)]
+    [InlineData(100)]
+    [InlineData(1_000)]
+    [InlineData(10_000)]
+    [InlineData(100_000)]
+    //[InlineData(1_000_000)]
+    public async Task Can_read_and_write_events(int numberOfEvents) {
+        var tenantId = "hammer";
+        var objectId = "tests";
+        var streamId = new StreamId(tenantId, [Guid.NewGuid().ToString("N")], objectId);
 
-        result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_emptyStreamId, ExpectedVersion.Any, []));
-        Assert.True(result.Successful);
+        var events = Enumerable.Range(1, numberOfEvents).Select(_ => new EventData(streamId, Guid.NewGuid(), "stress-type", [], [])).ToArray();
+        var writeResult = await Client.AppendToStreamAsync(streamId, ExpectedVersion.NoStream, events);
+
+        Assert.True(writeResult.Successful);
+
+        var numberOfStoredEvents = await Client.ReadStreamAsync(streamId).CountAsync();
+        Assert.Equal(numberOfEvents, numberOfStoredEvents);
     }
 
     [Theory]
@@ -54,9 +69,9 @@ public abstract class ClientTestBase {
 
     [Fact]
     public async Task Can_append_events_with_data() {
-        var tenantId = Guid.NewGuid().ToString("N");
+        var tenantId = "append-events";
         var eventId = Guid.NewGuid();
-        var id = new StreamId(tenantId, [], Guid.NewGuid().ToString());
+        var id = new StreamId(tenantId, [], "with-data");
         var message = "Hello world!";
 
         var e = new EventData(id, eventId, EventType, [], Encoding.UTF8.GetBytes(message));
@@ -74,10 +89,14 @@ public abstract class ClientTestBase {
 
     [Fact]
     public async Task Cannot_append_events_when_expecting_a_nonexistent_stream() {
+        // start by building a "known" stream.
+        var result = AsyncHelper.RunSync(async () => await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.Any, [new EventData(_loadedStreamId, Guid.NewGuid(), EventType, [], [])]));
+        Assert.True(result.Successful);
+
+        // setup the test.
         var tenantId = Guid.NewGuid().ToString("N");
         var eventId = Guid.NewGuid();
         var id = new StreamId(tenantId, Array.Empty<string>(), Guid.NewGuid().ToString());
-
         var e = new EventData(id, eventId, EventType, [], []);
 
         var writeResult = await Client.AppendToStreamAsync(_loadedStreamId, ExpectedVersion.NoStream, [e]);
@@ -193,6 +212,7 @@ public abstract class ClientTestBase {
 
     [Fact]
     public async Task Reading_an_empty_stream_by_id_should_return_no_events() {
+        await Client.AppendToStreamAsync(_emptyStreamId, ExpectedVersion.Any, []);
         Assert.False(await Client.ReadStreamAsync(_emptyStreamId).AnyAsync());
     }
 
@@ -217,10 +237,14 @@ public abstract class ClientTestBase {
         Assert.True(writeResult.Successful);
 
         var sub = Client.SubscribeToStreamAsync(streamId, new TypeCastReceiver<StreamMessage, RecordedEvent>(
-            new AdHocReceiver<RecordedEvent>((@event) => { events.Add(@event); return Task.CompletedTask; }))
+            new AdHocReceiver<RecordedEvent>((@event) => {
+                events.Add(@event);
+                return Task.CompletedTask;
+            }))
         );
-        await Client.AppendToStreamAsync(streamId, ExpectedVersion.Any, [e4]);
+        var wr = await Client.AppendToStreamAsync(streamId, ExpectedVersion.Any, [e4]);
 
+        Assert.True(wr.Successful);
         AssertEx.IsOrBecomesTrue(() => events.Count >= 1, TimeSpan.FromSeconds(3));
     }
 
