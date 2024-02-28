@@ -3,17 +3,21 @@ namespace LvStreamStore.Subscriptions;
 using System;
 using System.Collections.Concurrent;
 
+using Microsoft.Extensions.Logging;
+
 internal class EventStreamPoller : IDisposable {
     private readonly CancellationTokenSource _cts = new();
     private readonly Messaging.AsyncDispatcher _dispatcher;
     private readonly EventStreamPollerOptions _options;
+    private readonly ILogger _log;
     private ConcurrentBag<IDisposable> _subscriptions = [];
     EventStreamReader _streamReader;
 
-    public EventStreamPoller(Messaging.AsyncDispatcher dispatcher, EventStream stream, EventStreamPollerOptions options) {
+    public EventStreamPoller(Messaging.AsyncDispatcher dispatcher, EventStream stream, EventStreamPollerOptions options, ILoggerFactory loggerFactory) {
         _dispatcher = dispatcher;
         _streamReader = stream.GetReader();
         _options = options;
+        _log = loggerFactory.CreateLogger<EventStreamPoller>();
     }
 
     public IDisposable SubscribeToStream(Messaging.IReceiver<StreamMessage> handler) {
@@ -68,8 +72,12 @@ internal class EventStreamPoller : IDisposable {
     internal async void StartPolling() {
         await Task.Yield();
 
+        _log.LogInformation("Starting to poll...");
         while (!_cts.IsCancellationRequested) {
             await foreach (var msg in _streamReader) {
+#if DEBUG
+                _log.LogDebug("Send message: {@messageid} {@StreamId}", msg.MsgId, msg.StreamId);
+#endif
                 await _dispatcher.BroadcastAsync(msg);
             }
 

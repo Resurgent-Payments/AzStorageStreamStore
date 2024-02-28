@@ -1,5 +1,6 @@
 namespace LvStreamStore.LocalStorage.Tests {
     using System;
+    using System.Threading.Tasks;
 
     using FakeItEasy;
 
@@ -45,16 +46,23 @@ namespace LvStreamStore.LocalStorage.Tests {
 
         public IEventStreamClient Client {
             get {
-                _client ??= new EmbeddedEventStreamClient(Dispatcher, Stream);
+                _client ??= new EmbeddedEventStreamClient(Dispatcher, Stream, _loggerFactory);
                 return _client;
             }
         }
 
         public AsyncDispatcher Dispatcher { get; } = new();
 
-        public void Dispose() {
+        public async Task InitializeAsync() {
+            await Client.Connect();
+        }
+
+        public Task DisposeAsync() {
+            Client?.Dispose();
             Stream?.Dispose();
             Directory.Delete(_diskOptions!.BaseDataPath, true);
+            return Task.CompletedTask;
         }
+
     }
 }

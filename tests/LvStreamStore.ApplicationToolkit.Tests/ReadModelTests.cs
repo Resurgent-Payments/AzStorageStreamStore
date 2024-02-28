@@ -6,16 +6,11 @@ namespace LvStreamStore.ApplicationToolkit.Tests {
     using Xunit;
 
     public partial class ReadModelTests : StreamStoreTestSpecification {
-        private readonly TestReadModel _readModel;
-
-        public ReadModelTests() : base() {
-            _readModel = new TestReadModel(Dispatcher, Repository);
-        }
-
         [Fact]
         public void CanSubscribeToAggregateEvents() {
+            var readModel = new TestReadModel(Dispatcher, Repository);
             Repository.Save(new TestAggregate(Guid.NewGuid(), "name", "description"));
-            AssertEx.IsOrBecomesTrue(() => _readModel.UIModels.Count > 0, TimeSpan.FromSeconds(3));
+            AssertEx.IsOrBecomesTrue(() => readModel.UIModels.Count > 0, TimeSpan.FromSeconds(3));
         }
     }
 }

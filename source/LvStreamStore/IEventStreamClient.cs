@@ -6,6 +6,8 @@ namespace LvStreamStore;
 public interface IEventStreamClient : IDisposable {
     Task Connect();
 
+    Task Disconnect();
+
     ValueTask<WriteResult> AppendToStreamAsync(StreamId key, ExpectedVersion version, params EventData[] events);
 
     IAsyncEnumerable<RecordedEvent> ReadStreamAsync(StreamId id);

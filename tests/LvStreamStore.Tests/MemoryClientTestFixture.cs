@@ -1,4 +1,6 @@
 namespace LvStreamStore.Tests {
+    using System.Threading.Tasks;
+
     using FakeItEasy;
 
     using LvStreamStore;
@@ -11,7 +13,7 @@ namespace LvStreamStore.Tests {
 
     public class MemoryClientTestFixture : IClientTestFixture {
         private MemoryEventStream? _stream;
-        private IEventStreamClient _client;
+        private IEventStreamClient? _client;
         private ILoggerFactory _loggerFactory = LoggerFactory.Create((builder) => {
             builder.AddDebug();
             builder.SetMinimumLevel(LogLevel.Trace);
@@ -37,15 +39,20 @@ namespace LvStreamStore.Tests {
 
         public IEventStreamClient Client {
             get {
-                _client ??= new EmbeddedEventStreamClient(Dispatcher, Stream);
+                _client ??= new EmbeddedEventStreamClient(Dispatcher, Stream, _loggerFactory);
                 return _client;
             }
         }
 
         public AsyncDispatcher Dispatcher { get; } = new();
 
-        public void Dispose() {
+        public async Task InitializeAsync() {
+            await Client.Connect();
+        } 
+
+        public Task DisposeAsync() {
             Stream?.Dispose();
+            return Task.CompletedTask;
         }
     }
 }

@@ -7,11 +7,12 @@ namespace LvStreamStore.ApplicationToolkit.Tests {
 
     using Xunit;
 
-    public class StreamStoreRepositoryTests : StreamStoreTestSpecification, IAsyncLifetime {
+    public class StreamStoreRepositoryTests : StreamStoreTestSpecification {
         public StreamStoreRepositoryTests() : base() {
         }
 
-        public async Task InitializeAsync() {
+        public async override Task InitializeAsync() {
+            await base.InitializeAsync();
             var agg = new TestAggregate(Guid.NewGuid(), "name", "description");
             await Repository.Save(agg);
         }
@@ -27,7 +28,5 @@ namespace LvStreamStore.ApplicationToolkit.Tests {
             var reader = Repository.ReadAsync<TestAggregate>();
             Assert.Single(await reader.ToListAsync());
         }
-
-        public Task DisposeAsync() => Task.CompletedTask;
     }
 }

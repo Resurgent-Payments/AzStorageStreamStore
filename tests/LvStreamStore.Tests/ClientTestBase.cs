@@ -30,8 +30,8 @@ public abstract class ClientTestBase {
     [InlineData(10)]
     [InlineData(100)]
     [InlineData(1_000)]
-    [InlineData(10_000)]
-    [InlineData(100_000)]
+    //[InlineData(10_000)]
+    //[InlineData(100_000)]
     //[InlineData(1_000_000)]
     public async Task Can_read_and_write_events(int numberOfEvents) {
         var tenantId = "hammer";

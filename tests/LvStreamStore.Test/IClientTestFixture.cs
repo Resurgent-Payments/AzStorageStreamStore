@@ -2,7 +2,9 @@ namespace LvStreamStore.Test;
 
 using LvStreamStore.Messaging;
 
-public interface IClientTestFixture : IDisposable {
+using Xunit;
+
+public interface IClientTestFixture : IAsyncLifetime {
     EventStream Stream { get; }
     IEventStreamClient Client { get; }
     AsyncDispatcher Dispatcher { get; }

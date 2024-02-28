@@ -1,4 +1,6 @@
 namespace LvStreamStore.Test {
+    using System.Threading.Tasks;
+
     using FakeItEasy;
 
     using LvStreamStore.ApplicationToolkit;
@@ -9,7 +11,9 @@ namespace LvStreamStore.Test {
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
 
-    public class StreamStoreTestSpecification {
+    using Xunit;
+
+    public class StreamStoreTestSpecification : IAsyncLifetime {
         public ILoggerFactory LoggingFactory { get; }
         public EventStream Stream { get; }
         public IEventSerializer EventSerializer { get; }
@@ -37,10 +41,20 @@ namespace LvStreamStore.Test {
             EventSerializer = new JsonEventSerializer(jsonSerializationOptions);
             Stream = new MemoryEventStream(LoggingFactory, eventStreamOptions);
             Dispatcher = new AsyncDispatcher(LoggingFactory);
-            StreamClient = new EmbeddedEventStreamClient(Dispatcher, Stream);
+            StreamClient = new EmbeddedEventStreamClient(Dispatcher, Stream, LoggingFactory);
             Repository = new StreamStoreRepository(StreamClient, repositoryOptions);
 
-            AsyncHelper.RunSync(() => Stream.StartAsync());
+        }
+
+        public async virtual Task InitializeAsync() {
+            await Stream.StartAsync();
+            await StreamClient.Connect();
+        }
+
+        public virtual Task DisposeAsync() {
+            StreamClient.Disconnect();
+            Stream.Dispose();
+            return Task.CompletedTask;
         }
     }
 }
