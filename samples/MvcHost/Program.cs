@@ -7,7 +7,7 @@ builder.Host.AddLvStreamStore()
     //.UseMemoryStorage()
     .UseLocalStorage(o => {
         o.BaseDataPath = "c:\\temp\\LvStreamStore";
-        o.UseCaching = true;
+        o.FileReadBlockSize = 1048576; // 1mb.
     })
     .UseJsonSerialization()
     .UseApplicationToolkit()

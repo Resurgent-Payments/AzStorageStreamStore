@@ -28,7 +28,6 @@ namespace MvcHost.Models {
             return Task.CompletedTask;
         }
 
-
         public record ListItem(Guid ItemId) {
             public string Name { get; set; }
         }
